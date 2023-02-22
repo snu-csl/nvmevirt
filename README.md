@@ -35,7 +35,7 @@ A part of the main memory should be reserved for the storage of the emulated NVM
 GRUB_CMDLINE_LINUX="memmap=64G\\\$128G"
 ```
 
-This example will reserve 64GiB of physical memory chunk (out of the total 192GiB physical memory) starting from 128GiB memory offset. You many need to adjust those values depending on the available physical memory size and the desired storage capacity.
+This example will reserve 64GiB of physical memory chunk (out of the total 192GiB physical memory) starting from the 128GiB memory offset. You may need to adjust those values depending on the available physical memory size and the desired storage capacity.
 
 After changing the `/etc/default/grub` file, you are required to run the following commands to update `grub` and reboot your system.
 

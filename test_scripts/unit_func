@@ -1,0 +1,106 @@
+#! /bin/bash
+
+source configs
+
+function unit_report_zone_all
+{
+	echo "REPORT ZONE ALL"
+	$ZNS_REPORT_ZONE -s 0
+
+}
+
+function unit_reset_zone_all
+{
+	echo "RESET ZONE ALL"
+
+	$ZNS_RESET_ZONE -a
+}
+
+function unit_reset_zone
+{
+	echo "RESET ZONE $PARAM1"
+	
+	slba=0
+	((slba = slba + (NR_LBAS_IN_ZONE * $PARAM1)))
+
+	$ZNS_RESET_ZONE -s $slba
+}
+
+function unit_close_zone
+{
+	echo "CLOSE ZONE $PARAM2"
+	
+	slba=0
+	((slba = slba + (NR_LBAS_IN_ZONE * $PARAM1)))
+
+	$ZNS_CLOSE_ZONE -s $slba
+}
+
+function unit_close_zone_all
+{	
+	echo "CLOSE ZONE ALL"
+	$ZNS_CLOSE_ZONE -a
+}
+
+function unit_open_zone
+{
+	echo "OPEN ZONE $PARAM1"
+	
+	slba=0
+	((slba = slba + (NR_LBAS_IN_ZONE * $PARAM1)))
+
+	$ZNS_OPEN_ZONE -s $slba
+
+}
+function unit_open_zone_all
+{
+	echo "OPEN ZONE ALL"
+	
+	$ZNS_OPEN_ZONE -a 
+}
+function unit_finish_zone
+{
+	echo "FINISH ZONE $PARAM1"
+	
+	slba=0
+	((slba = slba + (NR_LBAS_IN_ZONE * $PARAM1)))
+
+	$ZNS_FINISH_ZONE -s $slba
+
+}
+
+function unit_finish_zone_all
+{
+	echo "FINISH ZONE ALL"
+
+	$ZNS_FINISH_ZONE -a
+}
+
+function unit_write
+{	
+	echo "Write $PARAM1 $PARAM2"
+	
+	start=$PARAM1
+	block_size=$PARAM2
+
+	$NVME_WRITE -s $start -z 512 -c $block_size
+}
+
+function unit_make_all_state
+{
+	unit_reset_zone_all
+
+	echo "MAKE ALL STATE"
+
+	start=0
+	while [ $start -lt $TOTAL_LBAS ]
+	do
+		unit_write $start $BLOCK_SIZE
+		((start = start + NR_LBAS_IN_ZONE))
+	done
+	
+	unit_open_zone 1
+	unit_close_zone 2
+	unit_finish_zone 3
+	unit_reset_zone 4
+}

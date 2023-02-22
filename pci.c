@@ -306,8 +306,9 @@ static struct pci_bus *__create_pci_bus(void)
 		vdev->bar->cap.mpsmin = 0;
 		vdev->bar->cap.mqes = 1024 - 1; // 0-based value
 
+#if (BASE_SSD == ZNS_PROTOTYPE)
 		vdev->bar->cap.css = CAP_CSS_BIT_SPECIFIC;
-
+#endif
 
 		vdev->old_dbs = kzalloc(PAGE_SIZE, GFP_KERNEL);
 		BUG_ON(!vdev->old_dbs && "allocating old DBs memory");

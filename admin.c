@@ -488,7 +488,7 @@ static void __nvmev_proc_admin_req(int entry_id)
 				__nvmev_admin_identify_zns_ctrl(entry_id, cq_head);
 				break;
 			default:
-				printk("I don't know %d\n", cns);
+				NVMEV_ERROR("I don't know %d\n", cns);
 			}
 			break;
 		case nvme_admin_abort_cmd:

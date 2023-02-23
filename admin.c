@@ -165,7 +165,7 @@ static void __nvmev_admin_identify_ctrl(int eid, int cq_head)
 	struct nvmev_admin_queue *queue = vdev->admin_q;
 	struct nvme_id_ctrl *ctrl;
 
-	ctrl = page_address(pfn_to_page(sq_entry(eid).identify.prp1 >> PAGE_SHIFT));
+	ctrl = prp_address(sq_entry(eid).identify.prp1);
 	memset(ctrl, 0x00, sizeof(*ctrl));
 
 	ctrl->nn = NR_NAMESPACES;
@@ -229,7 +229,7 @@ static void __nvmev_admin_identify_namespace(int eid, int cq_head)
 	size_t nsid = cmd->nsid - 1;
 	NVMEV_DEBUG("[%s] \n", __FUNCTION__);
 
-	ns = page_address(pfn_to_page(cmd->prp1 >> PAGE_SHIFT));
+	ns = prp_address(cmd->prp1);
 	memset(ns, 0x0, PAGE_SIZE);
 
 	ns->lbaf[0].ms = 0;

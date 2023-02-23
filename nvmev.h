@@ -263,12 +263,17 @@ struct nvmev_ns {
 	uint64_t size;
 	void * mapped;
 
-	/*conv ftl or zns*/
+	/*conv ftl or zns or kv*/
 	uint32_t nr_parts; // partitions
 	void * ftls; 	   // ftl instances. one ftl per partition
 
 	/*io command handler*/
 	bool (*proc_io_cmd)(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
+	
+	/*specific CSS io command identifier*/
+	bool (*identify_io_cmd)(struct nvmev_ns *ns, struct nvme_command cmd);
+	/*specific CSS io command processor*/
+	unsigned int (*perform_io_cmd)(struct nvmev_ns *ns, struct nvme_command *cmd, uint32_t *status);
 };
 
 // VDEV Init, Final Function

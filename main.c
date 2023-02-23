@@ -30,6 +30,7 @@
 #include "conv_ftl.h"
 #include "zns_ftl.h"
 #include "simple_ftl.h"
+#include "kv_ftl.h"
 #include "dma.h"
 
 /****************************************************************
@@ -61,11 +62,6 @@
  ****************************************************************
  * 1. Memmap start (size in GiB)
  * 2. Memmap size (size in MiB)
- * 3. Read latency (export to sysfs, nano seconds)
- * 4. Write latency (export to sysfs, nano seconds)
- * 5. Read BW
- * 6. Write BW
- * 7. CPU Mask
  ****************************************************************/
 
 struct nvmev_dev *vdev = NULL;
@@ -445,6 +441,10 @@ static bool __load_configs(struct nvmev_config *config)
 		return false;
 	}
 
+#if (BASE_SSD == KV_PROTOTYPE)
+	memmap_size -= KV_MAPPING_TABLE_SIZE; // Reserve space for KV mapping table
+#endif
+
 	config->memmap_start = memmap_start << 30;
 	config->memmap_size = memmap_size << 20;
 	config->storage_start = config->memmap_start + (1UL << 20);
@@ -499,6 +499,8 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *vdev)
 			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
 			zns_init_namespace(&ns[i], i, size, ns_addr, disp_no);
+		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
+			kv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else
 			NVMEV_ASSERT(0);
 
@@ -512,7 +514,7 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *vdev)
 
 void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *vdev)
 {
-	//TODO : should free memory allocated in ssd_init, zns_init
+	//TODO : should free memory allocated in ssd_init, zns_init, kv_init
 }
 
 static int NVMeV_init(void)

@@ -410,6 +410,9 @@ static size_t __nvmev_proc_io(int sqid, int sq_entry)
 	unsigned long long nsecs_start = __get_wallclock();
 	struct nvme_command *cmd = &sq_entry(sq_entry);
 	uint32_t nsid = cmd->common.nsid - 1;
+#if (BASE_SSD == KV_PROTOTYPE)
+	nsid = 0; // Some KVSSD programs give 0 as nsid for KV IO
+#endif
 	struct nvmev_ns *ns = &vdev->ns[nsid];
 
 	struct nvmev_request req = {
@@ -551,6 +554,7 @@ static void __fill_cq_result(struct nvmev_proc_table * proc_entry)
 static int nvmev_kthread_io(void *data)
 {
 	struct nvmev_proc_info *pi = (struct nvmev_proc_info *)data;
+	struct nvmev_ns *ns;
 
 #ifdef PERF_DEBUG
 	static unsigned long long intr_clock[NR_MAX_IO_QUEUE + 1];
@@ -589,8 +593,17 @@ static int nvmev_kthread_io(void *data)
 					;
 				else if (io_using_dma)
 					__do_perform_io_using_dma(pe->sqid, pe->sq_entry);
+				else {
+#if (BASE_SSD == KV_PROTOTYPE)
+				ns = &vdev->ns[0];
+				struct nvmev_submission_queue *sq = vdev->sqes[pe->sqid];
+				if (ns->identify_io_cmd(ns, sq_entry(pe->sq_entry)))
+					pe->result0 = ns->perform_io_cmd(ns, &sq_entry(pe->sq_entry), &(pe->status));
 				else
 					__do_perform_io(pe->sqid, pe->sq_entry);
+#endif
+					__do_perform_io(pe->sqid, pe->sq_entry);
+				}
 
 #ifdef PERF_DEBUG
 				pe->nsecs_copy_done = local_clock() + delta;

@@ -6,7 +6,7 @@ NVMeVirt is a versatile software-defined virtual NVMe device. It is implemented 
 
 Further details on the design and implementation of NVMeVirt can be found in the following [paper](https://www.usenix.org/conference/fast23/presentation/kim-sang-hoon).
 
-Please feel free to contact us at `nvmevirt@csl.snu.ac.kr` if you have any questions or suggestions. Also you can raise an issue anytime for bug reports or discussions.
+Please feel free to contact us at [nvmevirt@gmail.com](mailto:nvmevirt@gmail.com) if you have any questions or suggestions. Also you can raise an issue anytime for bug reports or discussions.
 
 We encourage you to cite our paper at FAST 2023 as follows:
 ```
@@ -35,7 +35,7 @@ A part of the main memory should be reserved for the storage of the emulated NVM
 GRUB_CMDLINE_LINUX="memmap=64G\\\$128G"
 ```
 
-This example will reserve 64GiB of physical memory chunk (out of the total 192GiB physical memory) starting from 128GiB memory offset. You many need to adjust those values depending on the available physical memory size and the desired storage capacity.
+This example will reserve 64GiB of physical memory chunk (out of the total 192GiB physical memory) starting from the 128GiB memory offset. You may need to adjust those values depending on the available physical memory size and the desired storage capacity.
 
 After changing the `/etc/default/grub` file, you are required to run the following commands to update `grub` and reboot your system.
 

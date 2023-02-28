@@ -61,7 +61,7 @@ Currently, you need to select the target device type by manually editing the `Ma
 CONFIG_NVMEVIRT_NVM := y
 #CONFIG_NVMEVIRT_SSD := y
 #CONFIG_NVMEVIRT_ZNS := y
-#CONFIG_NVMEVIRT_KVSSD := y
+#CONFIG_NVMEVIRT_KV := y
 ```
 
 You may find the detailed configuration parameters for conventional SSD and ZNS SSD from `ssd_config.h`.

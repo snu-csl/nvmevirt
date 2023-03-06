@@ -59,6 +59,14 @@ enum {
     PG_VALID = 2
 };
 
+/* Cell type */
+enum {
+	CELL_TYPE_LSB,
+	CELL_TYPE_MSB,
+	CELL_TYPE_CSB,
+	MAX_CELL_TYPES
+};
+
 #define TOTAL_PPA_BITS (64)
 #define BLK_BITS    (16)
 #define PAGE_BITS	(16)
@@ -167,14 +175,15 @@ struct ssdparams {
     int pls_per_lun;  /* # of planes per LUN (Die) */
     int luns_per_ch;  /* # of LUNs per channel */
     int nchs;         /* # of channels in the SSD */
+    int cell_mode;
 
     /* Unit size of NVMe write command
        Transfer size should be multiple of it */
     int write_unit_size;
     bool write_early_completion;
 
-    int pg_4kb_rd_lat;/* NAND page 4KB read latency in nanoseconds. sensing time (half tR) */
-    int pg_rd_lat;    /* NAND page read latency in nanoseconds. sensing time (tR) */
+    int pg_4kb_rd_lat[MAX_CELL_TYPES];/* NAND page 4KB read latency in nanoseconds. sensing time (half tR) */
+    int pg_rd_lat[MAX_CELL_TYPES];    /* NAND page read latency in nanoseconds. sensing time (tR) */
     int pg_wr_lat;    /* NAND page program latency in nanoseconds. pgm time (tPROG)*/
     int blk_er_lat;   /* NAND block erase latency in nanoseconds. erase time (tERASE) */
     int max_ch_xfer_size;
@@ -252,6 +261,12 @@ static inline struct nand_page *get_pg(struct ssd *ssd, struct ppa *ppa)
 {
     struct nand_block *blk = get_blk(ssd, ppa);
     return &(blk->pg[ppa->g.pg]);
+}
+
+static inline uint32_t get_cell(struct ssd *ssd, struct ppa *ppa)
+{
+    struct ssdparams *spp = &ssd->sp;
+    return (ppa->g.pg / spp->pgs_per_flashpg) % (spp->cell_mode + 1);
 }
 
 void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp);

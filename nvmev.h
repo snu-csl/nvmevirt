@@ -242,6 +242,7 @@ struct nvmev_dev {
 	unsigned long long *io_unit_stat;
 
 	struct nvmev_ns * ns;
+	int mdts;
 };
 
 struct nvmev_request {

@@ -29,6 +29,13 @@ enum {
 	SSD_TYPE_KV,
 };
 
+/* Cell Mode */
+enum {
+	CELL_MODE_SLC,
+	CELL_MODE_MLC,
+	CELL_MODE_TLC,
+};
+
 /* Must select one of INTEL_OPTANE, SAMSUNG_970PRO, or ZNS_PROTOTYPE
  * in Makefile */
 
@@ -39,7 +46,7 @@ enum {
 #define NS_CAPACITY_0 (0)
 #define NS_SSD_TYPE_1 NS_SSD_TYPE_0
 #define NS_CAPACITY_1 (0)
-
+#define MDTS (5)
 #elif (BASE_SSD == KV_PROTOTYPE)
 #define NR_NAMESPACES	1
 
@@ -47,6 +54,7 @@ enum {
 #define NS_CAPACITY_0 (0)
 #define NS_SSD_TYPE_1 NS_SSD_TYPE_0
 #define NS_CAPACITY_1 (0)
+#define MDTS (5)
 
 enum {
 	ALLOCATOR_TYPE_BITMAP,
@@ -63,6 +71,8 @@ enum {
 #define NS_CAPACITY_0 (0)
 #define NS_SSD_TYPE_1 NS_SSD_TYPE_0
 #define NS_CAPACITY_1 (0)
+#define MDTS (6)
+#define CELL_MODE (CELL_MODE_MLC)
 
 #define SSD_PARTITIONS       (4)
 #define SSD_PARTITION_BITS   (2)
@@ -80,13 +90,17 @@ enum {
 #define NAND_CHANNEL_BANDWIDTH	(800ull) //MB/s
 #define PCIE_BANDWIDTH			   (3360ull)//MB/s
 
-#define NAND_4KB_READ_LATENCY (35760)  //ns
-#define NAND_READ_LATENCY     (36013)
-#define NAND_PROG_LATENCY     (185000 + 5000)
+#define NAND_4KB_READ_LATENCY_LSB (35760 - 6000)  //ns
+#define NAND_4KB_READ_LATENCY_MSB (35760 + 6000)  //ns
+#define NAND_4KB_READ_LATENCY_CSB (0)  //not used
+#define NAND_READ_LATENCY_LSB     (36013 - 6000)
+#define NAND_READ_LATENCY_MSB     (36013 + 6000)
+#define NAND_READ_LATENCY_CSB     (0) //not used
+#define NAND_PROG_LATENCY     (185000)
 #define NAND_ERASE_LATENCY    (0)
 
-#define FW_4KB_READ_LATENCY   (25510 - 17010)
-#define FW_READ_LATENCY       (30326 - 19586)
+#define FW_4KB_READ_LATENCY   (21500)
+#define FW_READ_LATENCY       (30490)
 #define FW_WBUF_LATENCY0      (4000)
 #define FW_WBUF_LATENCY1      (460)
 #define FW_CH_XFER_LATENCY    (0)
@@ -103,6 +117,8 @@ static_assert((ONESHOT_PAGE_SIZE % FLASH_PAGE_SIZE) == 0);
 #define NS_CAPACITY_0 (0)
 #define NS_SSD_TYPE_1 NS_SSD_TYPE_0
 #define NS_CAPACITY_1 (0)
+#define MDTS (6)
+#define CELL_MODE (CELL_MODE_TLC)
 
 #define SSD_PARTITIONS        (1)
 #define SSD_PARTITION_BITS    (0)
@@ -126,8 +142,12 @@ static_assert((ONESHOT_PAGE_SIZE % FLASH_PAGE_SIZE) == 0);
 #define NAND_CHANNEL_BANDWIDTH	(800ull) //MB/s
 #define PCIE_BANDWIDTH			   (3200ull) //MB/s
 
-#define NAND_4KB_READ_LATENCY (25485)
-#define NAND_READ_LATENCY (40950)
+#define NAND_4KB_READ_LATENCY_LSB (25485)
+#define NAND_4KB_READ_LATENCY_MSB (25485)
+#define NAND_4KB_READ_LATENCY_CSB (25485)
+#define NAND_READ_LATENCY_LSB (40950)
+#define NAND_READ_LATENCY_MSB (40950)
+#define NAND_READ_LATENCY_CSB (40950)
 #define NAND_PROG_LATENCY (1913640)
 #define NAND_ERASE_LATENCY (0)
 

@@ -510,6 +510,8 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *vdev)
 	}
 
 	vdev->ns = ns;
+	vdev->nr_ns = nr_ns;
+	vdev->mdts = MDTS;
 }
 
 void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *vdev)

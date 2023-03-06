@@ -84,6 +84,7 @@ void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
     spp->nchs = NAND_CHANNELS;
     spp->pls_per_lun = PLNS_PER_LUN;
     spp->luns_per_ch = LUNS_PER_NAND_CH;
+    spp->cell_mode = CELL_MODE;
 
     /* partitioning SSD by dividing channel*/
     NVMEV_ASSERT((spp->nchs % nparts) == 0);
@@ -113,8 +114,12 @@ void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
 
     spp->write_unit_size = WRITE_UNIT_SIZE;
 
-    spp->pg_4kb_rd_lat = NAND_4KB_READ_LATENCY;
-    spp->pg_rd_lat = NAND_READ_LATENCY;
+    spp->pg_4kb_rd_lat[CELL_TYPE_LSB] = NAND_4KB_READ_LATENCY_LSB;
+    spp->pg_4kb_rd_lat[CELL_TYPE_MSB] = NAND_4KB_READ_LATENCY_MSB;
+    spp->pg_4kb_rd_lat[CELL_TYPE_CSB] = NAND_4KB_READ_LATENCY_CSB;
+    spp->pg_rd_lat[CELL_TYPE_LSB] = NAND_READ_LATENCY_LSB;
+    spp->pg_rd_lat[CELL_TYPE_MSB] = NAND_READ_LATENCY_MSB;
+    spp->pg_rd_lat[CELL_TYPE_CSB] = NAND_READ_LATENCY_CSB;
     spp->pg_wr_lat = NAND_PROG_LATENCY;
     spp->blk_er_lat = NAND_ERASE_LATENCY;
     spp->max_ch_xfer_size = MAX_CH_XFER_SIZE;
@@ -299,6 +304,7 @@ uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd)
     struct nand_lun *lun;
     struct ssd_channel * ch;
     struct ppa *ppa = ncmd->ppa;
+    uint32_t cell;
     NVMEV_DEBUG("SSD: %p, Enter stime: %lld, ch %lu lun %lu blk %lu page %lu command %d ppa 0x%llx\n",
                             ssd, ncmd->stime, ppa->g.ch, ppa->g.lun, ppa->g.blk, ppa->g.pg, c, ppa->ppa);
 
@@ -310,6 +316,7 @@ uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd)
     spp = &ssd->sp;
     lun = get_lun(ssd, ppa);
     ch = get_ch(ssd, ppa);
+    cell = get_cell(ssd, ppa);
     remaining = ncmd->xfer_size;
 
     switch (c) {
@@ -319,9 +326,9 @@ uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd)
                     lun->next_lun_avail_time;
 
         if (ncmd->xfer_size == 4096) {
-            nand_etime = nand_stime + spp->pg_4kb_rd_lat;
+            nand_etime = nand_stime + spp->pg_4kb_rd_lat[cell];
 		} else {
-            nand_etime = nand_stime + spp->pg_rd_lat;
+            nand_etime = nand_stime + spp->pg_rd_lat[cell];
 		}
 
         /* read: then data transfer through channel */

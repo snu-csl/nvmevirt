@@ -827,7 +827,7 @@ bool conv_read(struct nvmev_ns *ns, struct nvmev_request * req, struct nvmev_res
 	}
 
 	for (i = 0; (i < nr_parts) && (start_lpn <= end_lpn); i++, start_lpn++) {
-	    conv_ftl = &conv_ftls[lpn % nr_parts];
+	    conv_ftl = &conv_ftls[start_lpn % nr_parts];
 	    xfer_size = 0;
 	    prev_ppa = get_maptbl_ent(conv_ftl, start_lpn/nr_parts);
 	    

@@ -168,14 +168,14 @@ static void __nvmev_admin_identify_ctrl(int eid, int cq_head)
 	ctrl = prp_address(sq_entry(eid).identify.prp1);
 	memset(ctrl, 0x00, sizeof(*ctrl));
 
-	ctrl->nn = NR_NAMESPACES;
+	ctrl->nn = vdev->nr_ns;
 	ctrl->oncs = 0; //optional command
 	ctrl->acl = 3; //minimum 4 required, 0's based value
 	ctrl->vwc = 0;
 	snprintf(ctrl->sn, sizeof(ctrl->sn), "CSL_Virt_SN_%02d", 1);
 	snprintf(ctrl->mn, sizeof(ctrl->mn), "CSL_Virt_MN_%02d", 1);
 	snprintf(ctrl->fr, sizeof(ctrl->fr), "CSL_%03d", 2);
-	ctrl->mdts = 5;
+	ctrl->mdts = vdev->mdts;
 	ctrl->sqes = 0x66;
 	ctrl->cqes = 0x44;
 
@@ -286,7 +286,7 @@ static void __nvmev_admin_identify_namespaces(int eid, int cq_head)
 	ns = prp_address(cmd->prp1);
 	memset(ns, 0x00, PAGE_SIZE * 2);
 
-	for (i = 1; i <= NR_NAMESPACES; i++) {
+	for (i = 1; i <= vdev->nr_ns; i++) {
 		if (i > cmd->nsid) {
 			NVMEV_DEBUG("[%s] ns %d %px\n", __FUNCTION__, i, ns);
 			*ns = i;

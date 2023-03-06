@@ -111,6 +111,12 @@ $ sudo dmesg
 [  144.822075] nvme nvme0: 48/0/0 default/read/poll queues
 ```
 
+If you encounter a kernel panic in `__pci_enable_msix()` during `insmod`, it is because the current implementation of `nvmevirt` is not compatible with the Intel VT-d technology. In this case, you can either turn off VT-d in BIOS or disable the interrupt remapping using the grub option as shown below:
+
+```bash
+GRUB_CMDLINE_LINUX="memmap=64G\\\$128G intremap=off"
+```
+
 Now the emulated `nvmevirt` device is ready to be used as shown below. The actual device number (`/dev/nvme0`) can vary depending on the number of real NVMe devices in your system.
 
 
@@ -119,10 +125,6 @@ $ ls -l /dev/nvme*
 crw------- 1 root root 242, 0 Feb 22 14:13 /dev/nvme0
 brw-rw---- 1 root disk 259, 5 Feb 22 14:13 /dev/nvme0n1
 ```
-
-### Troubleshooting
-
-- `insmod` is failed with warnings in `include/linux/msi.h` (`pci_msi_setup_msi_irqs` and `free_msi_irqs`): We've got reports that VT-d and interrupt remapping are influencing on the MSI-X setup in NVMeVirt. Try to add `intremap=off` in the kernel boot option. If the failure persists please contact us at [nvmevirt@gmail.com](mailto:nvmevirt@gmail.com) with dmesg.
 
 
 ## License

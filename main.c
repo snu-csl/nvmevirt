@@ -493,7 +493,7 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *vdev)
 		else
 			size = min(NS_CAPACITY(i), remaining_capacity);
 
-		if (NS_SSD_TYPE(i) == SSD_TYPE_OPTANE)
+		if (NS_SSD_TYPE(i) == SSD_TYPE_NVM)
 			simple_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
 			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
@@ -546,11 +546,11 @@ static int NVMeV_init(void)
 
 	NVMEV_INFO("Successfully created Virtual NVMe deivce\n");
 
-    return 0;
+	return 0;
 
 ret_err:
 	VDEV_FINALIZE(vdev);
-    return -EIO;
+	return -EIO;
 }
 
 static void NVMeV_exit(void)

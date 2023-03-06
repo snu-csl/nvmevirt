@@ -34,6 +34,21 @@ static void __init_apicid_to_cpuid(void)
 	}
 }
 
+static void __signal_irq(struct msi_desc *msi_desc)
+{
+	struct irq_data *irqd = irq_get_irq_data(msi_desc->irq);
+	struct irq_cfg *irqc = irqd_cfg(irqd);
+
+	unsigned int target = irqc->dest_apicid;
+	unsigned int target_cpu = apicid_to_cpuid[target];
+
+	NVMEV_DEBUG("vector %d, dest_apicid %d, target_cpu %d\n",
+			irqc->vector, target, target_cpu);
+	apic->send_IPI(target_cpu, irqc->vector);
+
+	return;
+}
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0)
 void nvmev_signal_irq(int msi_index)
 {
@@ -44,15 +59,7 @@ void nvmev_signal_irq(int msi_index)
 	//TODO: Does it have to be 0 ~ NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE?
 	xa_for_each_range(xa, idx, msi_desc, 0, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE) {
 		if (msi_desc->msi_index == msi_index) {
-			struct irq_data *irqd = irq_get_irq_data(msi_desc->irq);
-			struct irq_cfg *irqc = irqd_cfg(irqd);
-
-			unsigned int target = irqc->dest_apicid;
-			unsigned int target_cpu = apicid_to_cpuid[target];
-
-			NVMEV_DEBUG("vector %d, dest_apicid %d, target_cpu %d\n",
-					irqc->vector, target, target_cpu);
-			apic->send_IPI(target_cpu, irqc->vector);
+			__signal_irq(msi_desc);
 			return;
 		}
 	}
@@ -66,18 +73,11 @@ void nvmev_signal_irq(int msi_index)
 
 	for_each_msi_entry_safe(msi_desc, tmp, (&vdev->pdev->dev)) {
 		if (msi_desc->msi_attrib.entry_nr == msi_index) {
-			struct irq_data *irqd = irq_get_irq_data(msi_desc->irq);
-			struct irq_cfg *irqc = irqd_cfg(irqd);
-
-			unsigned int target = irqc->dest_apicid;
-			unsigned int target_cpu = apicid_to_cpuid[target];
-
-			NVMEV_DEBUG("vector %d, dest_apicid %d, target_cpu %d\n",
-					irqc->vector, target, target_cpu);
-			apic->send_IPI(target_cpu, irqc->vector);
+			__signal_irq(msi_desc);
 			return;
 		}
 	}
+	NVMEV_INFO("Failed to send IPI\n");
 	BUG_ON(!msi_desc);
 }
 #endif
@@ -271,18 +271,18 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 
 static struct pci_bus *__create_pci_bus(void)
 {
-    struct pci_bus* nvmev_pci_bus = NULL;
+	struct pci_bus* nvmev_pci_bus = NULL;
 	struct pci_dev *dev;
 
 	memset(&vdev->pci_ops, 0, sizeof(vdev->pci_ops));
-    vdev->pci_ops.read = nvmev_pci_read;
-    vdev->pci_ops.write = nvmev_pci_write;
+	vdev->pci_ops.read = nvmev_pci_read;
+	vdev->pci_ops.write = nvmev_pci_write;
 
 	memset(&vdev->pci_sd, 0, sizeof(vdev->pci_sd));
 	vdev->pci_sd.domain = NVMEV_PCI_DOMAIN_NUM;
 	vdev->pci_sd.node = cpu_to_node(vdev->config.cpu_nr_dispatcher); // PCI_NUMA_NODE
 
-    nvmev_pci_bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &vdev->pci_ops, &vdev->pci_sd);
+	nvmev_pci_bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &vdev->pci_ops, &vdev->pci_sd);
 
 	if (!nvmev_pci_bus){
 		NVMEV_ERROR("Unable to create PCI bus\n");

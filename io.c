@@ -409,9 +409,10 @@ static size_t __nvmev_proc_io(int sqid, int sq_entry)
 	struct nvmev_submission_queue *sq = vdev->sqes[sqid];
 	unsigned long long nsecs_start = __get_wallclock();
 	struct nvme_command *cmd = &sq_entry(sq_entry);
-	uint32_t nsid = cmd->common.nsid - 1;
 #if (BASE_SSD == KV_PROTOTYPE)
-	nsid = 0; // Some KVSSD programs give 0 as nsid for KV IO
+	uint32_t nsid = 0; // Some KVSSD programs give 0 as nsid for KV IO
+#else
+	uint32_t nsid = cmd->common.nsid - 1;
 #endif
 	struct nvmev_ns *ns = &vdev->ns[nsid];
 
@@ -589,18 +590,19 @@ static int nvmev_kthread_io(void *data)
 				unsigned long long memcpy_time;
 				pe->nsecs_copy_start = local_clock() + delta;
 #endif
-				if (pe->writeback_cmd)
+				if (pe->writeback_cmd) {
 					;
-				else if (io_using_dma)
+				} else if (io_using_dma) {
 					__do_perform_io_using_dma(pe->sqid, pe->sq_entry);
-				else {
+				} else {
 #if (BASE_SSD == KV_PROTOTYPE)
-				ns = &vdev->ns[0];
-				struct nvmev_submission_queue *sq = vdev->sqes[pe->sqid];
-				if (ns->identify_io_cmd(ns, sq_entry(pe->sq_entry)))
-					pe->result0 = ns->perform_io_cmd(ns, &sq_entry(pe->sq_entry), &(pe->status));
-				else
-					__do_perform_io(pe->sqid, pe->sq_entry);
+					struct nvmev_submission_queue *sq = vdev->sqes[pe->sqid];
+					ns = &vdev->ns[0];
+					if (ns->identify_io_cmd(ns, sq_entry(pe->sq_entry))) {
+						pe->result0 = ns->perform_io_cmd(ns, &sq_entry(pe->sq_entry), &(pe->status));
+					} else {
+						__do_perform_io(pe->sqid, pe->sq_entry);
+					}
 #endif
 					__do_perform_io(pe->sqid, pe->sq_entry);
 				}

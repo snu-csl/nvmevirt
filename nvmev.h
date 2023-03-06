@@ -246,20 +246,20 @@ struct nvmev_dev {
 };
 
 struct nvmev_request {
-    struct nvme_command * cmd;
-    uint32_t sq_id;
-    uint64_t nsecs_start;
+	struct nvme_command * cmd;
+	uint32_t sq_id;
+	uint64_t nsecs_start;
 };
 
 struct nvmev_result {
-    uint32_t status;
-    uint64_t nsecs_target;
-    uint32_t early_completion;
-    uint64_t wp; // only for zone append
+	uint32_t status;
+	uint64_t nsecs_target;
+	uint32_t early_completion;
+	uint64_t wp; // only for zone append
 };
 
 struct nvmev_ns {
-    uint32_t id;
+	uint32_t id;
 	uint32_t csi;
 	uint64_t size;
 	void * mapped;
@@ -270,7 +270,7 @@ struct nvmev_ns {
 
 	/*io command handler*/
 	bool (*proc_io_cmd)(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
-	
+
 	/*specific CSS io command identifier*/
 	bool (*identify_io_cmd)(struct nvmev_ns *ns, struct nvme_command cmd);
 	/*specific CSS io command processor*/

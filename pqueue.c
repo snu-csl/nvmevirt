@@ -191,20 +191,21 @@ void *pqueue_peek(pqueue_t *q)
     return d;
 }
 
-// void pqueue_dump(pqueue_t *q, FILE *out, pqueue_print_entry_f print)
-// {
-//     int i;
+#if 0
+void pqueue_dump(pqueue_t *q, FILE *out, pqueue_print_entry_f print)
+{
+    int i;
 
-//     fprintf(stdout,"posn\tleft\tright\tparent\tmaxchild\t...\n");
-//     for (i = 1; i < q->size ;i++) {
-//         fprintf(stdout,
-//                 "%d\t%d\t%d\t%d\t%ul\t",
-//                 i,
-//                 left(i), right(i), parent(i),
-//                 (unsigned int)maxchild(q, i));
-//         print(out, q->d[i]);
-//     }
-// }
+    fprintf(stdout,"posn\tleft\tright\tparent\tmaxchild\t...\n");
+    for (i = 1; i < q->size ;i++) {
+        fprintf(stdout,
+                "%d\t%d\t%d\t%d\t%ul\t",
+                i,
+                left(i), right(i), parent(i),
+                (unsigned int)maxchild(q, i));
+        print(out, q->d[i]);
+    }
+}
 
 static void set_pos(void *d, size_t val)
 {
@@ -216,23 +217,24 @@ static void set_pri(void *d, pqueue_pri_t pri)
     /* do nothing */
 }
 
-// void pqueue_print(pqueue_t *q, FILE *out, pqueue_print_entry_f print)
-// {
-//     pqueue_t *dup;
-// 	void *e;
+void pqueue_print(pqueue_t *q, FILE *out, pqueue_print_entry_f print)
+{
+    pqueue_t *dup;
+	void *e;
 
-//     dup = pqueue_init(q->size, q->cmppri, q->getpri, set_pri, q->getpos, set_pos);
-//     dup->size = q->size;
-//     dup->avail = q->avail;
-//     dup->step = q->step;
+    dup = pqueue_init(q->size, q->cmppri, q->getpri, set_pri, q->getpos, set_pos);
+    dup->size = q->size;
+    dup->avail = q->avail;
+    dup->step = q->step;
 
-//     memcpy(dup->d, q->d, (q->size * sizeof(void *)));
+    memcpy(dup->d, q->d, (q->size * sizeof(void *)));
 
-//     while ((e = pqueue_pop(dup)))
-// 		print(out, e);
+    while ((e = pqueue_pop(dup)))
+		print(out, e);
 
-//     pqueue_free(dup);
-// }
+    pqueue_free(dup);
+}
+#endif
 
 static int subtree_is_valid(pqueue_t *q, int pos)
 {

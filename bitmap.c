@@ -111,11 +111,11 @@ size_t bitmap_allocate(u64 length, void* args)
         if (small_capacity > (small_nbits - 10))
             NVMEV_INFO("small bitmap is nearly full!!");
     }
-    
+
     return calculated_offset;
 }
 
-void bitmap_kill(void) 
+void bitmap_kill(void)
 {
 
 }

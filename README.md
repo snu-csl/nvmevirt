@@ -120,6 +120,10 @@ crw------- 1 root root 242, 0 Feb 22 14:13 /dev/nvme0
 brw-rw---- 1 root disk 259, 5 Feb 22 14:13 /dev/nvme0n1
 ```
 
+### Troubleshooting
+
+- `insmod` is failed with warnings in `include/linux/msi.h` (`pci_msi_setup_msi_irqs` and `free_msi_irqs`): We've got reports that VT-d and interrupt remapping are influencing on the MSI-X setup in NVMeVirt. Try to add `intremap=off` in the kernel boot option. If the failure persists please contact us at [nvmevirt@gmail.com](mailto:nvmevirt@gmail.com) with dmesg.
+
 
 ## License
 

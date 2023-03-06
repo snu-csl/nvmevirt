@@ -23,7 +23,7 @@
 
 /* SSD Type */
 enum {
-	SSD_TYPE_OPTANE,
+	SSD_TYPE_NVM,
 	SSD_TYPE_CONV,
 	SSD_TYPE_ZNS,
 	SSD_TYPE_KV,
@@ -42,7 +42,7 @@ enum {
 #if (BASE_SSD == INTEL_OPTANE)
 #define NR_NAMESPACES	1
 
-#define NS_SSD_TYPE_0 SSD_TYPE_OPTANE
+#define NS_SSD_TYPE_0 SSD_TYPE_NVM
 #define NS_CAPACITY_0 (0)
 #define NS_SSD_TYPE_1 NS_SSD_TYPE_0
 #define NS_CAPACITY_1 (0)

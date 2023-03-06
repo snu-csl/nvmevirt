@@ -12,6 +12,7 @@
  *
  **********************************************************************/
 
+#include <linux/prandom.h>
 #include "dma.h"
 
 // #define SHOW_DMA_TRACE
@@ -586,6 +587,8 @@ int dmatest_submit(unsigned long src_off, unsigned long dst_off, unsigned int si
 	dma_addr_t src_addr, dst_addr;
 	int			ret;
 	int			i;
+	struct dma_async_tx_descriptor *tx = NULL;
+
 
 	set_freezable();
 
@@ -601,8 +604,6 @@ int dmatest_submit(unsigned long src_off, unsigned long dst_off, unsigned int si
 
 	/* Always use polled mode */
 	flags = DMA_CTRL_ACK;
-
-	struct dma_async_tx_descriptor *tx = NULL;
 
 	src_addr = src_off;
 	dst_addr = dst_off;

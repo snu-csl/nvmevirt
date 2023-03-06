@@ -39,25 +39,25 @@
                                        is_kv_iter_read_cmd(opcode) ||\
                                        is_kv_exist_cmd(opcode)) ||\
 									   is_kv_batch_cmd(opcode)
-									   
-#define is_kv_iter_cmd(opcode)        (is_kv_iter_req_cmd(opcode) ||\
-                                       is_kv_iter_read_cmd(opcode))		
 
-typedef enum {	
-  // generic command status	
+#define is_kv_iter_cmd(opcode)        (is_kv_iter_req_cmd(opcode) ||\
+                                       is_kv_iter_read_cmd(opcode))
+
+typedef enum {
+  // generic command status
   KV_SUCCESS=0	,                     // success
   KV_ERR_KEY_NOT_EXIST			=0x310,
   KV_ERR_DEV_CAPACITY			=0x312,
-	
+
 #if 0
-  // errors	
+  // errors
   KVS_ERR_BUFFER_SMALL=0x301	,     // provided buffer size too small
   KVS_ERR_COMMAND_INITIALIZED=0x002 , // initialized by caller before submission
   KVS_ERR_COMMAND_SUBMITTED=0x003  ,  // the beginning state after being accepted into a submission queue
   KVS_ERR_DEV_CAPACITY=0x004	,     // device does not have enough space
   KVS_ERR_DEV_INIT=0x005	,     // device initialization failed
   KVS_ERR_DEV_INITIALIZED=0x006	,     // device was already initialized
-  KVS_ERR_DEV_NOT_EXIST=0x007	,     // no device exists 
+  KVS_ERR_DEV_NOT_EXIST=0x007	,     // no device exists
   KVS_ERR_DEV_SANITIZE_FAILED=0x008 , // the previous sanitize operation failed
   KVS_ERR_DEV_SANIZE_IN_PROGRESS=0x009,// the sanitization operation is in progress
   KVS_ERR_ITERATOR_COND_INVALID=0x00A,// iterator condition is not valid
@@ -85,12 +85,12 @@ typedef enum {
   KVS_ERR_UNCORRECTIBLE=0x020	, // uncorrectable error occurs
   KVS_ERR_VALUE_LENGTH_INVALID=0x021	, // value length is out of range
   KVS_ERR_VALUE_LENGTH_MISALIGNED=0x022	, // value length is misaligned. Value length shall be multiples of 4 bytes.
-  KVS_ERR_VALUE_OFFSET_INVALID=0x023    , // value offset is invalid meaning that offset is out of bound. 
+  KVS_ERR_VALUE_OFFSET_INVALID=0x023    , // value offset is invalid meaning that offset is out of bound.
   KVS_ERR_VALUE_UPDATE_NOT_ALLOWED=0x024	, // key exists but value update is not allowed
   KVS_ERR_VENDOR=0x025	, // vendor-specific error is returned, check the system log for more details
   KVS_ERR_PERMISSION = 0x26,     // unable to open device due to permission
-  
-  // From user driver	
+
+  // From user driver
   KVS_ERR_CACHE_INVALID_PARAM=0x200	, // (kv cache) invalid parameters
   KVS_ERR_CACHE_NO_CACHED_KEY=0x201	, // (kv cache) cache miss
   KVS_ERR_DD_INVALID_QUEUE_TYPE=0x202	, // queue type is invalid
@@ -109,16 +109,16 @@ typedef enum {
   KVS_ERR_SDK_OPEN=0x20F	, // device open failed
   KVS_ERR_SLAB_ALLOC_FAILURE=0x210	, // slab allocation fail for sdk operations
   KVS_ERR_UNRECOVERED_ERROR=0x211	, // internal I/O error
-  
-  // from emulator and Kernel driver	
+
+  // from emulator and Kernel driver
   KVS_ERR_NS_ATTACHED=0x300	, // namespace is already attached
   KVS_ERR_NS_CAPACITY=0x301	, // namespace does not have enough space
   KVS_ERR_NS_DEFAULT=0x302	, // default namespace can not be modified, deleted, attached or detached
   KVS_ERR_NS_INVALID=0x303	, // namespace does not exist
   KVS_ERR_NS_MAX=0x304	, // maximum number of namespaces were created
   KVS_ERR_NS_NOT_ATTACHED=0x305	, // device cannot detach a namespace since it has not been fully deleted
-  
-  // Container	
+
+  // Container
   KVS_ERR_CONT_CAPACITY=0x400	, // conatainer does not have enough space
   KVS_ERR_CONT_CLOSE=0x401	, // container is closed
   KVS_ERR_CONT_EXIST=0x402	, // container is already created with the same name
@@ -128,7 +128,7 @@ typedef enum {
   KVS_ERR_CONT_NOT_EXIST=0x406	, // container does not existi
   KVS_ERR_CONT_OPEN=0x407	, // container is already opened
 #endif
-} kvs_result;	
+} kvs_result;
 
 static inline __le64 kv_io_cmd_key_prp(struct nvme_kv_command cmd, const int prp_num)
 {
@@ -160,7 +160,7 @@ static inline __le64 kv_io_cmd_value_prp(struct nvme_kv_command cmd, const int p
     else {
         return cmd.kv_store.dptr.prp2;
     }
-	
+
 	return 0;
 }
 
@@ -172,7 +172,7 @@ static inline unsigned int hash_function(char* key, const int length)
 
 	for(i=0; i< length; i++)
 		h = (h*16777619) ^ p[i];
-	
+
 	return h;
 }
 

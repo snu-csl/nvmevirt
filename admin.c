@@ -405,15 +405,15 @@ static void __nvmev_admin_set_features(int eid, int cq_head)
 		case NVME_FEAT_NUM_QUEUES: {
 			int num_queue;
 
-            // # of sq in 0-base
-            num_queue = (sq_entry(eid).features.dword11 & 0xFFFF) + 1;
+	        // # of sq in 0-base
+	        num_queue = (sq_entry(eid).features.dword11 & 0xFFFF) + 1;
 			vdev->nr_sq = min(num_queue, NR_MAX_IO_QUEUE);
 
-            // # of cq in 0-base
-            num_queue = ((sq_entry(eid).features.dword11 >> 16) & 0xFFFF) + 1;
+	        // # of cq in 0-base
+	        num_queue = ((sq_entry(eid).features.dword11 >> 16) & 0xFFFF) + 1;
 			vdev->nr_cq = min(num_queue, NR_MAX_IO_QUEUE);
 
-            cq_entry(cq_head).result0 = ((vdev->nr_cq - 1) << 16 | (vdev->nr_sq - 1));
+	        cq_entry(cq_head).result0 = ((vdev->nr_cq - 1) << 16 | (vdev->nr_sq - 1));
 			break;
 		}
 		case NVME_FEAT_IRQ_COALESCE:

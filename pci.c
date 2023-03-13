@@ -82,7 +82,7 @@ void nvmev_signal_irq(int msi_index)
 }
 #endif
 
-void nvmev_proc_bars()
+void nvmev_proc_bars(void)
 {
 	struct __nvme_bar *old_bar = vdev->old_bar;
 	struct nvme_ctrl_regs *bar = vdev->bar;

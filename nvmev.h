@@ -24,21 +24,17 @@
 
 #undef CONFIG_NVMEV_DEBUG_VERBOSE
 
-#define SUPPORT_MULTI_IO_WORKER_BY_SQ	1
+#define SUPPORT_MULTI_IO_WORKER_BY_SQ 1
 
 /*************************/
 #define NVMEV_DRV_NAME "NVMeVirt"
 
-#define NVMEV_INFO(string, args...) \
-	printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
-#define NVMEV_ERROR(string, args...) \
-	printk(KERN_ERR "%s: " string, NVMEV_DRV_NAME, ##args)
-#define NVMEV_ASSERT(x) \
-	BUG_ON((!(x)))
+#define NVMEV_INFO(string, args...) printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
+#define NVMEV_ERROR(string, args...) printk(KERN_ERR "%s: " string, NVMEV_DRV_NAME, ##args)
+#define NVMEV_ASSERT(x) BUG_ON((!(x)))
 
 #ifdef CONFIG_NVMEV_DEBUG_VERBOSE
-#define NVMEV_DEBUG(string, args...) \
-	printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
+#define NVMEV_DEBUG(string, args...) printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
 #else
 #define NVMEV_DEBUG(string, args...)
 #endif
@@ -47,18 +43,18 @@
 #define NR_MAX_PARALLEL_IO 16384
 
 #define PAGE_OFFSET_MASK (PAGE_SIZE - 1)
-#define PRP_PFN(x)	((unsigned long)((x) >> PAGE_SHIFT))
+#define PRP_PFN(x) ((unsigned long)((x) >> PAGE_SHIFT))
 
-#define KB(k) ((k) * 1024)
-#define MB(m) (KB((m) * 1024))
+#define KB(k) ((k)*1024)
+#define MB(m) (KB((m)*1024))
 
 #define BYTE_TO_KB(b) ((b) >> 10)
 #define BYTE_TO_MB(b) ((b) >> 20)
 #define BYTE_TO_GB(b) ((b) >> 30)
 
-#define MS_PER_SEC(s)	((s) * 1000)
-#define US_PER_SEC(s)	(MS_PER_SEC(s) * 1000)
-#define NS_PER_SEC(s)	(US_PER_SEC(s) * 1000)
+#define MS_PER_SEC(s) ((s)*1000)
+#define US_PER_SEC(s) (MS_PER_SEC(s) * 1000)
+#define NS_PER_SEC(s) (US_PER_SEC(s) * 1000)
 
 #define LBA_TO_BYTE(lba) ((lba) << 9)
 #define BYTE_TO_LBA(byte) ((byte) >> 9)
@@ -119,7 +115,7 @@ struct nvmev_admin_queue {
 	struct nvme_completion __iomem **nvme_cq;
 };
 
-#define NR_SQE_PER_PAGE	(PAGE_SIZE / sizeof(struct nvme_command))
+#define NR_SQE_PER_PAGE (PAGE_SIZE / sizeof(struct nvme_command))
 #define NR_CQE_PER_PAGE (PAGE_SIZE / sizeof(struct nvme_completion))
 
 #define SQ_ENTRY_TO_PAGE_NUM(entry_id) (entry_id / NR_SQE_PER_PAGE)
@@ -128,23 +124,22 @@ struct nvmev_admin_queue {
 #define SQ_ENTRY_TO_PAGE_OFFSET(entry_id) (entry_id % NR_SQE_PER_PAGE)
 #define CQ_ENTRY_TO_PAGE_OFFSET(entry_id) (entry_id % NR_CQE_PER_PAGE)
 
-
 struct nvmev_config {
 	unsigned long memmap_start; // byte
-	unsigned long memmap_size;	// byte
+	unsigned long memmap_size; // byte
 
 	unsigned long storage_start; //byte
-	unsigned long storage_size;	// byte
+	unsigned long storage_size; // byte
 
-	unsigned int read_delay;	// ns
-	unsigned int read_time;		// ns
-	unsigned int read_trailing;	// ns
-	unsigned int write_delay;	// ns
-	unsigned int write_time;	// ns
-	unsigned int write_trailing;// ns
+	unsigned int read_delay; // ns
+	unsigned int read_time; // ns
+	unsigned int read_trailing; // ns
+	unsigned int write_delay; // ns
+	unsigned int write_time; // ns
+	unsigned int write_trailing; // ns
 
 	unsigned int nr_io_units;
-	unsigned int io_unit_shift;	// 2^
+	unsigned int io_unit_shift; // 2^
 
 	unsigned int cpu_nr_dispatcher;
 	unsigned int nr_io_cpu;
@@ -174,7 +169,7 @@ struct nvmev_proc_table {
 	unsigned int result1;
 
 	bool writeback_cmd;
-	void * write_buffer;
+	void *write_buffer;
 	unsigned int buffs_to_release;
 
 	unsigned int next, prev;
@@ -183,10 +178,10 @@ struct nvmev_proc_table {
 struct nvmev_proc_info {
 	struct nvmev_proc_table *proc_table;
 
-	unsigned int free_seq;		/* free io req head index */
-	unsigned int free_seq_end;	/* free io req tail index */
-	unsigned int io_seq;		/* io req head index */
-	unsigned int io_seq_end;	/* io req tail index */
+	unsigned int free_seq; /* free io req head index */
+	unsigned int free_seq_end; /* free io req tail index */
+	unsigned int io_seq; /* io req head index */
+	unsigned int io_seq_end; /* io req tail index */
 	unsigned int id;
 
 	unsigned long long proc_io_nsecs;
@@ -241,12 +236,12 @@ struct nvmev_dev {
 
 	unsigned long long *io_unit_stat;
 
-	struct nvmev_ns * ns;
+	struct nvmev_ns *ns;
 	int mdts;
 };
 
 struct nvmev_request {
-	struct nvme_command * cmd;
+	struct nvme_command *cmd;
 	uint32_t sq_id;
 	uint64_t nsecs_start;
 };
@@ -262,19 +257,21 @@ struct nvmev_ns {
 	uint32_t id;
 	uint32_t csi;
 	uint64_t size;
-	void * mapped;
+	void *mapped;
 
 	/*conv ftl or zns or kv*/
 	uint32_t nr_parts; // partitions
-	void * ftls; 	   // ftl instances. one ftl per partition
+	void *ftls; // ftl instances. one ftl per partition
 
 	/*io command handler*/
-	bool (*proc_io_cmd)(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
+	bool (*proc_io_cmd)(struct nvmev_ns *ns, struct nvmev_request *req,
+			    struct nvmev_result *ret);
 
 	/*specific CSS io command identifier*/
 	bool (*identify_io_cmd)(struct nvmev_ns *ns, struct nvme_command cmd);
 	/*specific CSS io command processor*/
-	unsigned int (*perform_io_cmd)(struct nvmev_ns *ns, struct nvme_command *cmd, uint32_t *status);
+	unsigned int (*perform_io_cmd)(struct nvmev_ns *ns, struct nvme_command *cmd,
+				       uint32_t *status);
 };
 
 // VDEV Init, Final Function

@@ -27,7 +27,7 @@ static inline unsigned long long __get_wallclock(void)
 	return cpu_clock(vdev->config.cpu_nr_dispatcher);
 }
 
-void chmodel_init(struct channel_model * ch, uint64_t bandwidth/*MB/s*/)
+void chmodel_init(struct channel_model *ch, uint64_t bandwidth /*MB/s*/)
 {
 	ch->head = 0;
 	ch->valid_len = 0;
@@ -38,10 +38,11 @@ void chmodel_init(struct channel_model * ch, uint64_t bandwidth/*MB/s*/)
 
 	MEMSET(&(ch->avail_credits[0]), ch->max_credits, NR_CREDIT_ENTRIES);
 
-	NVMEV_INFO("[%s] bandwidth %llu max_credits %u tx_time %u\n",__FUNCTION__, bandwidth, ch->max_credits, ch->xfer_lat);
+	NVMEV_INFO("[%s] bandwidth %llu max_credits %u tx_time %u\n", __FUNCTION__, bandwidth,
+		   ch->max_credits, ch->xfer_lat);
 }
 
-uint64_t chmodel_request(struct channel_model * ch, uint64_t request_time, uint64_t length)
+uint64_t chmodel_request(struct channel_model *ch, uint64_t request_time, uint64_t length)
 {
 	uint64_t cur_time = __get_wallclock();
 	uint32_t pos, next_pos;
@@ -53,41 +54,43 @@ uint64_t chmodel_request(struct channel_model * ch, uint64_t request_time, uint6
 	uint32_t cur_time_offs, request_time_offs;
 
 	// Search current time index and move head to it
-	cur_time_offs  = (cur_time/UNIT_TIME_INTERVAL) - (ch->cur_time/UNIT_TIME_INTERVAL);
-	cur_time_offs  = (cur_time_offs < ch->valid_len) ? cur_time_offs : ch->valid_len;
+	cur_time_offs = (cur_time / UNIT_TIME_INTERVAL) - (ch->cur_time / UNIT_TIME_INTERVAL);
+	cur_time_offs = (cur_time_offs < ch->valid_len) ? cur_time_offs : ch->valid_len;
 
 	if (ch->head + cur_time_offs >= NR_CREDIT_ENTRIES) {
-		MEMSET(&(ch->avail_credits[ch->head]), ch->max_credits, NR_CREDIT_ENTRIES - ch->head);
-		MEMSET(&(ch->avail_credits[0]), ch->max_credits, cur_time_offs - (NR_CREDIT_ENTRIES - ch->head));
-	}
-	else {
+		MEMSET(&(ch->avail_credits[ch->head]), ch->max_credits,
+		       NR_CREDIT_ENTRIES - ch->head);
+		MEMSET(&(ch->avail_credits[0]), ch->max_credits,
+		       cur_time_offs - (NR_CREDIT_ENTRIES - ch->head));
+	} else {
 		MEMSET(&(ch->avail_credits[ch->head]), ch->max_credits, cur_time_offs);
 	}
 
-	ch->head = (ch->head + cur_time_offs) %  NR_CREDIT_ENTRIES;
+	ch->head = (ch->head + cur_time_offs) % NR_CREDIT_ENTRIES;
 	ch->cur_time = cur_time;
 	ch->valid_len = ch->valid_len - cur_time_offs;
 
 	if (ch->valid_len > NR_CREDIT_ENTRIES) {
-		NVMEV_ERROR("[%s] Invalid valid_len 0x%x\n",__FUNCTION__, ch->valid_len);
+		NVMEV_ERROR("[%s] Invalid valid_len 0x%x\n", __FUNCTION__, ch->valid_len);
 		NVMEV_ASSERT(0);
 	}
 
 	if (request_time < cur_time) {
 		NVMEV_DEBUG("[%s] Reqeust time is before the current time 0x%llx 0x%llx\n",
-									__FUNCTION__, request_time, cur_time);
+			    __FUNCTION__, request_time, cur_time);
 		return request_time; // return minimum delay
 	}
 
 	//Search request time index
-	request_time_offs = (request_time/UNIT_TIME_INTERVAL) - (cur_time/UNIT_TIME_INTERVAL);
+	request_time_offs = (request_time / UNIT_TIME_INTERVAL) - (cur_time / UNIT_TIME_INTERVAL);
 
 	if (request_time_offs >= NR_CREDIT_ENTRIES) {
-		NVMEV_ERROR("[%s] Need to increase array size 0x%llx 0x%llx 0x%x\n", __FUNCTION__, request_time, cur_time, request_time_offs);
+		NVMEV_ERROR("[%s] Need to increase array size 0x%llx 0x%llx 0x%x\n", __FUNCTION__,
+			    request_time, cur_time, request_time_offs);
 		return request_time; // return minimum delay
 	}
 
-	pos = (ch->head + request_time_offs) %  NR_CREDIT_ENTRIES;
+	pos = (ch->head + request_time_offs) % NR_CREDIT_ENTRIES;
 	remaining_credits = units_to_xfer * UNIT_XFER_CREDITS;
 	remaining_credits += ch->command_credits;
 
@@ -96,7 +99,8 @@ uint64_t chmodel_request(struct channel_model * ch, uint64_t request_time, uint6
 
 	while (1) {
 		consumed_credits = (remaining_credits <= ch->avail_credits[pos]) ?
-												remaining_credits : ch->avail_credits[pos];
+					   remaining_credits :
+					   ch->avail_credits[pos];
 		ch->avail_credits[pos] -= consumed_credits;
 		remaining_credits -= consumed_credits;
 
@@ -106,18 +110,17 @@ uint64_t chmodel_request(struct channel_model * ch, uint64_t request_time, uint6
 			if (next_pos != ch->head) {
 				delay++;
 				pos = next_pos;
-			}
-			else {
-				NVMEV_ERROR("[%s] No free entry 0x%llx 0x%llx 0x%x\n", __FUNCTION__, request_time, cur_time, request_time_offs);
+			} else {
+				NVMEV_ERROR("[%s] No free entry 0x%llx 0x%llx 0x%x\n", __FUNCTION__,
+					    request_time, cur_time, request_time_offs);
 				break;
 			}
-		}
-		else
+		} else
 			break;
 	}
 
-	valid_length = (pos >= ch->head) ?
-								   (pos - ch->head + 1) : (NR_CREDIT_ENTRIES - (ch->head - pos - 1));
+	valid_length = (pos >= ch->head) ? (pos - ch->head + 1) :
+					   (NR_CREDIT_ENTRIES - (ch->head - pos - 1));
 
 	if (valid_length > ch->valid_len)
 		ch->valid_len = valid_length;

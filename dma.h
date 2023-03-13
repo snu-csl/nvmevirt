@@ -55,13 +55,13 @@ static bool polled = true;
  * @polled:		use polling for completion instead of interrupts
  */
 struct dmatest_params {
-	unsigned int	buf_size;
-	char		channel[20];
-	char		device[32];
-	unsigned int	max_channels;
-	int		timeout;
-	unsigned int	transfer_size;
-	bool		polled;
+	unsigned int buf_size;
+	char channel[20];
+	char device[32];
+	unsigned int max_channels;
+	int timeout;
+	unsigned int transfer_size;
+	bool polled;
 };
 
 /**
@@ -75,52 +75,52 @@ struct dmatest_params {
  */
 static struct dmatest_info {
 	/* Test parameters */
-	struct dmatest_params	params;
+	struct dmatest_params params;
 
 	/* Internal state */
-	struct list_head	channels;
-	unsigned int		nr_channels;
-	int			last_error;
-	struct mutex		lock;
-	bool			did_init;
+	struct list_head channels;
+	unsigned int nr_channels;
+	int last_error;
+	struct mutex lock;
+	bool did_init;
 } test_info = {
 	.channels = LIST_HEAD_INIT(test_info.channels),
 	.lock = __MUTEX_INITIALIZER(test_info.lock),
 };
 
 struct dmatest_done {
-	bool			done;
-	wait_queue_head_t	*wait;
+	bool done;
+	wait_queue_head_t *wait;
 };
 
 struct dmatest_data {
-	u8		**raw;
-	u8		**aligned;
-	unsigned int	cnt;
-	unsigned long	off;
+	u8 **raw;
+	u8 **aligned;
+	unsigned int cnt;
+	unsigned long off;
 	bool is_phys;
 };
 
 struct dmatest_thread {
-	struct list_head	node;
-	struct dmatest_info	*info;
-	struct task_struct	*task;
-	struct dma_chan		*chan;
-	struct dmatest_data	src;
-	struct dmatest_data	dst;
+	struct list_head node;
+	struct dmatest_info *info;
+	struct task_struct *task;
+	struct dma_chan *chan;
+	struct dmatest_data src;
+	struct dmatest_data dst;
 	enum dma_transaction_type type;
 };
 
 struct dmatest_chan {
-	struct list_head	node;
-	struct dma_chan		*chan;
-	struct list_head	threads;
+	struct list_head node;
+	struct dma_chan *chan;
+	struct list_head threads;
 };
 
 static char test_channel[20];
 
 /* Maximum amount of mismatched bytes in buffer to print */
-#define MAX_ERROR_COUNT		32
+#define MAX_ERROR_COUNT 32
 
 /*
  * Initialization patterns. All bytes in the source buffer has bit 7
@@ -133,21 +133,19 @@ static char test_channel[20];
  * The remaining bits are the inverse of a counter which increments by
  * one for each byte address.
  */
-#define PATTERN_SRC		0x80
-#define PATTERN_DST		0x00
-#define PATTERN_COPY		0x40
-#define PATTERN_OVERWRITE	0x20
-#define PATTERN_COUNT_MASK	0x1f
-#define PATTERN_MEMSET_IDX	0x01
+#define PATTERN_SRC 0x80
+#define PATTERN_DST 0x00
+#define PATTERN_COPY 0x40
+#define PATTERN_OVERWRITE 0x20
+#define PATTERN_COUNT_MASK 0x1f
+#define PATTERN_MEMSET_IDX 0x01
 
 /* Fixed point arithmetic ops */
-#define FIXPT_SHIFT		8
-#define FIXPNT_MASK		0xFF
-#define FIXPT_TO_INT(a)	((a) >> FIXPT_SHIFT)
-#define INT_TO_FIXPT(a)	((a) << FIXPT_SHIFT)
-#define FIXPT_GET_FRAC(a)	((((a) & FIXPNT_MASK) * 100) >> FIXPT_SHIFT)
-
-
+#define FIXPT_SHIFT 8
+#define FIXPNT_MASK 0xFF
+#define FIXPT_TO_INT(a) ((a) >> FIXPT_SHIFT)
+#define INT_TO_FIXPT(a) ((a) << FIXPT_SHIFT)
+#define FIXPT_GET_FRAC(a) ((((a)&FIXPNT_MASK) * 100) >> FIXPT_SHIFT)
 
 // DMA Init, Final Function
 int dmatest_chan_set(const char *val);

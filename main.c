@@ -128,7 +128,8 @@ static void nvmev_proc_dbs(void)
 
 	// Submission queues
 	for (qid = 1; qid <= vdev->nr_sq; qid++) {
-		if (vdev->sqes[qid] == NULL) continue;
+		if (vdev->sqes[qid] == NULL)
+			continue;
 		dbs_idx = qid * 2;
 		new_db = vdev->dbs[dbs_idx];
 		old_db = vdev->old_dbs[dbs_idx];
@@ -139,7 +140,8 @@ static void nvmev_proc_dbs(void)
 
 	// Completion queues
 	for (qid = 1; qid <= vdev->nr_cq; qid++) {
-		if (vdev->cqes[qid] == NULL) continue;
+		if (vdev->cqes[qid] == NULL)
+			continue;
 		dbs_idx = qid * 2 + 1;
 		new_db = vdev->dbs[dbs_idx];
 		old_db = vdev->old_dbs[dbs_idx];
@@ -152,8 +154,8 @@ static void nvmev_proc_dbs(void)
 
 static int nvmev_dispatcher(void *data)
 {
-	NVMEV_INFO("nvmev_dispatcher started on cpu %d (node %d)\n",
-			vdev->config.cpu_nr_dispatcher, cpu_to_node(vdev->config.cpu_nr_dispatcher));
+	NVMEV_INFO("nvmev_dispatcher started on cpu %d (node %d)\n", vdev->config.cpu_nr_dispatcher,
+		   cpu_to_node(vdev->config.cpu_nr_dispatcher));
 
 	while (!kthread_should_stop()) {
 		nvmev_proc_bars();
@@ -181,7 +183,6 @@ static void NVMEV_REG_PROC_FINAL(struct nvmev_dev *vdev)
 	}
 }
 
-
 static int __validate_configs(void)
 {
 	unsigned long resv_start_bytes;
@@ -195,8 +196,7 @@ static int __validate_configs(void)
 	if (!memmap_size) {
 		NVMEV_ERROR("[memmap_size] should be specified\n");
 		return -EINVAL;
-	}
-	else if (memmap_size == 1) {
+	} else if (memmap_size == 1) {
 		NVMEV_ERROR("[memmap_size] should be bigger than 1MiB\n");
 		return -EINVAL;
 	}
@@ -205,17 +205,15 @@ static int __validate_configs(void)
 	resv_end_bytes = resv_start_bytes + (memmap_size << 20) - 1;
 
 	if (e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RAM) ||
-		e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RESERVED_KERN)) {
+	    e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RESERVED_KERN)) {
 		NVMEV_ERROR("[mem %#010lx-%#010lx] is usable, not reseved region\n",
-		       (unsigned long) resv_start_bytes,
-		       (unsigned long) resv_end_bytes);
+			    (unsigned long)resv_start_bytes, (unsigned long)resv_end_bytes);
 		return -EPERM;
 	}
 
 	if (!e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RESERVED)) {
 		NVMEV_ERROR("[mem %#010lx-%#010lx] is not reseved region\n",
-		       (unsigned long) resv_start_bytes,
-		       (unsigned long) resv_end_bytes);
+			    (unsigned long)resv_start_bytes, (unsigned long)resv_end_bytes);
 		return -EPERM;
 	}
 
@@ -273,14 +271,13 @@ static int __proc_file_read(struct seq_file *m, void *data)
 	struct nvmev_config *cfg = &vdev->config;
 
 	if (strcmp(filename, "read_times") == 0) {
-		seq_printf(m, "%u + %u x + %u",
-				cfg->read_delay, cfg->read_time, cfg->read_trailing);
+		seq_printf(m, "%u + %u x + %u", cfg->read_delay, cfg->read_time,
+			   cfg->read_trailing);
 	} else if (strcmp(filename, "write_times") == 0) {
-		seq_printf(m, "%u + %u x + %u",
-				cfg->write_delay, cfg->write_time, cfg->write_trailing);
+		seq_printf(m, "%u + %u x + %u", cfg->write_delay, cfg->write_time,
+			   cfg->write_trailing);
 	} else if (strcmp(filename, "io_units") == 0) {
-		seq_printf(m, "%u x %u",
-				cfg->nr_io_units, cfg->io_unit_shift);
+		seq_printf(m, "%u x %u", cfg->nr_io_units, cfg->io_unit_shift);
 	} else if (strcmp(filename, "stat") == 0) {
 		int i;
 		unsigned int nr_in_flight = 0;
@@ -289,25 +286,24 @@ static int __proc_file_read(struct seq_file *m, void *data)
 		unsigned long long total_io = 0;
 		for (i = 1; i <= vdev->nr_sq; i++) {
 			struct nvmev_submission_queue *sq = vdev->sqes[i];
-			if (!sq) continue;
+			if (!sq)
+				continue;
 
 			seq_printf(m, "%2d: %2u %4u %4u %4u %4u %llu\n", i,
-					__get_nr_entries(i * 2, sq->queue_size),
-					sq->stat.nr_in_flight,
-					sq->stat.max_nr_in_flight,
-					sq->stat.nr_dispatch,
-					sq->stat.nr_dispatched,
-					sq->stat.total_io);
+				   __get_nr_entries(i * 2, sq->queue_size), sq->stat.nr_in_flight,
+				   sq->stat.max_nr_in_flight, sq->stat.nr_dispatch,
+				   sq->stat.nr_dispatched, sq->stat.total_io);
 
 			nr_in_flight += sq->stat.nr_in_flight;
 			nr_dispatch += sq->stat.nr_dispatch;
-			nr_dispatched  += sq->stat.nr_dispatched;
+			nr_dispatched += sq->stat.nr_dispatched;
 			total_io += sq->stat.total_io;
 
 			barrier();
 			sq->stat.max_nr_in_flight = 0;
 		}
-		seq_printf(m, "total: %u %u %u %llu\n", nr_in_flight, nr_dispatch, nr_dispatched, total_io);
+		seq_printf(m, "total: %u %u %u %llu\n", nr_in_flight, nr_dispatch, nr_dispatched,
+			   total_io);
 	} else if (strcmp(filename, "debug") == 0) {
 		/* Left for later use */
 	}
@@ -315,7 +311,8 @@ static int __proc_file_read(struct seq_file *m, void *data)
 	return 0;
 }
 
-static ssize_t __proc_file_write(struct file *file, const char __user *buf, size_t len, loff_t *offp)
+static ssize_t __proc_file_write(struct file *file, const char __user *buf, size_t len,
+				 loff_t *offp)
 {
 	ssize_t count = len;
 	const char *filename = file->f_path.dentry->d_name.name;
@@ -328,20 +325,23 @@ static ssize_t __proc_file_write(struct file *file, const char __user *buf, size
 	nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
 
 	if (!strcmp(filename, "read_times")) {
-		ret = sscanf(input, "%u %u %u", &cfg->read_delay, &cfg->read_time, &cfg->read_trailing);
+		ret = sscanf(input, "%u %u %u", &cfg->read_delay, &cfg->read_time,
+			     &cfg->read_trailing);
 		//adjust_ftl_latency(0, cfg->read_time);
 	} else if (!strcmp(filename, "write_times")) {
-		ret = sscanf(input, "%u %u %u", &cfg->write_delay, &cfg->write_time, &cfg->write_trailing);
+		ret = sscanf(input, "%u %u %u", &cfg->write_delay, &cfg->write_time,
+			     &cfg->write_trailing);
 		//adjust_ftl_latency(1, cfg->write_time);
 	} else if (!strcmp(filename, "io_units")) {
 		ret = sscanf(input, "%d %d", &cfg->nr_io_units, &cfg->io_unit_shift);
-		if (ret < 1) goto out;
+		if (ret < 1)
+			goto out;
 
 		old_stat = vdev->io_unit_stat;
-		vdev->io_unit_stat = kzalloc(
-				sizeof(*vdev->io_unit_stat) * cfg->nr_io_units, GFP_KERNEL);
+		vdev->io_unit_stat =
+			kzalloc(sizeof(*vdev->io_unit_stat) * cfg->nr_io_units, GFP_KERNEL);
 
-		mdelay(100);	/* XXX: Delay the free of old stat so that outstanding
+		mdelay(100); /* XXX: Delay the free of old stat so that outstanding
 						 * requests accessing the unit_stat are all returned
 						 */
 		kfree(old_stat);
@@ -349,7 +349,8 @@ static ssize_t __proc_file_write(struct file *file, const char __user *buf, size
 		int i;
 		for (i = 1; i <= vdev->nr_sq; i++) {
 			struct nvmev_submission_queue *sq = vdev->sqes[i];
-			if (!sq) continue;
+			if (!sq)
+				continue;
 
 			memset(&sq->stat, 0x00, sizeof(sq->stat));
 		}
@@ -365,15 +366,14 @@ out:
 
 static int __proc_file_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, __proc_file_read,
-			(char *)file->f_path.dentry->d_name.name);
+	return single_open(file, __proc_file_read, (char *)file->f_path.dentry->d_name.name);
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5,0,0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 0, 0)
 static const struct proc_ops proc_file_fops = {
 	.proc_open = __proc_file_open,
 	.proc_write = __proc_file_write,
-	.proc_read	= seq_read,
+	.proc_read = seq_read,
 	.proc_lseek = seq_lseek,
 	.proc_release = single_release,
 };
@@ -381,7 +381,7 @@ static const struct proc_ops proc_file_fops = {
 static const struct file_operations proc_file_fops = {
 	.open = __proc_file_open,
 	.write = __proc_file_write,
-	.read	= seq_read,
+	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
@@ -389,29 +389,23 @@ static const struct file_operations proc_file_fops = {
 
 void NVMEV_STORAGE_INIT(struct nvmev_dev *vdev)
 {
-	NVMEV_INFO("Storage : %lx + %lx\n",
-			vdev->config.storage_start, vdev->config.storage_size);
+	NVMEV_INFO("Storage : %lx + %lx\n", vdev->config.storage_start, vdev->config.storage_size);
 
-	vdev->io_unit_stat = kzalloc(
-			sizeof(*vdev->io_unit_stat) * vdev->config.nr_io_units, GFP_KERNEL);
+	vdev->io_unit_stat =
+		kzalloc(sizeof(*vdev->io_unit_stat) * vdev->config.nr_io_units, GFP_KERNEL);
 
-	vdev->storage_mapped = memremap(vdev->config.storage_start,
-			vdev->config.storage_size, MEMREMAP_WB);
+	vdev->storage_mapped =
+		memremap(vdev->config.storage_start, vdev->config.storage_size, MEMREMAP_WB);
 
 	if (vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
 
 	vdev->proc_root = proc_mkdir("nvmev", NULL);
-	vdev->proc_read_times = proc_create(
-			"read_times", 0664, vdev->proc_root, &proc_file_fops);
-	vdev->proc_write_times = proc_create(
-			"write_times", 0664, vdev->proc_root, &proc_file_fops);
-	vdev->proc_io_units = proc_create(
-			"io_units", 0664, vdev->proc_root, &proc_file_fops);
-	vdev->proc_stat = proc_create(
-			"stat", 0444, vdev->proc_root, &proc_file_fops);
-	vdev->proc_stat = proc_create(
-			"debug", 0444, vdev->proc_root, &proc_file_fops);
+	vdev->proc_read_times = proc_create("read_times", 0664, vdev->proc_root, &proc_file_fops);
+	vdev->proc_write_times = proc_create("write_times", 0664, vdev->proc_root, &proc_file_fops);
+	vdev->proc_io_units = proc_create("io_units", 0664, vdev->proc_root, &proc_file_fops);
+	vdev->proc_stat = proc_create("stat", 0444, vdev->proc_root, &proc_file_fops);
+	vdev->proc_stat = proc_create("debug", 0444, vdev->proc_root, &proc_file_fops);
 }
 
 void NVMEV_STORAGE_FINAL(struct nvmev_dev *vdev)
@@ -478,7 +472,7 @@ static bool __load_configs(struct nvmev_config *config)
 
 void NVMEV_NAMESPACE_INIT(struct nvmev_dev *vdev)
 {
-	unsigned long long remaining_capacity = vdev->config.storage_size;	// byte
+	unsigned long long remaining_capacity = vdev->config.storage_size; // byte
 	void *ns_addr = vdev->storage_mapped;
 	const int nr_ns = NR_NAMESPACES;
 	const unsigned int disp_no = vdev->config.cpu_nr_dispatcher;
@@ -487,7 +481,7 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *vdev)
 
 	struct nvmev_ns *ns = kmalloc(sizeof(struct nvmev_ns) * nr_ns, GFP_KERNEL);
 
-	for (i = 0; i < nr_ns; i++){
+	for (i = 0; i < nr_ns; i++) {
 		if (NS_CAPACITY(i) == 0)
 			size = remaining_capacity;
 		else
@@ -506,7 +500,8 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *vdev)
 
 		remaining_capacity -= size;
 		ns_addr += size;
-		NVMEV_INFO("[%s] ns=%d ns_addr=%p ns_size=%lld(MiB) \n", __FUNCTION__, i, ns[i].mapped, BYTE_TO_MB(ns[i].size));
+		NVMEV_INFO("[%s] ns=%d ns_addr=%p ns_size=%lld(MiB) \n", __FUNCTION__, i,
+			   ns[i].mapped, BYTE_TO_MB(ns[i].size));
 	}
 
 	vdev->ns = ns;
@@ -522,7 +517,8 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *vdev)
 static int NVMeV_init(void)
 {
 	vdev = VDEV_INIT();
-	if (!vdev) return -EINVAL;
+	if (!vdev)
+		return -EINVAL;
 
 	if (!__load_configs(&vdev->config)) {
 		goto ret_err;
@@ -533,7 +529,6 @@ static int NVMeV_init(void)
 	NVMEV_NAMESPACE_INIT(vdev);
 
 	dmatest_chan_set("dma7chan0");
-
 
 	if (!NVMEV_PCI_INIT(vdev)) {
 		goto ret_err;

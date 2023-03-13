@@ -72,7 +72,6 @@ static uint32_t __zmgmt_send_finish_zone(struct zns_ftl *zns_ftl, uint64_t zid)
 		break;
 	}
 
-
 	return status;
 }
 
@@ -118,14 +117,14 @@ static uint32_t __zmgmt_send_open_zone(struct zns_ftl *zns_ftl, uint64_t zid, ui
 	return status;
 }
 
-static void __reset_zone(struct zns_ftl * zns_ftl, uint64_t zid)
+static void __reset_zone(struct zns_ftl *zns_ftl, uint64_t zid)
 {
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	uint32_t zone_size = zns_ftl->zp.zone_size;
-	uint8_t * zone_start_addr = (uint8_t *)get_storage_addr_from_zid(zns_ftl, zid);
+	uint8_t *zone_start_addr = (uint8_t *)get_storage_addr_from_zid(zns_ftl, zid);
 
-	NVMEV_ZNS_DEBUG("%s ns %d zid %lu start addres 0x%llx zone_size %x \n",
-			__FUNCTION__, zns_ftl->ns, zid, (uint64_t)zone_start_addr, zone_size);
+	NVMEV_ZNS_DEBUG("%s ns %d zid %lu start addres 0x%llx zone_size %x \n", __FUNCTION__,
+			zns_ftl->ns, zid, (uint64_t)zone_start_addr, zone_size);
 
 	memset(zone_start_addr, 0, zone_size);
 
@@ -199,11 +198,13 @@ static uint32_t __zmgmt_send_flush_explicit_zrwa(struct zns_ftl *zns_ftl, uint64
 	const uint32_t lbas_per_zrwa = zns_ftl->zp.lbas_per_zrwa;
 
 	uint64_t zrwa_start = wp;
-	uint64_t zrwa_end = min(zrwa_start + lbas_per_zrwa - 1, (size_t)zone_to_slba(zns_ftl, zid) + zone_capacity - 1);
+	uint64_t zrwa_end = min(zrwa_start + lbas_per_zrwa - 1,
+				(size_t)zone_to_slba(zns_ftl, zid) + zone_capacity - 1);
 	uint64_t nr_lbas_flush = slba - wp + 1;
 
-	NVMEV_ZNS_DEBUG("%s slba 0x%llx zrwa_start 0x%llx zrwa_end 0x%llx zone_descs[zid].zrwav %d\n",
-			__FUNCTION__, slba, zrwa_start, zrwa_end, zone_descs[zid].zrwav);
+	NVMEV_ZNS_DEBUG(
+		"%s slba 0x%llx zrwa_start 0x%llx zrwa_end 0x%llx zone_descs[zid].zrwav %d\n",
+		__FUNCTION__, slba, zrwa_start, zrwa_end, zone_descs[zid].zrwav);
 
 	if (zone_descs[zid].zrwav == 0)
 		return NVME_SC_ZNS_INVALID_ZONE_OPERATION;
@@ -237,7 +238,8 @@ static uint32_t __zmgmt_send_flush_explicit_zrwa(struct zns_ftl *zns_ftl, uint64
 	return status;
 }
 
-static uint32_t __zmgmt_send(struct zns_ftl *zns_ftl, uint64_t slba, uint32_t action, uint32_t option)
+static uint32_t __zmgmt_send(struct zns_ftl *zns_ftl, uint64_t slba, uint32_t action,
+			     uint32_t option)
 {
 	uint32_t status;
 	uint64_t zid = lba_to_zone(zns_ftl, slba);
@@ -269,7 +271,7 @@ static uint32_t __zmgmt_send(struct zns_ftl *zns_ftl, uint64_t slba, uint32_t ac
 void zns_zmgmt_send(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
 {
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)ns->ftls;
-	struct nvme_zone_mgmt_send * cmd = (struct nvme_zone_mgmt_send *)req->cmd;
+	struct nvme_zone_mgmt_send *cmd = (struct nvme_zone_mgmt_send *)req->cmd;
 	uint32_t select_all = cmd->select_all;
 	uint32_t status = NVME_SC_SUCCESS;
 
@@ -286,7 +288,7 @@ void zns_zmgmt_send(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev
 	}
 
 	NVMEV_ZNS_DEBUG("%s slba %llx zid %lu select_all %lu action %u status %lu option %lu\n",
-			__FUNCTION__, cmd->slba, zid,  select_all, cmd->zsa, status, option);
+			__FUNCTION__, cmd->slba, zid, select_all, cmd->zsa, status, option);
 
 	ret->nsecs_target = req->nsecs_start; // no delay
 	ret->status = status;

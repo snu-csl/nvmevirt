@@ -29,7 +29,9 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 	const uint32_t zrwa_buffer_size = zns_ftl->zp.zrwa_buffer_size;
 
 	zns_ftl->zone_descs = kmalloc(sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
-	zns_ftl->report_buffer = kmalloc(sizeof(struct zone_report) + sizeof(struct zone_descriptor) * (nr_zones - 1), GFP_KERNEL);
+	zns_ftl->report_buffer = kmalloc(sizeof(struct zone_report) +
+						 sizeof(struct zone_descriptor) * (nr_zones - 1),
+					 GFP_KERNEL);
 	zns_ftl->zwra_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
 
 	zone_descs = zns_ftl->zone_descs;
@@ -46,7 +48,8 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 
 		buffer_init(&(zns_ftl->zwra_buffer[i]), zrwa_buffer_size);
 
-		NVMEV_ZNS_DEBUG("[i] zslba 0x%llx zone capacity 0x%llx\n", zone_descs[i].zslba, zone_descs[i].zone_capacity);
+		NVMEV_ZNS_DEBUG("[i] zslba 0x%llx zone capacity 0x%llx\n", zone_descs[i].zslba,
+				zone_descs[i].zone_capacity);
 	}
 }
 
@@ -62,7 +65,6 @@ static void __init_resource(struct zns_ftl *zns_ftl)
 
 	res_infos[ZRWA_ZONE].total_cnt = zns_ftl->zp.nr_zones;
 	res_infos[ZRWA_ZONE].acquired_cnt = 0;
-
 }
 
 static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64_t capacity)
@@ -83,10 +85,12 @@ static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64
 	/* It should be 4KB aligned, according to lpn size */
 	NVMEV_ASSERT((zpp->zone_size % spp->pgsz) == 0);
 
-	NVMEV_INFO("zone_size=%d(KB), # zones=%d # die/zone=%d \n", zpp->zone_size, zpp->nr_zones, zpp->dies_per_zone);
+	NVMEV_INFO("zone_size=%d(KB), # zones=%d # die/zone=%d \n", zpp->zone_size, zpp->nr_zones,
+		   zpp->dies_per_zone);
 }
 
-static void zns_init_ftl(struct zns_ftl *zns_ftl, struct znsparams *zpp, struct ssd *ssd, void * mapped_addr)
+static void zns_init_ftl(struct zns_ftl *zns_ftl, struct znsparams *zpp, struct ssd *ssd,
+			 void *mapped_addr)
 {
 	/*copy znsparams*/
 	zns_ftl->zp = *zpp;
@@ -98,7 +102,8 @@ static void zns_init_ftl(struct zns_ftl *zns_ftl, struct znsparams *zpp, struct 
 	__init_resource(zns_ftl);
 }
 
-void zns_init_namespace(struct nvmev_ns *ns, uint32_t id,  uint64_t size, void * mapped_addr, uint32_t cpu_nr_dispatcher)
+void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
+			uint32_t cpu_nr_dispatcher)
 {
 	struct ssd *ssd;
 	struct zns_ftl *zns_ftl;
@@ -120,7 +125,7 @@ void zns_init_namespace(struct nvmev_ns *ns, uint32_t id,  uint64_t size, void *
 	ns->id = id;
 	ns->csi = NVME_CSI_ZNS;
 	ns->nr_parts = nr_parts;
-	ns->ftls = (void*)zns_ftl;
+	ns->ftls = (void *)zns_ftl;
 	ns->size = size;
 	ns->mapped = mapped_addr;
 	/*register io command handler*/
@@ -148,21 +153,21 @@ void zns_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resu
 		latest = max(latest, ssd_next_idle_time(zns_ftl[i].ssd));
 	}
 
-	NVMEV_DEBUG("%s latency=%llu\n",__FUNCTION__, latest - start);
+	NVMEV_DEBUG("%s latency=%llu\n", __FUNCTION__, latest - start);
 
 	ret->status = NVME_SC_SUCCESS;
 	ret->nsecs_target = latest;
 	return;
 }
 
- bool zns_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
- {
+bool zns_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
+{
 	struct nvme_command *cmd = req->cmd;
 	NVMEV_ASSERT(ns->csi == NVME_CSI_ZNS);
 	/*still not support multi partitions ...*/
 	NVMEV_ASSERT(ns->nr_parts == 1);
 
-	switch(cmd->common.opcode) {
+	switch (cmd->common.opcode) {
 	case nvme_cmd_write:
 		if (!zns_write(ns, req, ret))
 			return false;
@@ -195,4 +200,4 @@ void zns_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resu
 	}
 
 	return true;
- }
+}

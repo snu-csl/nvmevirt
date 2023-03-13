@@ -55,9 +55,9 @@ struct zns_ftl {
 };
 
 /* zns internal functions */
-static inline void * get_storage_addr_from_zid(struct zns_ftl *zns_ftl, uint64_t zid)
+static inline void *get_storage_addr_from_zid(struct zns_ftl *zns_ftl, uint64_t zid)
 {
-	return (void *) ((char*)zns_ftl->storage_base_addr + zid*zns_ftl->zp.zone_size);
+	return (void *)((char *)zns_ftl->storage_base_addr + zid * zns_ftl->zp.zone_size);
 }
 
 static inline bool is_zone_resource_avail(struct zns_ftl *zns_ftl, uint32_t type)
@@ -87,9 +87,10 @@ static inline void release_zone_resource(struct zns_ftl *zns_ftl, uint32_t type)
 	zns_ftl->res_infos[type].acquired_cnt--;
 }
 
-static inline void change_zone_state(struct zns_ftl * zns_ftl, uint32_t zid, enum zone_state state)
+static inline void change_zone_state(struct zns_ftl *zns_ftl, uint32_t zid, enum zone_state state)
 {
-	NVMEV_ZNS_DEBUG("change state zid %d from %d to %d \n",zid, zns_ftl->zone_descs[zid].state, state);
+	NVMEV_ZNS_DEBUG("change state zid %d from %d to %d \n", zid, zns_ftl->zone_descs[zid].state,
+			state);
 
 	// check if transition is correct
 	zns_ftl->zone_descs[zid].state = state;
@@ -115,7 +116,7 @@ static inline uint64_t zone_to_slba(struct zns_ftl *zns_ftl, uint32_t zid)
 	return (zid) * (BYTE_TO_LBA(zns_ftl->zp.zone_size));
 }
 
-static inline  uint64_t zone_to_elba(struct zns_ftl *zns_ftl, uint32_t zid)
+static inline uint64_t zone_to_elba(struct zns_ftl *zns_ftl, uint32_t zid)
 {
 	return zone_to_slba(zns_ftl, zid + 1) - 1;
 }
@@ -136,7 +137,8 @@ static inline uint64_t lba_to_lpn(struct zns_ftl *zns_ftl, uint64_t lba)
 }
 
 /* zns external interface */
-void zns_init_namespace(struct nvmev_ns *ns, uint32_t id,  uint64_t size, void * mapped_addr, uint32_t cpu_nr_dispatcher);
+void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
+			uint32_t cpu_nr_dispatcher);
 
 void zns_zmgmt_recv(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
 void zns_zmgmt_send(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);

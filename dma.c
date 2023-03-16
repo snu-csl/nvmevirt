@@ -293,9 +293,9 @@ int dmatest_func(void)
 	dma_addr_t *srcs;
 	dma_addr_t *dma_pq;
 	unsigned int iterations = 1;
-	unsigned long gpu_start; // byte
-	unsigned long gpu_size; // byte
-	void *gpu_mapped;
+	unsigned long gpu_start = 0; // byte
+	unsigned long gpu_size = 0; // byte
+	void *gpu_mapped = NULL;
 
 	set_freezable();
 
@@ -719,7 +719,7 @@ int dmatest_chan_set(const char *val)
 	struct dmatest_info *info = &test_info;
 	struct dmatest_chan *dtc;
 	char chan_reset_val[20];
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&info->lock);
 	memcpy(test_channel, val, 20);

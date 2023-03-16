@@ -354,7 +354,7 @@ static ssize_t __proc_file_write(struct file *file, const char __user *buf, size
 
 			memset(&sq->stat, 0x00, sizeof(sq->stat));
 		}
-	} else if (!strcmp(filename, "debug") == 0) {
+	} else if (!strcmp(filename, "debug")) {
 		/* Left for later use */
 	}
 

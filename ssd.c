@@ -392,6 +392,7 @@ uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd)
 
 	default:
 		NVMEV_ERROR("Unsupported NAND command: 0x%x\n", c);
+		return 0;
 	}
 
 	return completed_time;

@@ -111,7 +111,7 @@ $ sudo dmesg
 [  144.822075] nvme nvme0: 48/0/0 default/read/poll queues
 ```
 
-If you encounter a kernel panic in `__pci_enable_msix()` during `insmod`, it is because the current implementation of `nvmevirt` is not compatible with IOMMU. In this case, you can either turn off Intel VT-d or IOMMU in BIOS, or disable the interrupt remapping using the grub option as shown below:
+If you encounter a kernel panic in `__pci_enable_msix()` or in `nvme_hwmon_init()` during `insmod`, it is because the current implementation of `nvmevirt` is not compatible with IOMMU. In this case, you can either turn off Intel VT-d or IOMMU in BIOS, or disable the interrupt remapping using the grub option as shown below:
 
 ```bash
 GRUB_CMDLINE_LINUX="memmap=64G\\\$128G intremap=off"

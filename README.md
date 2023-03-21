@@ -92,12 +92,12 @@ $
 
 ```bash
 $ sudo insmod ./nvmev.ko \
-  memmap_start=128  \       # in GiB
-  memmap_size=65536 \       # in MiB
+  memmap_start=128G \       # e.g., 1M, 4G, 8T
+  memmap_size=64G   \       # e.g., 1M, 4G, 8T
   cpus=7,8                  # List of CPU cores to process I/O requests (should have at least 2)
 ```
 
-In the above example, `memmap_start` and `memmap_size` indicate the relative offset and the size of the reserved memory, respectively. Those values should match the configurations specified in the `/etc/default/grub` file shown earlier. Please note that `memmap_size` should be given in the unit of MiB (for instance, 65536 denotes 64GiB). In addition, the `cpus` option specifies the id of cores on which I/O dispatcher and I/O worker threads run. You have to specify at least two cores for this purpose: one for the I/O dispatcher thread, and one or more cores for the I/O worker thread(s).
+In the above example, `memmap_start` and `memmap_size` indicate the relative offset and the size of the reserved memory, respectively. Those values should match the configurations specified in the `/etc/default/grub` file shown earlier. In addition, the `cpus` option specifies the id of cores on which I/O dispatcher and I/O worker threads run. You have to specify at least two cores for this purpose: one for the I/O dispatcher thread, and one or more cores for the I/O worker thread(s).
 
 When you are successfully load the `nvmevirt` module, you can see something like these from the system message.
 

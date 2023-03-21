@@ -60,8 +60,8 @@
 /****************************************************************
  * Argument
  ****************************************************************
- * 1. Memmap start (size in GiB)
- * 2. Memmap size (size in MiB)
+ * 1. Memmap start
+ * 2. Memmap size
  ****************************************************************/
 
 struct nvmev_dev *nvmev_vdev = NULL;
@@ -83,10 +83,22 @@ static unsigned int io_unit_shift = 12;
 static char *cpus;
 static unsigned int debug = 0;
 
-module_param(memmap_start, ulong, 0444);
-MODULE_PARM_DESC(memmap_start, "Memmap start in GiB");
-module_param(memmap_size, ulong, 0444);
-MODULE_PARM_DESC(memmap_size, "Memmap size in MiB");
+static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
+{
+	unsigned long *arg = (unsigned long *)kp->arg;
+	*arg = memparse(val, NULL);
+	return 0;
+}
+
+static struct kernel_param_ops ops_parse_mem_param = {
+	.set = set_parse_mem_param,
+	.get = param_get_ulong,
+};
+
+module_param_cb(memmap_start, &ops_parse_mem_param, &memmap_start, 0444);
+MODULE_PARM_DESC(memmap_start, "Reserved memory address");
+module_param_cb(memmap_size, &ops_parse_mem_param, &memmap_size, 0444);
+MODULE_PARM_DESC(memmap_size, "Reserved memory size");
 module_param(read_time, uint, 0644);
 MODULE_PARM_DESC(read_time, "Read time in nanoseconds");
 module_param(read_delay, uint, 0644);
@@ -197,13 +209,13 @@ static int __validate_configs(void)
 	if (!memmap_size) {
 		NVMEV_ERROR("[memmap_size] should be specified\n");
 		return -EINVAL;
-	} else if (memmap_size == 1) {
+	} else if (memmap_size <= MB(1)) {
 		NVMEV_ERROR("[memmap_size] should be bigger than 1MiB\n");
 		return -EINVAL;
 	}
 
-	resv_start_bytes = memmap_start << 30;
-	resv_end_bytes = resv_start_bytes + (memmap_size << 20) - 1;
+	resv_start_bytes = memmap_start;
+	resv_end_bytes = resv_start_bytes + memmap_size - 1;
 
 	if (e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RAM) ||
 	    e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RESERVED_KERN)) {
@@ -444,10 +456,11 @@ static bool __load_configs(struct nvmev_config *config)
 	memmap_size -= KV_MAPPING_TABLE_SIZE; // Reserve space for KV mapping table
 #endif
 
-	config->memmap_start = memmap_start << 30;
-	config->memmap_size = memmap_size << 20;
-	config->storage_start = config->memmap_start + (1UL << 20);
-	config->storage_size = (memmap_size - 1) << 20;
+	config->memmap_start = memmap_start;
+	config->memmap_size = memmap_size;
+	// storage space starts from 1M offset
+	config->storage_start = memmap_start + MB(1);
+	config->storage_size = memmap_size - MB(1);
 
 	config->read_time = read_time;
 	config->read_delay = read_delay;

@@ -19,8 +19,6 @@
 #include "nvmev.h"
 #include "kv_ftl.h"
 
-extern struct nvmev_dev *vdev;
-
 static const struct allocator_ops append_only_ops = {
 	.init = append_only_allocator_init,
 	.allocate = append_only_allocate,
@@ -35,7 +33,7 @@ static const struct allocator_ops bitmap_ops = {
 
 static inline unsigned long long __get_wallclock(void)
 {
-	return cpu_clock(vdev->config.cpu_nr_dispatcher);
+	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
 
 static size_t __cmd_io_size(struct nvme_rw_command *cmd)
@@ -74,9 +72,10 @@ unsigned int cmd_value_length(struct nvme_kv_command cmd)
 static unsigned long long __schedule_io_units(int opcode, unsigned long lba, unsigned int length,
 					      unsigned long long nsecs_start)
 {
-	unsigned int io_unit_size = 1 << vdev->config.io_unit_shift;
-	unsigned int io_unit = (lba >> (vdev->config.io_unit_shift - 9)) % vdev->config.nr_io_units;
-	int nr_io_units = min(vdev->config.nr_io_units, DIV_ROUND_UP(length, io_unit_size));
+	unsigned int io_unit_size = 1 << nvmev_vdev->config.io_unit_shift;
+	unsigned int io_unit =
+		(lba >> (nvmev_vdev->config.io_unit_shift - 9)) % nvmev_vdev->config.nr_io_units;
+	int nr_io_units = min(nvmev_vdev->config.nr_io_units, DIV_ROUND_UP(length, io_unit_size));
 
 	unsigned long long latest; /* Time of completion */
 	unsigned int delay = 0;
@@ -85,27 +84,27 @@ static unsigned long long __schedule_io_units(int opcode, unsigned long lba, uns
 
 	if (opcode == nvme_cmd_write || opcode == nvme_cmd_kv_store ||
 	    opcode == nvme_cmd_kv_batch) {
-		delay = vdev->config.write_delay;
-		latency = vdev->config.write_time;
-		trailing = vdev->config.write_trailing;
+		delay = nvmev_vdev->config.write_delay;
+		latency = nvmev_vdev->config.write_time;
+		trailing = nvmev_vdev->config.write_trailing;
 	} else if (opcode == nvme_cmd_read || opcode == nvme_cmd_kv_retrieve) {
-		delay = vdev->config.read_delay;
-		latency = vdev->config.read_time;
-		trailing = vdev->config.read_trailing;
+		delay = nvmev_vdev->config.read_delay;
+		latency = nvmev_vdev->config.read_time;
+		trailing = nvmev_vdev->config.read_trailing;
 	}
 
-	latest = max(nsecs_start, vdev->io_unit_stat[io_unit]) + delay;
+	latest = max(nsecs_start, nvmev_vdev->io_unit_stat[io_unit]) + delay;
 
 	do {
 		latest += latency;
-		vdev->io_unit_stat[io_unit] = latest;
+		nvmev_vdev->io_unit_stat[io_unit] = latest;
 
 		if (nr_io_units-- > 0) {
-			vdev->io_unit_stat[io_unit] += trailing;
+			nvmev_vdev->io_unit_stat[io_unit] += trailing;
 		}
 
 		length -= min(length, io_unit_size);
-		if (++io_unit >= vdev->config.nr_io_units)
+		if (++io_unit >= nvmev_vdev->config.nr_io_units)
 			io_unit = 0;
 	} while (length > 0);
 
@@ -117,8 +116,8 @@ static unsigned long long __schedule_flush(struct nvmev_request *req)
 	unsigned long long latest = 0;
 	int i;
 
-	for (i = 0; i < vdev->config.nr_io_units; i++) {
-		latest = max(latest, vdev->io_unit_stat[i]);
+	for (i = 0; i < nvmev_vdev->config.nr_io_units; i++) {
+		latest = max(latest, nvmev_vdev->io_unit_stat[i]);
 	}
 
 	return latest;
@@ -201,7 +200,7 @@ unsigned int new_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd
 {
 	unsigned int slot = -1;
 	unsigned int prev_slot;
-	BUG_ON(val_offset < 0 || val_offset >= vdev->config.storage_size);
+	BUG_ON(val_offset < 0 || val_offset >= nvmev_vdev->config.storage_size);
 
 	slot = get_hash_slot(kv_ftl, cmd.kv_store.key, cmd_key_length(cmd));
 
@@ -235,7 +234,7 @@ unsigned int new_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsigned char *key,
 {
 	unsigned int slot = -1;
 	unsigned int prev_slot;
-	BUG_ON(val_offset < 0 || val_offset >= vdev->config.storage_size);
+	BUG_ON(val_offset < 0 || val_offset >= nvmev_vdev->config.storage_size);
 
 	slot = get_hash_slot(kv_ftl, key, key_len);
 
@@ -610,9 +609,9 @@ static unsigned int __do_perform_kv_io(struct kv_ftl *kv_ftl, struct nvme_kv_com
 				io_size = PAGE_SIZE - mem_offs;
 		}
 		if (cmd.common.opcode == nvme_cmd_kv_store) {
-			memcpy(vdev->storage_mapped + offset, vaddr + mem_offs, io_size);
+			memcpy(nvmev_vdev->storage_mapped + offset, vaddr + mem_offs, io_size);
 		} else if (cmd.common.opcode == nvme_cmd_kv_retrieve) {
-			memcpy(vaddr + mem_offs, vdev->storage_mapped + offset, io_size);
+			memcpy(vaddr + mem_offs, nvmev_vdev->storage_mapped + offset, io_size);
 		} else {
 			NVMEV_ERROR("Wrong KV Command passed to NVMeVirt!!\n");
 		}
@@ -675,7 +674,7 @@ static unsigned int __do_perform_kv_batched_io(struct kv_ftl *kv_ftl, int opcode
 	}
 
 	NVMEV_DEBUG("Value write length %lu to position %lu %s\n", val_len, offset, value);
-	memcpy(vdev->storage_mapped + offset, value, val_len);
+	memcpy(nvmev_vdev->storage_mapped + offset, value, val_len);
 
 	if (is_insert == 1) { // need to make new mapping
 		new_mapping_entry_by_key(kv_ftl, key, key_len, val_len, new_offset);
@@ -1029,11 +1028,12 @@ void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *ma
 	kv_ftl = kmalloc(sizeof(struct kv_ftl), GFP_KERNEL);
 
 	NVMEV_INFO("KV Mapping Table: %lx + %x\n",
-		   vdev->config.storage_start + vdev->config.storage_size,
+		   nvmev_vdev->config.storage_start + nvmev_vdev->config.storage_size,
 		   KV_MAPPING_TABLE_SIZE << 20);
 
-	kv_ftl->kv_mapping_table = memremap(vdev->config.storage_start + vdev->config.storage_size,
-					    KV_MAPPING_TABLE_SIZE << 20, MEMREMAP_WB);
+	kv_ftl->kv_mapping_table =
+		memremap(nvmev_vdev->config.storage_start + nvmev_vdev->config.storage_size,
+			 KV_MAPPING_TABLE_SIZE << 20, MEMREMAP_WB);
 
 	if (kv_ftl->kv_mapping_table == NULL)
 		NVMEV_ERROR("Failed to map kv mapping table.\n");
@@ -1048,7 +1048,7 @@ void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *ma
 		kv_ftl->allocator_ops = append_only_ops;
 	}
 
-	if (!kv_ftl->allocator_ops.init(vdev->config.storage_size)) {
+	if (!kv_ftl->allocator_ops.init(nvmev_vdev->config.storage_size)) {
 		NVMEV_ERROR("Allocator init failed\n");
 	}
 

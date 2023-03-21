@@ -17,11 +17,9 @@
 
 #include "nvmev.h"
 
-extern struct nvmev_dev *vdev;
-
 static inline unsigned long long __get_wallclock(void)
 {
-	return cpu_clock(vdev->config.cpu_nr_dispatcher);
+	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
 
 static size_t __cmd_io_size(struct nvme_rw_command *cmd)
@@ -36,9 +34,10 @@ static size_t __cmd_io_size(struct nvme_rw_command *cmd)
 static unsigned long long __schedule_io_units(int opcode, unsigned long lba, unsigned int length,
 					      unsigned long long nsecs_start)
 {
-	unsigned int io_unit_size = 1 << vdev->config.io_unit_shift;
-	unsigned int io_unit = (lba >> (vdev->config.io_unit_shift - 9)) % vdev->config.nr_io_units;
-	int nr_io_units = min(vdev->config.nr_io_units, DIV_ROUND_UP(length, io_unit_size));
+	unsigned int io_unit_size = 1 << nvmev_vdev->config.io_unit_shift;
+	unsigned int io_unit =
+		(lba >> (nvmev_vdev->config.io_unit_shift - 9)) % nvmev_vdev->config.nr_io_units;
+	int nr_io_units = min(nvmev_vdev->config.nr_io_units, DIV_ROUND_UP(length, io_unit_size));
 
 	unsigned long long latest; /* Time of completion */
 	unsigned int delay = 0;
@@ -46,27 +45,27 @@ static unsigned long long __schedule_io_units(int opcode, unsigned long lba, uns
 	unsigned int trailing = 0;
 
 	if (opcode == nvme_cmd_write) {
-		delay = vdev->config.write_delay;
-		latency = vdev->config.write_time;
-		trailing = vdev->config.write_trailing;
+		delay = nvmev_vdev->config.write_delay;
+		latency = nvmev_vdev->config.write_time;
+		trailing = nvmev_vdev->config.write_trailing;
 	} else if (opcode == nvme_cmd_read) {
-		delay = vdev->config.read_delay;
-		latency = vdev->config.read_time;
-		trailing = vdev->config.read_trailing;
+		delay = nvmev_vdev->config.read_delay;
+		latency = nvmev_vdev->config.read_time;
+		trailing = nvmev_vdev->config.read_trailing;
 	}
 
-	latest = max(nsecs_start, vdev->io_unit_stat[io_unit]) + delay;
+	latest = max(nsecs_start, nvmev_vdev->io_unit_stat[io_unit]) + delay;
 
 	do {
 		latest += latency;
-		vdev->io_unit_stat[io_unit] = latest;
+		nvmev_vdev->io_unit_stat[io_unit] = latest;
 
 		if (nr_io_units-- > 0) {
-			vdev->io_unit_stat[io_unit] += trailing;
+			nvmev_vdev->io_unit_stat[io_unit] += trailing;
 		}
 
 		length -= min(length, io_unit_size);
-		if (++io_unit >= vdev->config.nr_io_units)
+		if (++io_unit >= nvmev_vdev->config.nr_io_units)
 			io_unit = 0;
 	} while (length > 0);
 
@@ -78,8 +77,8 @@ static unsigned long long __schedule_flush(struct nvmev_request *req)
 	unsigned long long latest = 0;
 	int i;
 
-	for (i = 0; i < vdev->config.nr_io_units; i++) {
-		latest = max(latest, vdev->io_unit_stat[i]);
+	for (i = 0; i < nvmev_vdev->config.nr_io_units; i++) {
+		latest = max(latest, nvmev_vdev->io_unit_stat[i]);
 	}
 
 	return latest;

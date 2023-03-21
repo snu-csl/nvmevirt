@@ -21,8 +21,6 @@
 #define cq_entry(entry_id) \
 	queue->nvme_cq[CQ_ENTRY_TO_PAGE_NUM(entry_id)][CQ_ENTRY_TO_PAGE_OFFSET(entry_id)]
 
-extern struct nvmev_dev *vdev;
-
 static void *prp_address(unsigned long prp)
 {
 	return page_address(pfn_to_page(prp >> PAGE_SHIFT)) + (prp & ~PAGE_MASK);
@@ -30,7 +28,7 @@ static void *prp_address(unsigned long prp)
 
 static void __nvmev_admin_create_cq(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvmev_completion_queue *cq;
 	struct nvme_create_cq *cmd = &sq_entry(eid).create_cq;
 	unsigned int num_pages, i;
@@ -65,10 +63,10 @@ static void __nvmev_admin_create_cq(int eid, int cq_head)
 		cq->cq[i] = page_address(pfn_to_page(cmd->prp1 >> PAGE_SHIFT) + i);
 	}
 
-	vdev->cqes[cq->qid] = cq;
+	nvmev_vdev->cqes[cq->qid] = cq;
 
 	dbs_idx = cq->qid * 2 + 1;
-	vdev->dbs[dbs_idx] = vdev->old_dbs[dbs_idx] = 0;
+	nvmev_vdev->dbs[dbs_idx] = nvmev_vdev->old_dbs[dbs_idx] = 0;
 
 	cq_entry(cq_head).command_id = cmd->command_id;
 	cq_entry(cq_head).sq_id = 0;
@@ -78,14 +76,14 @@ static void __nvmev_admin_create_cq(int eid, int cq_head)
 
 static void __nvmev_admin_delete_cq(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvmev_completion_queue *cq;
 	unsigned int qid;
 
 	qid = sq_entry(eid).delete_queue.qid;
 
-	cq = vdev->cqes[qid];
-	vdev->cqes[qid] = NULL;
+	cq = nvmev_vdev->cqes[qid];
+	nvmev_vdev->cqes[qid] = NULL;
 
 	if (cq) {
 		kfree(cq->cq);
@@ -100,7 +98,7 @@ static void __nvmev_admin_delete_cq(int eid, int cq_head)
 
 static void __nvmev_admin_create_sq(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvmev_submission_queue *sq;
 	struct nvme_create_sq *cmd = &sq_entry(eid).create_sq;
 	unsigned int num_pages, i;
@@ -124,11 +122,11 @@ static void __nvmev_admin_create_sq(int eid, int cq_head)
 	for (i = 0; i < num_pages; i++) {
 		sq->sq[i] = page_address(pfn_to_page(cmd->prp1 >> PAGE_SHIFT) + i);
 	}
-	vdev->sqes[sq->qid] = sq;
+	nvmev_vdev->sqes[sq->qid] = sq;
 
 	dbs_idx = sq->qid * 2;
-	vdev->dbs[dbs_idx] = 0;
-	vdev->old_dbs[dbs_idx] = 0;
+	nvmev_vdev->dbs[dbs_idx] = 0;
+	nvmev_vdev->old_dbs[dbs_idx] = 0;
 
 	NVMEV_DEBUG("%s: %d\n", __func__, sq->qid);
 
@@ -140,14 +138,14 @@ static void __nvmev_admin_create_sq(int eid, int cq_head)
 
 static void __nvmev_admin_delete_sq(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvmev_submission_queue *sq;
 	unsigned int qid;
 
 	qid = sq_entry(eid).delete_queue.qid;
 
-	sq = vdev->sqes[qid];
-	vdev->sqes[qid] = NULL;
+	sq = nvmev_vdev->sqes[qid];
+	nvmev_vdev->sqes[qid] = NULL;
 
 	if (sq) {
 		kfree(sq->sq);
@@ -162,20 +160,20 @@ static void __nvmev_admin_delete_sq(int eid, int cq_head)
 
 static void __nvmev_admin_identify_ctrl(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_id_ctrl *ctrl;
 
 	ctrl = prp_address(sq_entry(eid).identify.prp1);
 	memset(ctrl, 0x00, sizeof(*ctrl));
 
-	ctrl->nn = vdev->nr_ns;
+	ctrl->nn = nvmev_vdev->nr_ns;
 	ctrl->oncs = 0; //optional command
 	ctrl->acl = 3; //minimum 4 required, 0's based value
 	ctrl->vwc = 0;
 	snprintf(ctrl->sn, sizeof(ctrl->sn), "CSL_Virt_SN_%02d", 1);
 	snprintf(ctrl->mn, sizeof(ctrl->mn), "CSL_Virt_MN_%02d", 1);
 	snprintf(ctrl->fr, sizeof(ctrl->fr), "CSL_%03d", 2);
-	ctrl->mdts = vdev->mdts;
+	ctrl->mdts = nvmev_vdev->mdts;
 	ctrl->sqes = 0x66;
 	ctrl->cqes = 0x44;
 
@@ -187,7 +185,7 @@ static void __nvmev_admin_identify_ctrl(int eid, int cq_head)
 
 static void __nvmev_admin_get_log_page(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	void *page;
 
 #if BASE_SSD == ZNS_PROTOTYPE
@@ -223,7 +221,7 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 
 static void __nvmev_admin_identify_namespace(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_id_ns *ns;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	size_t nsid = cmd->nsid - 1;
@@ -260,7 +258,7 @@ static void __nvmev_admin_identify_namespace(int eid, int cq_head)
 	ns->lbaf[6].ds = 12;
 	ns->lbaf[6].rp = NVME_LBAF_RP_BEST;
 
-	ns->nsze = (vdev->ns[nsid].size >> ns->lbaf[ns->flbas].ds);
+	ns->nsze = (nvmev_vdev->ns[nsid].size >> ns->lbaf[ns->flbas].ds);
 
 	ns->ncap = ns->nsze;
 	ns->nuse = ns->nsze;
@@ -276,7 +274,7 @@ static void __nvmev_admin_identify_namespace(int eid, int cq_head)
 
 static void __nvmev_admin_identify_namespaces(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	unsigned int *ns;
 	int i;
@@ -286,7 +284,7 @@ static void __nvmev_admin_identify_namespaces(int eid, int cq_head)
 	ns = prp_address(cmd->prp1);
 	memset(ns, 0x00, PAGE_SIZE * 2);
 
-	for (i = 1; i <= vdev->nr_ns; i++) {
+	for (i = 1; i <= nvmev_vdev->nr_ns; i++) {
 		if (i > cmd->nsid) {
 			NVMEV_DEBUG("[%s] ns %d %px\n", __FUNCTION__, i, ns);
 			*ns = i;
@@ -302,7 +300,7 @@ static void __nvmev_admin_identify_namespaces(int eid, int cq_head)
 
 static void __nvmev_admin_identify_namespace_desc(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_ns_desc *ns_desc;
 	int nsid = cmd->nsid - 1;
@@ -315,7 +313,7 @@ static void __nvmev_admin_identify_namespace_desc(int eid, int cq_head)
 	ns_desc->nidt = NVME_NIDT_CSI;
 	ns_desc->nidl = 1;
 
-	ns_desc->nid[0] = vdev->ns[nsid].csi; // Zoned Name Space Command Set
+	ns_desc->nid[0] = nvmev_vdev->ns[nsid].csi; // Zoned Name Space Command Set
 
 	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
 	cq_entry(cq_head).sq_id = 0;
@@ -325,14 +323,14 @@ static void __nvmev_admin_identify_namespace_desc(int eid, int cq_head)
 
 static void __nvmev_admin_identify_zns_namespace(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_zns_ns *ns;
 	int nsid = cmd->nsid - 1;
-	struct zns_ftl *zns_ftl = (struct zns_ftl *)vdev->ns[nsid].ftls;
+	struct zns_ftl *zns_ftl = (struct zns_ftl *)nvmev_vdev->ns[nsid].ftls;
 	struct znsparams *zpp = &zns_ftl->zp;
 
-	NVMEV_ASSERT(vdev->ns[nsid].csi == NVME_CSI_ZNS);
+	NVMEV_ASSERT(nvmev_vdev->ns[nsid].csi == NVME_CSI_ZNS);
 	NVMEV_DEBUG("%s\n", __func__);
 
 	ns = prp_address(cmd->prp1);
@@ -371,7 +369,7 @@ static void __nvmev_admin_identify_zns_namespace(int eid, int cq_head)
 
 static void __nvmev_admin_identify_zns_ctrl(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_zns_ctrl *res;
 
@@ -389,7 +387,7 @@ static void __nvmev_admin_identify_zns_ctrl(int eid, int cq_head)
 
 static void __nvmev_admin_set_features(int eid, int cq_head)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 
 	NVMEV_DEBUG("%s: %x\n", __func__, sq_entry(eid).features.fid);
 
@@ -406,13 +404,14 @@ static void __nvmev_admin_set_features(int eid, int cq_head)
 
 		// # of sq in 0-base
 		num_queue = (sq_entry(eid).features.dword11 & 0xFFFF) + 1;
-		vdev->nr_sq = min(num_queue, NR_MAX_IO_QUEUE);
+		nvmev_vdev->nr_sq = min(num_queue, NR_MAX_IO_QUEUE);
 
 		// # of cq in 0-base
 		num_queue = ((sq_entry(eid).features.dword11 >> 16) & 0xFFFF) + 1;
-		vdev->nr_cq = min(num_queue, NR_MAX_IO_QUEUE);
+		nvmev_vdev->nr_cq = min(num_queue, NR_MAX_IO_QUEUE);
 
-		cq_entry(cq_head).result0 = ((vdev->nr_cq - 1) << 16 | (vdev->nr_sq - 1));
+		cq_entry(cq_head).result0 =
+			((nvmev_vdev->nr_cq - 1) << 16 | (nvmev_vdev->nr_sq - 1));
 		break;
 	}
 	case NVME_FEAT_IRQ_COALESCE:
@@ -440,7 +439,7 @@ static void __nvmev_admin_get_features(int eid, int cq_head)
 
 static void __nvmev_proc_admin_req(int entry_id)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	int cq_head = queue->cq_head;
 	int cns;
 
@@ -524,7 +523,7 @@ static void __nvmev_proc_admin_req(int entry_id)
 
 void nvmev_proc_admin_sq(int new_db, int old_db)
 {
-	struct nvmev_admin_queue *queue = vdev->admin_q;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	int num_proc = new_db - old_db;
 	int curr = old_db;
 	int seq;

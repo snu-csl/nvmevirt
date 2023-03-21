@@ -64,7 +64,7 @@
  * 2. Memmap size (size in MiB)
  ****************************************************************/
 
-struct nvmev_dev *vdev = NULL;
+struct nvmev_dev *nvmev_vdev = NULL;
 
 unsigned long memmap_start = 0;
 unsigned long memmap_size = 0;
@@ -115,47 +115,48 @@ static void nvmev_proc_dbs(void)
 	int old_db;
 
 	// Admin queue
-	new_db = vdev->dbs[0];
-	if (new_db != vdev->old_dbs[0]) {
-		nvmev_proc_admin_sq(new_db, vdev->old_dbs[0]);
-		vdev->old_dbs[0] = new_db;
+	new_db = nvmev_vdev->dbs[0];
+	if (new_db != nvmev_vdev->old_dbs[0]) {
+		nvmev_proc_admin_sq(new_db, nvmev_vdev->old_dbs[0]);
+		nvmev_vdev->old_dbs[0] = new_db;
 	}
-	new_db = vdev->dbs[1];
-	if (new_db != vdev->old_dbs[1]) {
-		nvmev_proc_admin_cq(new_db, vdev->old_dbs[1]);
-		vdev->old_dbs[1] = new_db;
+	new_db = nvmev_vdev->dbs[1];
+	if (new_db != nvmev_vdev->old_dbs[1]) {
+		nvmev_proc_admin_cq(new_db, nvmev_vdev->old_dbs[1]);
+		nvmev_vdev->old_dbs[1] = new_db;
 	}
 
 	// Submission queues
-	for (qid = 1; qid <= vdev->nr_sq; qid++) {
-		if (vdev->sqes[qid] == NULL)
+	for (qid = 1; qid <= nvmev_vdev->nr_sq; qid++) {
+		if (nvmev_vdev->sqes[qid] == NULL)
 			continue;
 		dbs_idx = qid * 2;
-		new_db = vdev->dbs[dbs_idx];
-		old_db = vdev->old_dbs[dbs_idx];
+		new_db = nvmev_vdev->dbs[dbs_idx];
+		old_db = nvmev_vdev->old_dbs[dbs_idx];
 		if (new_db != old_db) {
-			vdev->old_dbs[dbs_idx] = nvmev_proc_io_sq(qid, new_db, old_db);
+			nvmev_vdev->old_dbs[dbs_idx] = nvmev_proc_io_sq(qid, new_db, old_db);
 		}
 	}
 
 	// Completion queues
-	for (qid = 1; qid <= vdev->nr_cq; qid++) {
-		if (vdev->cqes[qid] == NULL)
+	for (qid = 1; qid <= nvmev_vdev->nr_cq; qid++) {
+		if (nvmev_vdev->cqes[qid] == NULL)
 			continue;
 		dbs_idx = qid * 2 + 1;
-		new_db = vdev->dbs[dbs_idx];
-		old_db = vdev->old_dbs[dbs_idx];
+		new_db = nvmev_vdev->dbs[dbs_idx];
+		old_db = nvmev_vdev->old_dbs[dbs_idx];
 		if (new_db != old_db) {
 			nvmev_proc_io_cq(qid, new_db, old_db);
-			vdev->old_dbs[dbs_idx] = new_db;
+			nvmev_vdev->old_dbs[dbs_idx] = new_db;
 		}
 	}
 }
 
 static int nvmev_dispatcher(void *data)
 {
-	NVMEV_INFO("nvmev_dispatcher started on cpu %d (node %d)\n", vdev->config.cpu_nr_dispatcher,
-		   cpu_to_node(vdev->config.cpu_nr_dispatcher));
+	NVMEV_INFO("nvmev_dispatcher started on cpu %d (node %d)\n",
+		   nvmev_vdev->config.cpu_nr_dispatcher,
+		   cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher));
 
 	while (!kthread_should_stop()) {
 		nvmev_proc_bars();
@@ -167,19 +168,19 @@ static int nvmev_dispatcher(void *data)
 	return 0;
 }
 
-static void NVMEV_DISPATCHER_INIT(struct nvmev_dev *vdev)
+static void NVMEV_DISPATCHER_INIT(struct nvmev_dev *nvmev_vdev)
 {
-	vdev->nvmev_manager = kthread_create(nvmev_dispatcher, NULL, "nvmev_dispatcher");
-	if (vdev->config.cpu_nr_dispatcher != -1)
-		kthread_bind(vdev->nvmev_manager, vdev->config.cpu_nr_dispatcher);
-	wake_up_process(vdev->nvmev_manager);
+	nvmev_vdev->nvmev_manager = kthread_create(nvmev_dispatcher, NULL, "nvmev_dispatcher");
+	if (nvmev_vdev->config.cpu_nr_dispatcher != -1)
+		kthread_bind(nvmev_vdev->nvmev_manager, nvmev_vdev->config.cpu_nr_dispatcher);
+	wake_up_process(nvmev_vdev->nvmev_manager);
 }
 
-static void NVMEV_REG_PROC_FINAL(struct nvmev_dev *vdev)
+static void NVMEV_REG_PROC_FINAL(struct nvmev_dev *nvmev_vdev)
 {
-	if (!IS_ERR_OR_NULL(vdev->nvmev_manager)) {
-		kthread_stop(vdev->nvmev_manager);
-		vdev->nvmev_manager = NULL;
+	if (!IS_ERR_OR_NULL(nvmev_vdev->nvmev_manager)) {
+		kthread_stop(nvmev_vdev->nvmev_manager);
+		nvmev_vdev->nvmev_manager = NULL;
 	}
 }
 
@@ -237,8 +238,8 @@ static void __print_perf_configs(void)
 {
 #if 0
 	unsigned long unit_perf_kb =
-			vdev->config.nr_io_units << (vdev->config.io_unit_shift - 10);
-	struct nvmev_config *cfg = &vdev->config;
+			nvmev_vdev->config.nr_io_units << (nvmev_vdev->config.io_unit_shift - 10);
+	struct nvmev_config *cfg = &nvmev_vdev->config;
 
 	NVMEV_INFO("=============== Configurations ===============\n");
 	NVMEV_INFO("* IO units : %d x %d\n",
@@ -258,7 +259,7 @@ static void __print_perf_configs(void)
 
 static int __get_nr_entries(int dbs_idx, int queue_size)
 {
-	int diff = vdev->dbs[dbs_idx] - vdev->old_dbs[dbs_idx];
+	int diff = nvmev_vdev->dbs[dbs_idx] - nvmev_vdev->old_dbs[dbs_idx];
 	if (diff < 0) {
 		diff += queue_size;
 	}
@@ -268,7 +269,7 @@ static int __get_nr_entries(int dbs_idx, int queue_size)
 static int __proc_file_read(struct seq_file *m, void *data)
 {
 	const char *filename = m->private;
-	struct nvmev_config *cfg = &vdev->config;
+	struct nvmev_config *cfg = &nvmev_vdev->config;
 
 	if (strcmp(filename, "read_times") == 0) {
 		seq_printf(m, "%u + %u x + %u", cfg->read_delay, cfg->read_time,
@@ -284,8 +285,8 @@ static int __proc_file_read(struct seq_file *m, void *data)
 		unsigned int nr_dispatch = 0;
 		unsigned int nr_dispatched = 0;
 		unsigned long long total_io = 0;
-		for (i = 1; i <= vdev->nr_sq; i++) {
-			struct nvmev_submission_queue *sq = vdev->sqes[i];
+		for (i = 1; i <= nvmev_vdev->nr_sq; i++) {
+			struct nvmev_submission_queue *sq = nvmev_vdev->sqes[i];
 			if (!sq)
 				continue;
 
@@ -319,7 +320,7 @@ static ssize_t __proc_file_write(struct file *file, const char __user *buf, size
 	char input[128];
 	unsigned int ret;
 	unsigned long long *old_stat;
-	struct nvmev_config *cfg = &vdev->config;
+	struct nvmev_config *cfg = &nvmev_vdev->config;
 	size_t nr_copied;
 
 	nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
@@ -337,9 +338,9 @@ static ssize_t __proc_file_write(struct file *file, const char __user *buf, size
 		if (ret < 1)
 			goto out;
 
-		old_stat = vdev->io_unit_stat;
-		vdev->io_unit_stat =
-			kzalloc(sizeof(*vdev->io_unit_stat) * cfg->nr_io_units, GFP_KERNEL);
+		old_stat = nvmev_vdev->io_unit_stat;
+		nvmev_vdev->io_unit_stat =
+			kzalloc(sizeof(*nvmev_vdev->io_unit_stat) * cfg->nr_io_units, GFP_KERNEL);
 
 		mdelay(100); /* XXX: Delay the free of old stat so that outstanding
 						 * requests accessing the unit_stat are all returned
@@ -347,8 +348,8 @@ static ssize_t __proc_file_write(struct file *file, const char __user *buf, size
 		kfree(old_stat);
 	} else if (!strcmp(filename, "stat")) {
 		int i;
-		for (i = 1; i <= vdev->nr_sq; i++) {
-			struct nvmev_submission_queue *sq = vdev->sqes[i];
+		for (i = 1; i <= nvmev_vdev->nr_sq; i++) {
+			struct nvmev_submission_queue *sq = nvmev_vdev->sqes[i];
 			if (!sq)
 				continue;
 
@@ -387,42 +388,46 @@ static const struct file_operations proc_file_fops = {
 };
 #endif
 
-void NVMEV_STORAGE_INIT(struct nvmev_dev *vdev)
+void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 {
-	NVMEV_INFO("Storage : %lx + %lx\n", vdev->config.storage_start, vdev->config.storage_size);
+	NVMEV_INFO("Storage : %lx + %lx\n", nvmev_vdev->config.storage_start,
+		   nvmev_vdev->config.storage_size);
 
-	vdev->io_unit_stat =
-		kzalloc(sizeof(*vdev->io_unit_stat) * vdev->config.nr_io_units, GFP_KERNEL);
+	nvmev_vdev->io_unit_stat = kzalloc(
+		sizeof(*nvmev_vdev->io_unit_stat) * nvmev_vdev->config.nr_io_units, GFP_KERNEL);
 
-	vdev->storage_mapped =
-		memremap(vdev->config.storage_start, vdev->config.storage_size, MEMREMAP_WB);
+	nvmev_vdev->storage_mapped = memremap(nvmev_vdev->config.storage_start,
+					      nvmev_vdev->config.storage_size, MEMREMAP_WB);
 
-	if (vdev->storage_mapped == NULL)
+	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
 
-	vdev->proc_root = proc_mkdir("nvmev", NULL);
-	vdev->proc_read_times = proc_create("read_times", 0664, vdev->proc_root, &proc_file_fops);
-	vdev->proc_write_times = proc_create("write_times", 0664, vdev->proc_root, &proc_file_fops);
-	vdev->proc_io_units = proc_create("io_units", 0664, vdev->proc_root, &proc_file_fops);
-	vdev->proc_stat = proc_create("stat", 0444, vdev->proc_root, &proc_file_fops);
-	vdev->proc_stat = proc_create("debug", 0444, vdev->proc_root, &proc_file_fops);
+	nvmev_vdev->proc_root = proc_mkdir("nvmev", NULL);
+	nvmev_vdev->proc_read_times =
+		proc_create("read_times", 0664, nvmev_vdev->proc_root, &proc_file_fops);
+	nvmev_vdev->proc_write_times =
+		proc_create("write_times", 0664, nvmev_vdev->proc_root, &proc_file_fops);
+	nvmev_vdev->proc_io_units =
+		proc_create("io_units", 0664, nvmev_vdev->proc_root, &proc_file_fops);
+	nvmev_vdev->proc_stat = proc_create("stat", 0444, nvmev_vdev->proc_root, &proc_file_fops);
+	nvmev_vdev->proc_stat = proc_create("debug", 0444, nvmev_vdev->proc_root, &proc_file_fops);
 }
 
-void NVMEV_STORAGE_FINAL(struct nvmev_dev *vdev)
+void NVMEV_STORAGE_FINAL(struct nvmev_dev *nvmev_vdev)
 {
-	remove_proc_entry("read_times", vdev->proc_root);
-	remove_proc_entry("write_times", vdev->proc_root);
-	remove_proc_entry("io_units", vdev->proc_root);
-	remove_proc_entry("stat", vdev->proc_root);
-	remove_proc_entry("debug", vdev->proc_root);
+	remove_proc_entry("read_times", nvmev_vdev->proc_root);
+	remove_proc_entry("write_times", nvmev_vdev->proc_root);
+	remove_proc_entry("io_units", nvmev_vdev->proc_root);
+	remove_proc_entry("stat", nvmev_vdev->proc_root);
+	remove_proc_entry("debug", nvmev_vdev->proc_root);
 
 	remove_proc_entry("nvmev", NULL);
 
-	if (vdev->storage_mapped)
-		memunmap(vdev->storage_mapped);
+	if (nvmev_vdev->storage_mapped)
+		memunmap(nvmev_vdev->storage_mapped);
 
-	if (vdev->io_unit_stat)
-		kfree(vdev->io_unit_stat);
+	if (nvmev_vdev->io_unit_stat)
+		kfree(nvmev_vdev->io_unit_stat);
 }
 
 static bool __load_configs(struct nvmev_config *config)
@@ -470,12 +475,12 @@ static bool __load_configs(struct nvmev_config *config)
 	return true;
 }
 
-void NVMEV_NAMESPACE_INIT(struct nvmev_dev *vdev)
+void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 {
-	unsigned long long remaining_capacity = vdev->config.storage_size; // byte
-	void *ns_addr = vdev->storage_mapped;
+	unsigned long long remaining_capacity = nvmev_vdev->config.storage_size; // byte
+	void *ns_addr = nvmev_vdev->storage_mapped;
 	const int nr_ns = NR_NAMESPACES;
-	const unsigned int disp_no = vdev->config.cpu_nr_dispatcher;
+	const unsigned int disp_no = nvmev_vdev->config.cpu_nr_dispatcher;
 	int i;
 	unsigned long long size;
 
@@ -504,71 +509,71 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *vdev)
 			   ns[i].mapped, BYTE_TO_MB(ns[i].size));
 	}
 
-	vdev->ns = ns;
-	vdev->nr_ns = nr_ns;
-	vdev->mdts = MDTS;
+	nvmev_vdev->ns = ns;
+	nvmev_vdev->nr_ns = nr_ns;
+	nvmev_vdev->mdts = MDTS;
 }
 
-void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *vdev)
+void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 {
 	//TODO : should free memory allocated in ssd_init, zns_init, kv_init
 }
 
 static int NVMeV_init(void)
 {
-	vdev = VDEV_INIT();
-	if (!vdev)
+	nvmev_vdev = VDEV_INIT();
+	if (!nvmev_vdev)
 		return -EINVAL;
 
-	if (!__load_configs(&vdev->config)) {
+	if (!__load_configs(&nvmev_vdev->config)) {
 		goto ret_err;
 	}
 
-	NVMEV_STORAGE_INIT(vdev);
+	NVMEV_STORAGE_INIT(nvmev_vdev);
 
-	NVMEV_NAMESPACE_INIT(vdev);
+	NVMEV_NAMESPACE_INIT(nvmev_vdev);
 
 	dmatest_chan_set("dma7chan0");
 
-	if (!NVMEV_PCI_INIT(vdev)) {
+	if (!NVMEV_PCI_INIT(nvmev_vdev)) {
 		goto ret_err;
 	}
 
 	__print_perf_configs();
 
-	NVMEV_IO_PROC_INIT(vdev);
-	NVMEV_DISPATCHER_INIT(vdev);
+	NVMEV_IO_PROC_INIT(nvmev_vdev);
+	NVMEV_DISPATCHER_INIT(nvmev_vdev);
 
 	NVMEV_INFO("Successfully created Virtual NVMe deivce\n");
 
 	return 0;
 
 ret_err:
-	VDEV_FINALIZE(vdev);
+	VDEV_FINALIZE(nvmev_vdev);
 	return -EIO;
 }
 
 static void NVMeV_exit(void)
 {
-	NVMEV_REG_PROC_FINAL(vdev);
-	NVMEV_IO_PROC_FINAL(vdev);
+	NVMEV_REG_PROC_FINAL(nvmev_vdev);
+	NVMEV_IO_PROC_FINAL(nvmev_vdev);
 
-	NVMEV_NAMESPACE_FINAL(vdev);
-	NVMEV_STORAGE_FINAL(vdev);
+	NVMEV_NAMESPACE_FINAL(nvmev_vdev);
+	NVMEV_STORAGE_FINAL(nvmev_vdev);
 
-	if (vdev->virt_bus != NULL) {
+	if (nvmev_vdev->virt_bus != NULL) {
 		int i;
-		pci_remove_root_bus(vdev->virt_bus);
+		pci_remove_root_bus(nvmev_vdev->virt_bus);
 
-		for (i = 0; i < vdev->nr_sq; i++) {
-			kfree(vdev->sqes[i]);
+		for (i = 0; i < nvmev_vdev->nr_sq; i++) {
+			kfree(nvmev_vdev->sqes[i]);
 		}
 
-		for (i = 0; i < vdev->nr_cq; i++) {
-			kfree(vdev->cqes[i]);
+		for (i = 0; i < nvmev_vdev->nr_cq; i++) {
+			kfree(nvmev_vdev->cqes[i]);
 		}
 	}
-	VDEV_FINALIZE(vdev);
+	VDEV_FINALIZE(nvmev_vdev);
 
 	NVMEV_INFO("Virtual NVMe device closed\n");
 }

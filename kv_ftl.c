@@ -44,7 +44,7 @@ static size_t __cmd_io_size(struct nvme_rw_command *cmd)
 	return (cmd->length + 1) << 9;
 }
 
-unsigned int cmd_key_length(struct nvme_kv_command cmd)
+static unsigned int cmd_key_length(struct nvme_kv_command cmd)
 {
 	if (cmd.common.opcode == nvme_cmd_kv_store) {
 		return cmd.kv_store.key_len + 1;
@@ -57,7 +57,7 @@ unsigned int cmd_key_length(struct nvme_kv_command cmd)
 	}
 }
 
-unsigned int cmd_value_length(struct nvme_kv_command cmd)
+static unsigned int cmd_value_length(struct nvme_kv_command cmd)
 {
 	if (cmd.common.opcode == nvme_cmd_kv_store) {
 		return cmd.kv_store.value_len << 2;
@@ -125,7 +125,7 @@ static unsigned long long __schedule_flush(struct nvmev_request *req)
 
 /* KV-SSD Mapping Management */
 
-size_t allocate_mem_offset(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
+static size_t allocate_mem_offset(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
 {
 	if (cmd.common.opcode == nvme_cmd_kv_store) {
 		u64 length_bytes = cmd_value_length(cmd);
@@ -147,7 +147,7 @@ size_t allocate_mem_offset(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
 	}
 }
 
-size_t allocate_mem_offset_by_length(struct kv_ftl *kv_ftl, int val_len)
+static size_t allocate_mem_offset_by_length(struct kv_ftl *kv_ftl, int val_len)
 {
 	u64 length_bytes = val_len;
 	size_t offset;
@@ -163,17 +163,17 @@ size_t allocate_mem_offset_by_length(struct kv_ftl *kv_ftl, int val_len)
 	}
 }
 
-unsigned int get_hash_slot(struct kv_ftl *kv_ftl, char *key, u32 key_len)
+static unsigned int get_hash_slot(struct kv_ftl *kv_ftl, char *key, u32 key_len)
 {
 	return hash_function(key, key_len) % kv_ftl->hash_slots;
 }
 
-void chain_mapping(struct kv_ftl *kv_ftl, unsigned int prev, unsigned int slot)
+static void chain_mapping(struct kv_ftl *kv_ftl, unsigned int prev, unsigned int slot)
 {
 	kv_ftl->kv_mapping_table[prev].next_slot = slot;
 }
 
-unsigned int find_next_slot(struct kv_ftl *kv_ftl, int original_slot, int *prev_slot)
+static unsigned int find_next_slot(struct kv_ftl *kv_ftl, int original_slot, int *prev_slot)
 {
 	unsigned int ret_slot = original_slot;
 
@@ -196,7 +196,8 @@ unsigned int find_next_slot(struct kv_ftl *kv_ftl, int original_slot, int *prev_
 	return ret_slot;
 }
 
-unsigned int new_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd, size_t val_offset)
+static unsigned int new_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
+				      size_t val_offset)
 {
 	unsigned int slot = -1;
 	unsigned int prev_slot;
@@ -229,8 +230,8 @@ unsigned int new_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd
 	return 0;
 }
 
-unsigned int new_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsigned char *key, int key_len,
-				      int val_len, size_t val_offset)
+static unsigned int new_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsigned char *key, int key_len,
+					     int val_len, size_t val_offset)
 {
 	unsigned int slot = -1;
 	unsigned int prev_slot;
@@ -263,7 +264,7 @@ unsigned int new_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsigned char *key,
 	return 0;
 }
 
-unsigned int update_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
+static unsigned int update_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
 {
 	unsigned int slot = 0;
 	bool found = false;
@@ -315,7 +316,7 @@ unsigned int update_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command 
 	return 0;
 }
 
-struct mapping_entry get_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
+static struct mapping_entry get_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
 {
 	struct mapping_entry mapping;
 	// char *key = NULL;
@@ -374,8 +375,8 @@ struct mapping_entry get_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_com
 	return mapping;
 }
 
-struct mapping_entry get_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsigned char *key,
-					      int key_len)
+static struct mapping_entry get_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsigned char *key,
+						     int key_len)
 {
 	struct mapping_entry mapping;
 	// char *key = NULL;
@@ -433,7 +434,7 @@ struct mapping_entry get_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsigned ch
 	return mapping;
 }
 
-struct mapping_entry delete_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
+static struct mapping_entry delete_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
 {
 	struct mapping_entry mapping;
 	// char *key = NULL;
@@ -1001,12 +1002,13 @@ bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct 
 	return true;
 }
 
-bool kv_identify_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command cmd)
+static bool kv_identify_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command cmd)
 {
 	return is_kv_cmd(cmd.common.opcode);
 }
 
-unsigned int kv_perform_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command *cmd, uint32_t *status)
+static unsigned int kv_perform_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command *cmd,
+					   uint32_t *status)
 {
 	struct kv_ftl *kv_ftl = (struct kv_ftl *)ns->ftls;
 	struct nvme_kv_command *kv_cmd = (struct nvme_kv_command *)cmd;

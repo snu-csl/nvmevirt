@@ -88,8 +88,5 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 
 bool conv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req,
 			   struct nvmev_result *ret);
-bool conv_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
-bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
-void conv_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
 
 #endif

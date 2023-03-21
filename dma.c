@@ -17,7 +17,7 @@
 
 // #define SHOW_DMA_TRACE
 
-struct dmatest_thread dma_thread;
+static struct dmatest_thread dma_thread;
 
 static bool dmatest_match_channel(struct dmatest_params *params, struct dma_chan *chan)
 {

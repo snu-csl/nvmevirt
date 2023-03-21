@@ -66,22 +66,22 @@
 
 struct nvmev_dev *nvmev_vdev = NULL;
 
-unsigned long memmap_start = 0;
-unsigned long memmap_size = 0;
+static unsigned long memmap_start = 0;
+static unsigned long memmap_size = 0;
 
-unsigned int read_time = 1;
-unsigned int read_delay = 1;
-unsigned int read_trailing = 0;
+static unsigned int read_time = 1;
+static unsigned int read_delay = 1;
+static unsigned int read_trailing = 0;
 
-unsigned int write_time = 1;
-unsigned int write_delay = 1;
-unsigned int write_trailing = 0;
+static unsigned int write_time = 1;
+static unsigned int write_delay = 1;
+static unsigned int write_trailing = 0;
 
-unsigned int nr_io_units = 8;
-unsigned int io_unit_shift = 12;
+static unsigned int nr_io_units = 8;
+static unsigned int io_unit_shift = 12;
 
-char *cpus;
-unsigned int debug = 0;
+static char *cpus;
+static unsigned int debug = 0;
 
 module_param(memmap_start, ulong, 0444);
 MODULE_PARM_DESC(memmap_start, "Memmap start in GiB");

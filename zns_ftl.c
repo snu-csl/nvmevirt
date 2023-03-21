@@ -133,7 +133,7 @@ void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *m
 	return;
 }
 
-void zns_exit(struct zns_ftl *zns_ftl)
+static void zns_exit(struct zns_ftl *zns_ftl)
 {
 	NVMEV_ZNS_DEBUG("%s \n", __FUNCTION__);
 
@@ -141,7 +141,7 @@ void zns_exit(struct zns_ftl *zns_ftl)
 	kfree(zns_ftl->report_buffer);
 }
 
-void zns_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
+static void zns_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
 {
 	uint64_t start, latest;
 	uint32_t i;

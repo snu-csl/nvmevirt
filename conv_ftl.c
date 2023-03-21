@@ -800,7 +800,7 @@ static bool is_same_flash_page(struct conv_ftl *conv_ftl, struct ppa ppa1, struc
 	return (ppa1.h.blk_in_ssd == ppa2.h.blk_in_ssd) && (ppa1_page == ppa2_page);
 }
 
-bool conv_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
+static bool conv_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
 {
 	struct conv_ftl *conv_ftls = (struct conv_ftl *)ns->ftls;
 	struct conv_ftl *conv_ftl = &conv_ftls[0];
@@ -893,7 +893,7 @@ bool conv_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resu
 	return true;
 }
 
-bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
+static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
 {
 	struct conv_ftl *conv_ftls = (struct conv_ftl *)ns->ftls;
 	struct conv_ftl *conv_ftl = &conv_ftls[0];
@@ -993,7 +993,7 @@ bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_res
 	return true;
 }
 
-void conv_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
+static void conv_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
 {
 	uint64_t start, latest;
 	uint32_t i;

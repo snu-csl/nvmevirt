@@ -15,20 +15,20 @@
 #include "bitmap.h"
 #include "nvmev.h"
 
-long small_nbits;
-long large_nbits;
-unsigned long small_bitmap[600000];
-unsigned long large_bitmap[300000];
-long small_capacity;
-long large_capacity;
+static long small_nbits;
+static long large_nbits;
+static unsigned long small_bitmap[600000];
+static unsigned long large_bitmap[300000];
+static long small_capacity;
+static long large_capacity;
 
-size_t small_last_pos;
-size_t large_last_pos;
+static size_t small_last_pos;
+static size_t large_last_pos;
 
 static unsigned long long dev_size;
 static unsigned long long total_written;
 
-void bits_print(unsigned long *v, u32 nbits)
+static void bits_print(unsigned long *v, u32 nbits)
 {
 	s32 i;
 	u32 wc = BIT_WORD(nbits);

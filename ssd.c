@@ -228,7 +228,7 @@ static void ssd_init_nand_lun(struct nand_lun *lun, struct ssdparams *spp)
 	lun->busy = false;
 }
 
-void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
+static void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
 {
 	int i;
 	ch->nluns = spp->luns_per_ch;
@@ -244,7 +244,7 @@ void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
 	ch->perf_model->xfer_lat += (spp->fw_ch_xfer_lat * UNIT_XFER_SIZE / KB(4));
 }
 
-void ssd_init_pcie(struct ssd_pcie *pcie, struct ssdparams *spp)
+static void ssd_init_pcie(struct ssd_pcie *pcie, struct ssdparams *spp)
 {
 	pcie->perf_model = kmalloc(sizeof(struct channel_model), GFP_KERNEL);
 	chmodel_init(pcie->perf_model, spp->pcie_bandwidth);
@@ -274,7 +274,7 @@ void ssd_init(struct ssd *ssd, struct ssdparams *spp, uint32_t cpu_nr_dispatcher
 	return;
 }
 
-inline uint64_t ssd_advance_pcie(struct ssd *ssd, uint64_t request_time, uint64_t length)
+uint64_t ssd_advance_pcie(struct ssd *ssd, uint64_t request_time, uint64_t length)
 {
 	struct channel_model *perf_model = ssd->pcie->perf_model;
 	return chmodel_request(perf_model, request_time, length);

@@ -92,12 +92,12 @@ $
 
 ```bash
 $ sudo insmod ./nvmev.ko \
-  memmap_start=128  \       # in GiB
-  memmap_size=65536 \       # in MiB
+  memmap_start=128G \       # e.g., 1M, 4G, 8T
+  memmap_size=64G   \       # e.g., 1M, 4G, 8T
   cpus=7,8                  # List of CPU cores to process I/O requests (should have at least 2)
 ```
 
-In the above example, `memmap_start` and `memmap_size` indicate the relative offset and the size of the reserved memory, respectively. Those values should match the configurations specified in the `/etc/default/grub` file shown earlier. Please note that `memmap_size` should be given in the unit of MiB (for instance, 65536 denotes 64GiB). In addition, the `cpus` option specifies the id of cores on which I/O dispatcher and I/O worker threads run. You have to specify at least two cores for this purpose: one for the I/O dispatcher thread, and one or more cores for the I/O worker thread(s).
+In the above example, `memmap_start` and `memmap_size` indicate the relative offset and the size of the reserved memory, respectively. Those values should match the configurations specified in the `/etc/default/grub` file shown earlier. In addition, the `cpus` option specifies the id of cores on which I/O dispatcher and I/O worker threads run. You have to specify at least two cores for this purpose: one for the I/O dispatcher thread, and one or more cores for the I/O worker thread(s).
 
 When you are successfully load the `nvmevirt` module, you can see something like these from the system message.
 
@@ -111,7 +111,7 @@ $ sudo dmesg
 [  144.822075] nvme nvme0: 48/0/0 default/read/poll queues
 ```
 
-If you encounter a kernel panic in `__pci_enable_msix()` during `insmod`, it is because the current implementation of `nvmevirt` is not compatible with the Intel VT-d technology. In this case, you can either turn off VT-d in BIOS or disable the interrupt remapping using the grub option as shown below:
+If you encounter a kernel panic in `__pci_enable_msix()` or in `nvme_hwmon_init()` during `insmod`, it is because the current implementation of `nvmevirt` is not compatible with IOMMU. In this case, you can either turn off Intel VT-d or IOMMU in BIOS, or disable the interrupt remapping using the grub option as shown below:
 
 ```bash
 GRUB_CMDLINE_LINUX="memmap=64G\\\$128G intremap=off"

@@ -22,32 +22,28 @@
 #include "append_only.h"
 #include "bitmap.h"
 
-#define is_kv_append_cmd(opcode)      ((opcode) == nvme_cmd_kv_append)
-#define is_kv_store_cmd(opcode)       ((opcode) == nvme_cmd_kv_store)
-#define is_kv_retrieve_cmd(opcode)    ((opcode) == nvme_cmd_kv_retrieve)
-#define is_kv_delete_cmd(opcode)      ((opcode) == nvme_cmd_kv_delete)
-#define is_kv_iter_req_cmd(opcode)    ((opcode) == nvme_cmd_kv_iter_req)
-#define is_kv_iter_read_cmd(opcode)   ((opcode) == nvme_cmd_kv_iter_read)
-#define is_kv_exist_cmd(opcode)       ((opcode) == nvme_cmd_kv_exist)
-#define is_kv_batch_cmd(opcode)       ((opcode) == nvme_cmd_kv_batch)
+#define is_kv_append_cmd(opcode) ((opcode) == nvme_cmd_kv_append)
+#define is_kv_store_cmd(opcode) ((opcode) == nvme_cmd_kv_store)
+#define is_kv_retrieve_cmd(opcode) ((opcode) == nvme_cmd_kv_retrieve)
+#define is_kv_delete_cmd(opcode) ((opcode) == nvme_cmd_kv_delete)
+#define is_kv_iter_req_cmd(opcode) ((opcode) == nvme_cmd_kv_iter_req)
+#define is_kv_iter_read_cmd(opcode) ((opcode) == nvme_cmd_kv_iter_read)
+#define is_kv_exist_cmd(opcode) ((opcode) == nvme_cmd_kv_exist)
+#define is_kv_batch_cmd(opcode) ((opcode) == nvme_cmd_kv_batch)
 
-#define is_kv_cmd(opcode)             (is_kv_append_cmd(opcode) ||\
-                                       is_kv_store_cmd(opcode) ||\
-                                       is_kv_retrieve_cmd(opcode) ||\
-                                       is_kv_delete_cmd(opcode) ||\
-                                       is_kv_iter_req_cmd(opcode) ||\
-                                       is_kv_iter_read_cmd(opcode) ||\
-                                       is_kv_exist_cmd(opcode)) ||\
-									   is_kv_batch_cmd(opcode)
+#define is_kv_cmd(opcode)                                                                         \
+	(is_kv_append_cmd(opcode) || is_kv_store_cmd(opcode) || is_kv_retrieve_cmd(opcode) ||     \
+	 is_kv_delete_cmd(opcode) || is_kv_iter_req_cmd(opcode) || is_kv_iter_read_cmd(opcode) || \
+	 is_kv_exist_cmd(opcode)) ||                                                              \
+		is_kv_batch_cmd(opcode)
 
-#define is_kv_iter_cmd(opcode)        (is_kv_iter_req_cmd(opcode) ||\
-                                       is_kv_iter_read_cmd(opcode))
+#define is_kv_iter_cmd(opcode) (is_kv_iter_req_cmd(opcode) || is_kv_iter_read_cmd(opcode))
 
 typedef enum {
-  // generic command status
-  KV_SUCCESS=0	,                     // success
-  KV_ERR_KEY_NOT_EXIST			=0x310,
-  KV_ERR_DEV_CAPACITY			=0x312,
+	// generic command status
+	KV_SUCCESS = 0, // success
+	KV_ERR_KEY_NOT_EXIST = 0x310,
+	KV_ERR_DEV_CAPACITY = 0x312,
 
 #if 0
   // errors
@@ -138,11 +134,10 @@ static inline __le64 kv_io_cmd_key_prp(struct nvme_kv_command cmd, const int prp
 	}
 
 	if (prp_num == 1) {
-        return cmd.kv_store.key_prp;
-    }
-    else {
-        return cmd.kv_store.key_prp2;
-    }
+		return cmd.kv_store.key_prp;
+	} else {
+		return cmd.kv_store.key_prp2;
+	}
 
 	return 0;
 }
@@ -155,29 +150,28 @@ static inline __le64 kv_io_cmd_value_prp(struct nvme_kv_command cmd, const int p
 	}
 
 	if (prp_num == 1) {
-        return cmd.kv_store.dptr.prp1;
-    }
-    else {
-        return cmd.kv_store.dptr.prp2;
-    }
+		return cmd.kv_store.dptr.prp1;
+	} else {
+		return cmd.kv_store.dptr.prp2;
+	}
 
 	return 0;
 }
 
-static inline unsigned int hash_function(char* key, const int length)
+static inline unsigned int hash_function(char *key, const int length)
 {
-	unsigned char* p = key;
+	unsigned char *p = key;
 	unsigned int h = 2166136261;
 	int i;
 
-	for(i=0; i< length; i++)
-		h = (h*16777619) ^ p[i];
+	for (i = 0; i < length; i++)
+		h = (h * 16777619) ^ p[i];
 
 	return h;
 }
 
 struct mapping_entry {
-	char key[18];   // Currently supporting keys smaller than 18 bytes
+	char key[18]; // Currently supporting keys smaller than 18 bytes
 	size_t mem_offset;
 	size_t length;
 	unsigned int next_slot;
@@ -185,10 +179,10 @@ struct mapping_entry {
 
 #define KV_MAPPING_ENTRY_SIZE sizeof(struct mapping_entry)
 
-typedef int (init_fn)(u64 size);
-typedef size_t (allocate_fn)(u64 length, void* args);
-typedef void (deallocate_fn)(u64 mem_offset, u64 length, bool overwrite);
-typedef void (kill_fn)(void);
+typedef int(init_fn)(u64 size);
+typedef size_t(allocate_fn)(u64 length, void *args);
+typedef void(deallocate_fn)(u64 mem_offset, u64 length, bool overwrite);
+typedef void(kill_fn)(void);
 
 struct allocator_ops {
 	init_fn *init;
@@ -198,18 +192,18 @@ struct allocator_ops {
 };
 
 struct kv_ftl {
-    struct ssd *ssd;
+	struct ssd *ssd;
 
-    struct mapping_entry *kv_mapping_table;
+	struct mapping_entry *kv_mapping_table;
 	unsigned long hash_slots;
 
-    struct allocator_ops allocator_ops;
+	struct allocator_ops allocator_ops;
 	struct kv_iter_context *iter_handle[17];
 };
 
 bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
-bool kv_identify_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command cmd);
 unsigned int kv_perform_io_cmd(struct nvmev_ns *ns, struct nvme_command *cmd, uint32_t *status);
-void kv_init_namespace(struct nvmev_ns *ns, uint32_t id,  uint64_t size, void *mapped_addr, uint32_t cpu_nr_dispatcher);
+void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
+		       uint32_t cpu_nr_dispatcher);
 
 #endif

@@ -22,7 +22,8 @@
 #include "ssd.h"
 #include "zns_ftl.h"
 
-static uint64_t __prp_transfer_data(uint64_t prp1, uint64_t prp2, void * buffer, uint64_t length, uint32_t io)
+static uint64_t __prp_transfer_data(uint64_t prp1, uint64_t prp2, void *buffer, uint64_t length,
+				    uint32_t io)
 {
 	size_t offset;
 	size_t remaining;
@@ -46,7 +47,8 @@ static uint64_t __prp_transfer_data(uint64_t prp1, uint64_t prp2, void * buffer,
 		} else if (prp_offs == 2) {
 			paddr = prp2;
 			if (remaining > PAGE_SIZE) {
-				paddr_list = kmap_atomic_pfn(PRP_PFN(paddr)) + (paddr & PAGE_OFFSET_MASK);
+				paddr_list = kmap_atomic_pfn(PRP_PFN(paddr)) +
+					     (paddr & PAGE_OFFSET_MASK);
 				paddr = paddr_list[prp2_offs++];
 			}
 		} else {
@@ -80,7 +82,8 @@ static uint64_t __prp_transfer_data(uint64_t prp1, uint64_t prp2, void * buffer,
 	return length;
 }
 
-static void __fill_zone_report(struct zns_ftl *zns_ftl, struct nvme_zone_mgmt_recv * cmd, struct zone_report * report)
+static void __fill_zone_report(struct zns_ftl *zns_ftl, struct nvme_zone_mgmt_recv *cmd,
+			       struct zone_report *report)
 {
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	uint64_t slba = cmd->slba;
@@ -93,14 +96,16 @@ static void __fill_zone_report(struct zns_ftl *zns_ftl, struct nvme_zone_mgmt_re
 	if (cmd->zra_specific_features == 0) // all
 		nr_zone_to_report = zns_ftl->zp.nr_zones - start_zid;
 	else // partial. # of zone desc transferred
-		nr_zone_to_report = (bytes_transfer / sizeof(struct zone_descriptor))  - 1;
+		nr_zone_to_report = (bytes_transfer / sizeof(struct zone_descriptor)) - 1;
 
 	report->nr_zones = nr_zone_to_report;
 
-	memcpy(report->zd, &(zone_descs[start_zid]), sizeof(struct zone_descriptor) * nr_zone_to_report);
+	memcpy(report->zd, &(zone_descs[start_zid]),
+	       sizeof(struct zone_descriptor) * nr_zone_to_report);
 }
 
-static bool __check_zmgmt_rcv_option_supported(struct zns_ftl *zns_ftl, struct nvme_zone_mgmt_recv * cmd)
+static bool __check_zmgmt_rcv_option_supported(struct zns_ftl *zns_ftl,
+					       struct nvme_zone_mgmt_recv *cmd)
 {
 	if (lba_to_zone(zns_ftl, cmd->slba) >= zns_ftl->zp.nr_zones) {
 		NVMEV_ERROR("Invalid lba range\n");
@@ -122,8 +127,8 @@ static bool __check_zmgmt_rcv_option_supported(struct zns_ftl *zns_ftl, struct n
 void zns_zmgmt_recv(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
 {
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)ns->ftls;
-	struct zone_report * buffer = zns_ftl->report_buffer;
-	struct nvme_zone_mgmt_recv * cmd = (struct nvme_zone_mgmt_recv *) req->cmd;
+	struct zone_report *buffer = zns_ftl->report_buffer;
+	struct nvme_zone_mgmt_recv *cmd = (struct nvme_zone_mgmt_recv *)req->cmd;
 
 	uint64_t prp1 = (uint64_t)cmd->prp1;
 	uint64_t prp2 = (uint64_t)cmd->prp2;
@@ -131,10 +136,10 @@ void zns_zmgmt_recv(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev
 	uint32_t status;
 
 	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_dw 0x%lx  action %u partial %u action_specific 0x%x\n",
-					__FUNCTION__, cmd->slba, length, cmd->zra, cmd->zra_specific_features, cmd->zra_specific_field);
+			__FUNCTION__, cmd->slba, length, cmd->zra, cmd->zra_specific_features,
+			cmd->zra_specific_field);
 
 	if (__check_zmgmt_rcv_option_supported(zns_ftl, cmd)) {
-
 		__fill_zone_report(zns_ftl, cmd, buffer);
 
 		__prp_transfer_data(prp1, prp2, buffer, length, 0);

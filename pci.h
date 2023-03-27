@@ -16,19 +16,19 @@
 #define _LIB_NVMEV_HDR_H
 
 struct __nvme_bar {
-	uint64_t			cap;	/* Controller Capabilities */
-	uint32_t			vs;	/* Version */
-	uint32_t			intms;	/* Interrupt Mask Set */
-	uint32_t			intmc;	/* Interrupt Mask Clear */
-	uint32_t			cc;	/* Controller Configuration */
-	uint32_t			rsvd1;	/* Reserved */
-	uint32_t			csts;	/* Controller Status */
-	uint32_t			nssr;	/* Subsystem Reset */
-	uint32_t			aqa;	/* Admin Queue Attributes */
-	uint64_t			asq;	/* Admin SQ Base Address */
-	uint64_t			acq;	/* Admin CQ Base Address */
-	uint32_t			cmbloc; /* Controller Memory Buffer Location */
-	uint32_t			cmbsz;  /* Controller Memory Buffer Size */
+	uint64_t cap; /* Controller Capabilities */
+	uint32_t vs; /* Version */
+	uint32_t intms; /* Interrupt Mask Set */
+	uint32_t intmc; /* Interrupt Mask Clear */
+	uint32_t cc; /* Controller Configuration */
+	uint32_t rsvd1; /* Reserved */
+	uint32_t csts; /* Controller Status */
+	uint32_t nssr; /* Subsystem Reset */
+	uint32_t aqa; /* Admin Queue Attributes */
+	uint64_t asq; /* Admin SQ Base Address */
+	uint64_t acq; /* Admin CQ Base Address */
+	uint32_t cmbloc; /* Controller Memory Buffer Location */
+	uint32_t cmbsz; /* Controller Memory Buffer Size */
 };
 
 struct pci_header {
@@ -37,33 +37,33 @@ struct pci_header {
 		u16 did;
 	} id;
 	struct {
-		u8 iose:1;
-		u8 mse:1;
-		u8 bme:1;
-		u8 sce:1;
-		u8 mwie:1;
-		u8 vga:1;
-		u8 pee:1;
-		u8 fixed:1;
-		u8 see:1;
-		u8 fbe:1;
-		u8 id:1;
-		u8 rsvd:5;
+		u8 iose : 1;
+		u8 mse : 1;
+		u8 bme : 1;
+		u8 sce : 1;
+		u8 mwie : 1;
+		u8 vga : 1;
+		u8 pee : 1;
+		u8 fixed : 1;
+		u8 see : 1;
+		u8 fbe : 1;
+		u8 id : 1;
+		u8 rsvd : 5;
 	} cmd;
 	struct {
-		u8 rsvd1:3;
-		u8 is:1;
-		u8 cl:1;
-		u8 c66:1;
-		u8 rsvd2:1;
-		u8 fbc:1;
-		u8 dpd:1;
-		u8 devt:2;
-		u8 sta:1;
-		u8 rta:1;
-		u8 rma:1;
-		u8 sse:1;
-		u8 dpe:1;
+		u8 rsvd1 : 3;
+		u8 is : 1;
+		u8 cl : 1;
+		u8 c66 : 1;
+		u8 rsvd2 : 1;
+		u8 fbc : 1;
+		u8 dpd : 1;
+		u8 devt : 2;
+		u8 sta : 1;
+		u8 rta : 1;
+		u8 rma : 1;
+		u8 sse : 1;
+		u8 dpe : 1;
 	} sts;
 	u8 rid;
 	struct {
@@ -74,22 +74,22 @@ struct pci_header {
 	u8 cls;
 	u8 mlt;
 	struct {
-		u8 hl:7;
-		u8 mfd:1;
+		u8 hl : 7;
+		u8 mfd : 1;
 	} htype;
 	struct {
-		u8 cc:4;
-		u8 rsvd:2;
-		u8 sb:1;
-		u8 bc:1;
+		u8 cc : 4;
+		u8 rsvd : 2;
+		u8 sb : 1;
+		u8 bc : 1;
 	} bist;
 
 	struct {
-		u32 rte:1;
-		u32 tp:2;
-		u32 pf:1;
-		u32 rsvd:10;
-		u32 ba:18;
+		u32 rte : 1;
+		u32 tp : 2;
+		u32 pf : 1;
+		u32 rsvd : 10;
+		u32 ba : 18;
 	} mlbar;
 
 	u32 mulbar;
@@ -124,24 +124,24 @@ struct pci_pm_cap {
 		u8 next;
 	} pid;
 	struct {
-		u16 vs:3;
-		u16 pmec:1;
-		u16 resv:1;
-		u16 dsi:1;
-		u16 auxc:3;
-		u16 d1s:1;
-		u16 d2s:1;
-		u16 psup:5;
+		u16 vs : 3;
+		u16 pmec : 1;
+		u16 resv : 1;
+		u16 dsi : 1;
+		u16 auxc : 3;
+		u16 d1s : 1;
+		u16 d2s : 1;
+		u16 psup : 5;
 	} pc;
 	struct {
-		u16 ps:2;
-		u16 rsvd01:1;
-		u16 nsfrst:1;
-		u16 rsvd02:4;
-		u16 pmee:1;
-		u16 dse:4;
-		u16 dsc:2;
-		u16 pmes:1;
+		u16 ps : 2;
+		u16 rsvd01 : 1;
+		u16 nsfrst : 1;
+		u16 rsvd02 : 4;
+		u16 pmee : 1;
+		u16 dse : 4;
+		u16 dsc : 2;
+		u16 pmes : 1;
 	} pmcs;
 	u8 ext[2];
 };
@@ -169,18 +169,18 @@ struct pci_msix_cap {
 		u8 next;
 	} mxid;
 	struct {
-		u16 ts:11;
-		u16 rsvd:3;
-		u16 fm:1;
-		u16 mxe:1;
+		u16 ts : 11;
+		u16 rsvd : 3;
+		u16 fm : 1;
+		u16 mxe : 1;
 	} mxc;
 	struct {
-		u32 tbir:3;
-		u32 to:29;
+		u32 tbir : 3;
+		u32 to : 29;
 	} mtab;
 	struct {
-		u32 pbir:3;
-		u32 pbao:29;
+		u32 pbir : 3;
+		u32 pbao : 29;
 	} mpba;
 };
 
@@ -190,212 +190,212 @@ struct pcie_cap {
 		u8 next;
 	} pxid;
 	struct {
-		u8 ver:4;
-		u8 dpt:4;
-		u8 si:1;
-		u8 imn:5;
-		u8 rsvd:2;
+		u8 ver : 4;
+		u8 dpt : 4;
+		u8 si : 1;
+		u8 imn : 5;
+		u8 rsvd : 2;
 	} pxcap;
 	struct {
-		u32 mps:3;
-		u32 pfs:2;
-		u32 etfs:1;
-		u32 l0sl:3;
-		u32 l1l:3;
-		u32 rsvd:3;
-		u32 rer:1;
-		u32 rsvd2:2;
-		u32 csplv:8;
-		u32 cspls:2;
-		u32 flrc:1;
-		u32 rsvd3:3;
+		u32 mps : 3;
+		u32 pfs : 2;
+		u32 etfs : 1;
+		u32 l0sl : 3;
+		u32 l1l : 3;
+		u32 rsvd : 3;
+		u32 rer : 1;
+		u32 rsvd2 : 2;
+		u32 csplv : 8;
+		u32 cspls : 2;
+		u32 flrc : 1;
+		u32 rsvd3 : 3;
 	} pxdcap;
 	struct {
-		u16 cere:1;
-		u16 nfere:1;
-		u16 fere:2;
-		u16 urre:1;
-		u16 ero:1;
-		u16 mps:3;
-		u16 ete:1;
-		u16 pfe:1;
-		u16 appme:1;
-		u16 ens:1;
-		u16 mrrs:3;
-		u16 iflr:1;
+		u16 cere : 1;
+		u16 nfere : 1;
+		u16 fere : 2;
+		u16 urre : 1;
+		u16 ero : 1;
+		u16 mps : 3;
+		u16 ete : 1;
+		u16 pfe : 1;
+		u16 appme : 1;
+		u16 ens : 1;
+		u16 mrrs : 3;
+		u16 iflr : 1;
 	} pxdc;
 	struct {
-		u16 ced:1;
-		u16 nfed:1;
-		u16 fed:1;
-		u16 urd:1;
-		u16 apd:1;
-		u16 tp:1;
-		u16 rsvd:10;
+		u16 ced : 1;
+		u16 nfed : 1;
+		u16 fed : 1;
+		u16 urd : 1;
+		u16 apd : 1;
+		u16 tp : 1;
+		u16 rsvd : 10;
 	} pxds;
 	struct {
-		u32 sls:4;
-		u32 mlw:6;
-		u32 aspms:2;
-		u32 l0sel:3;
-		u32 l1el:3;
-		u32 cpm:1;
-		u32 sderc:1;
-		u32 dllla:20;
-		u32 lbnc:1;
-		u32 aoc:1;
-		u32 rsvd:1;
-		u32 pn:8;
+		u32 sls : 4;
+		u32 mlw : 6;
+		u32 aspms : 2;
+		u32 l0sel : 3;
+		u32 l1el : 3;
+		u32 cpm : 1;
+		u32 sderc : 1;
+		u32 dllla : 20;
+		u32 lbnc : 1;
+		u32 aoc : 1;
+		u32 rsvd : 1;
+		u32 pn : 8;
 	} pxlcap;
 	struct {
-		u16 aspmc:2;
-		u16 rsvd:1;
-		u16 rcb:1;
-		u16 rsvd2:2;
-		u16 ccc:1;
-		u16 es:1;
-		u16 ecpm:1;
-		u16 hawd:1;
-		u16 rsvd3:6;
+		u16 aspmc : 2;
+		u16 rsvd : 1;
+		u16 rcb : 1;
+		u16 rsvd2 : 2;
+		u16 ccc : 1;
+		u16 es : 1;
+		u16 ecpm : 1;
+		u16 hawd : 1;
+		u16 rsvd3 : 6;
 	} pxlc;
 	struct {
-		u16 clc:4;
-		u16 nlw:6;
-		u16 rsvd:2;
-		u16 scc:1;
-		u16 rsvd2:3;
+		u16 clc : 4;
+		u16 nlw : 6;
+		u16 rsvd : 2;
+		u16 scc : 1;
+		u16 rsvd2 : 3;
 	} pxls;
 	struct {
-		u32 ctrs:4;
-		u32 ctds:1;
-		u32 arifs:1;
-		u32 aors:1;
-		u32 aocs32:1;
-		u32 aocs:1;
-		u32 ccs128:1;
-		u32 nprpr:1;
-		u32 ltrs:1;
-		u32 tphcs:2;
-		u32 rsvd:4;
-		u32 obffs:2;
-		u32 effs:1;
-		u32 eetps:1;
-		u32 meetp:2;
-		u32 rsvd2:8;
+		u32 ctrs : 4;
+		u32 ctds : 1;
+		u32 arifs : 1;
+		u32 aors : 1;
+		u32 aocs32 : 1;
+		u32 aocs : 1;
+		u32 ccs128 : 1;
+		u32 nprpr : 1;
+		u32 ltrs : 1;
+		u32 tphcs : 2;
+		u32 rsvd : 4;
+		u32 obffs : 2;
+		u32 effs : 1;
+		u32 eetps : 1;
+		u32 meetp : 2;
+		u32 rsvd2 : 8;
 	} pxdcap2;
 	struct {
-		u32 ctv:4;
-		u32 ctd:1;
-		u32 rsvd:5;
-		u32 ltrme:1;
-		u32 rsvd2:2;
-		u32 obffe:2;
-		u32 rsvd3:17;
+		u32 ctv : 4;
+		u32 ctd : 1;
+		u32 rsvd : 5;
+		u32 ltrme : 1;
+		u32 rsvd2 : 2;
+		u32 obffe : 2;
+		u32 rsvd3 : 17;
 	} pxdc2;
 };
 
 struct aer_cap {
 	struct {
 		u16 cid;
-		u16 cver:4;
-		u16 next:12;
+		u16 cver : 4;
+		u16 next : 12;
 	} aerid;
 	struct {
-		u32 rsvd:4;
-		u32 dlpes:1;
-		u32 rsvd2:7;
-		u32 pts:1;
-		u32 fcpes:1;
-		u32 cts:1;
-		u32 cas:1;
-		u32 ucs:1;
-		u32 ros:1;
-		u32 mts:1;
-		u32 ecrces:1;
-		u32 ures:1;
-		u32 acsvs:1;
-		u32 uies:1;
-		u32 mcbts:1;
-		u32 aoebs:1;
-		u32 tpbes:1;
-		u32 rsvd3:6;
+		u32 rsvd : 4;
+		u32 dlpes : 1;
+		u32 rsvd2 : 7;
+		u32 pts : 1;
+		u32 fcpes : 1;
+		u32 cts : 1;
+		u32 cas : 1;
+		u32 ucs : 1;
+		u32 ros : 1;
+		u32 mts : 1;
+		u32 ecrces : 1;
+		u32 ures : 1;
+		u32 acsvs : 1;
+		u32 uies : 1;
+		u32 mcbts : 1;
+		u32 aoebs : 1;
+		u32 tpbes : 1;
+		u32 rsvd3 : 6;
 	} aeruces;
 	struct {
-		u32 rsvd:4;
-		u32 dlpem:1;
-		u32 rsvd2:7;
-		u32 ptm:1;
-		u32 fcpem:1;
-		u32 ctm:1;
-		u32 cam:1;
-		u32 ucm:1;
-		u32 rom:1;
-		u32 mtm:1;
-		u32 ecrcem:1;
-		u32 urem:1;
-		u32 acsvm:1;
-		u32 uiem:1;
-		u32 mcbtm:1;
-		u32 aoebm:1;
-		u32 tpbem:1;
-		u32 rsvd3:6;
+		u32 rsvd : 4;
+		u32 dlpem : 1;
+		u32 rsvd2 : 7;
+		u32 ptm : 1;
+		u32 fcpem : 1;
+		u32 ctm : 1;
+		u32 cam : 1;
+		u32 ucm : 1;
+		u32 rom : 1;
+		u32 mtm : 1;
+		u32 ecrcem : 1;
+		u32 urem : 1;
+		u32 acsvm : 1;
+		u32 uiem : 1;
+		u32 mcbtm : 1;
+		u32 aoebm : 1;
+		u32 tpbem : 1;
+		u32 rsvd3 : 6;
 	} aerucem;
 	struct {
-		u32 rsvd:4;
-		u32 dlpesev:1;
-		u32 rsvd2:7;
-		u32 ptsev:1;
-		u32 fcpesev:1;
-		u32 ctsev:1;
-		u32 casev:1;
-		u32 ucsev:1;
-		u32 rosev:1;
-		u32 mtsev:1;
-		u32 ecrcesev:1;
-		u32 uresev:1;
-		u32 acsvsev:1;
-		u32 uiesev:1;
-		u32 mcbtsev:1;
-		u32 aoebsev:1;
-		u32 tpbesev:1;
-		u32 rsvd3:6;
+		u32 rsvd : 4;
+		u32 dlpesev : 1;
+		u32 rsvd2 : 7;
+		u32 ptsev : 1;
+		u32 fcpesev : 1;
+		u32 ctsev : 1;
+		u32 casev : 1;
+		u32 ucsev : 1;
+		u32 rosev : 1;
+		u32 mtsev : 1;
+		u32 ecrcesev : 1;
+		u32 uresev : 1;
+		u32 acsvsev : 1;
+		u32 uiesev : 1;
+		u32 mcbtsev : 1;
+		u32 aoebsev : 1;
+		u32 tpbesev : 1;
+		u32 rsvd3 : 6;
 	} aerucesev;
 	struct {
-		u32 res:1;
-		u32 rsvd:5;
-		u32 bts:1;
-		u32 bds:1;
-		u32 rrs:1;
-		u32 rsvd2:3;
-		u32 rts:1;
-		u32 anfes:1;
-		u32 cies:1;
-		u32 hlos:1;
-		u32 rsvd3:16;
+		u32 res : 1;
+		u32 rsvd : 5;
+		u32 bts : 1;
+		u32 bds : 1;
+		u32 rrs : 1;
+		u32 rsvd2 : 3;
+		u32 rts : 1;
+		u32 anfes : 1;
+		u32 cies : 1;
+		u32 hlos : 1;
+		u32 rsvd3 : 16;
 	} aerces;
 	struct {
-		u32 rem:1;
-		u32 rsvd:5;
-		u32 btm:1;
-		u32 bdm:1;
-		u32 rrm:1;
-		u32 rsvd2:3;
-		u32 rtm:1;
-		u32 anfem:1;
-		u32 ciem:1;
-		u32 hlom:1;
-		u32 rsvd3:16;
+		u32 rem : 1;
+		u32 rsvd : 5;
+		u32 btm : 1;
+		u32 bdm : 1;
+		u32 rrm : 1;
+		u32 rsvd2 : 3;
+		u32 rtm : 1;
+		u32 anfem : 1;
+		u32 ciem : 1;
+		u32 hlom : 1;
+		u32 rsvd3 : 16;
 	} aercem;
 	struct {
-		u32 fep:5;
-		u32 egc:1;
-		u32 ege:1;
-		u32 ecc:1;
-		u32 ece:1;
-		u32 mhrc:1;
-		u32 mhre:1;
-		u32 tplp:1;
-		u32 rsvd:20;
+		u32 fep : 5;
+		u32 egc : 1;
+		u32 ege : 1;
+		u32 ecc : 1;
+		u32 ece : 1;
+		u32 mhrc : 1;
+		u32 mhre : 1;
+		u32 tplp : 1;
+		u32 rsvd : 20;
 	} aercc;
 	struct {
 		u8 hb3;
@@ -438,8 +438,8 @@ struct aer_cap {
 struct pci_exp_hdr {
 	struct {
 		u16 cid;
-		u16 cver:4;
-		u16 next:12;
+		u16 cver : 4;
+		u16 next : 12;
 	} id;
 };
 
@@ -447,17 +447,17 @@ struct nvme_ctrl_regs {
 	union {
 		struct {
 			u16 mqes;
-			u16 cqr:1;
-			u16 ams:2;
-			u16 rsvd:5;
-			u16 to:8;
-			u16 dstrd:4;
-			u16 nssrs:1;
-			u16 css:8;
-			u16 rsvd2:3;
-			u16 mpsmin:4;
-			u16 mpsmax:4;
-			u16 rsvd3:8;
+			u16 cqr : 1;
+			u16 ams : 2;
+			u16 rsvd : 5;
+			u16 to : 8;
+			u16 dstrd : 4;
+			u16 nssrs : 1;
+			u16 css : 8;
+			u16 rsvd2 : 3;
+			u16 mpsmin : 4;
+			u16 mpsmax : 4;
+			u16 rsvd3 : 8;
 		} cap;
 		u64 u_cap;
 	};
@@ -471,82 +471,82 @@ struct nvme_ctrl_regs {
 		u32 u_vs;
 	};
 	//uint32_t			vs;	/* Version */
-	u32	intms;	/* Interrupt Mask Set */
-	u32	intmc;	/* Interrupt Mask Clear */
+	u32 intms; /* Interrupt Mask Set */
+	u32 intmc; /* Interrupt Mask Clear */
 	union {
 		struct {
-			u16 en:1;
-			u16 rsvd:3;
-			u16 css:3;
-			u16 mps:4;
-			u16 ams:3;
-			u16 shn:2;
-			u16 iosqes:4;
-			u16 iocqes:4;
-			u16 rsvd2:8;
+			u16 en : 1;
+			u16 rsvd : 3;
+			u16 css : 3;
+			u16 mps : 4;
+			u16 ams : 3;
+			u16 shn : 2;
+			u16 iosqes : 4;
+			u16 iocqes : 4;
+			u16 rsvd2 : 8;
 		} cc;
 		u32 u_cc;
 	};
 	//uint32_t			cc;	/* Controller Configuration */
-	u32	rsvd1;	/* Reserved */
+	u32 rsvd1; /* Reserved */
 	union {
 		struct {
-			u32 rdy:1;
-			u32 cfs:1;
-			u32 shst:2;
-			u32 nssro:1;
-			u32 pp:1;
-			u32 rsvd:26;
+			u32 rdy : 1;
+			u32 cfs : 1;
+			u32 shst : 2;
+			u32 nssro : 1;
+			u32 pp : 1;
+			u32 rsvd : 26;
 		} csts;
 		u32 u_csts;
 	};
 	//uint32_t			csts;	/* Controller Status */
-	u32	nssr;	/* Subsystem Reset */
+	u32 nssr; /* Subsystem Reset */
 	union {
 		struct {
-			u32 asqs:12;
-			u32 rsvd1:4;
-			u32 acqs:12;
-			u32 rsvd2:4;
+			u32 asqs : 12;
+			u32 rsvd1 : 4;
+			u32 acqs : 12;
+			u32 rsvd2 : 4;
 		} aqa;
 		u32 u_aqa;
 	};
 	//uint32_t			aqa;	/* Admin Queue Attributes */
 	union {
 		struct {
-			u64 rsvd:12;
-			u64 asqb:52;
+			u64 rsvd : 12;
+			u64 asqb : 52;
 		} asq;
 		u64 u_asq;
 	};
 	//uint64_t			asq;	/* Admin SQ Base Address */
 	union {
 		struct {
-			u64 rsvd:12;
-			u64 acqb:52;
+			u64 rsvd : 12;
+			u64 acqb : 52;
 		} acq;
 		u64 u_acq;
 	};
 	//uint64_t			acq;	/* Admin CQ Base Address */
 	union {
 		struct {
-			u32 bir:3;
-			u32 rsvd:9;
-			u32 ofst:20;
+			u32 bir : 3;
+			u32 rsvd : 9;
+			u32 ofst : 20;
 		} cmbloc;
 		u32 u_cmbloc;
 	};
 	//uint32_t			cmbloc; /* Controller Memory Buffer Location */
 	union {
 		struct {
-			u32 sqs:1;
-			u32 cqs:1;
-			u32 lists:1;
-			u32 rds:1;
-			u32 wds:1;
-			u32 rsvd:3;
-			u32 szu:4;
-			u32 sz:20;
+			u32 sqs : 1;
+			u32 cqs : 1;
+			u32 lists : 1;
+			u32 rds : 1;
+			u32 wds : 1;
+			u32 rsvd : 3;
+			u32 szu : 4;
+			u32 sz : 20;
 		} cmbsz;
 		u32 u_cmbsz;
 	};
@@ -577,15 +577,15 @@ void PCI_PCIE_EXTCAP_SETTINGS(struct pci_exp_hdr *exp_cap);
 
 #define SZ_HEADER (0x60 + SZ_PCIE_CAP)
 
-#define PCI_CFG_SPACE_SIZE	256
+#define PCI_CFG_SPACE_SIZE 256
 #define PCIE_EXPCAP_START 0x50
 
 #define PCI_NUMA_NODE 1
 
 enum {
-	CAP_CSS_BIT_NVM				= (1 << 0),
-	CAP_CSS_BIT_SPECIFIC		= (1 << 6),
-	CAP_CSS_BIT_NOT_SUPPORTED	= (1 << 7),
+	CAP_CSS_BIT_NVM = (1 << 0),
+	CAP_CSS_BIT_SPECIFIC = (1 << 6),
+	CAP_CSS_BIT_NOT_SUPPORTED = (1 << 7),
 };
 
 #endif /* _LIB_NVMEV_HDR_H */

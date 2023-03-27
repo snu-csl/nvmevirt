@@ -23,14 +23,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 /**
  * @file  pqueue.h
  * @brief Priority Queue function declarations
  *
  * @{
  */
-
 
 #ifndef PQUEUE_H
 #define PQUEUE_H
@@ -51,17 +49,16 @@ typedef void (*pqueue_set_pos_f)(void *a, size_t pos);
 // typedef void (*pqueue_print_entry_f)(FILE *out, void *a);
 
 /** the priority queue handle */
-typedef struct pqueue_t
-{
-    size_t size;                /**< number of elements in this queue */
-    size_t avail;               /**< slots available in this queue */
-    size_t step;                /**< growth stepping setting */
-    pqueue_cmp_pri_f cmppri;    /**< callback to compare nodes */
-    pqueue_get_pri_f getpri;    /**< callback to get priority of a node */
-    pqueue_set_pri_f setpri;    /**< callback to set priority of a node */
-    pqueue_get_pos_f getpos;    /**< callback to get position of a node */
-    pqueue_set_pos_f setpos;    /**< callback to set position of a node */
-    void **d;                   /**< The actualy queue in binary heap form */
+typedef struct pqueue_t {
+	size_t size; /**< number of elements in this queue */
+	size_t avail; /**< slots available in this queue */
+	size_t step; /**< growth stepping setting */
+	pqueue_cmp_pri_f cmppri; /**< callback to compare nodes */
+	pqueue_get_pri_f getpri; /**< callback to get priority of a node */
+	pqueue_set_pri_f setpri; /**< callback to set priority of a node */
+	pqueue_get_pos_f getpos; /**< callback to get position of a node */
+	pqueue_set_pos_f setpos; /**< callback to set position of a node */
+	void **d; /**< The actualy queue in binary heap form */
 } pqueue_t;
 
 /**
@@ -80,7 +77,7 @@ typedef struct pqueue_t
  * @return the handle or NULL for insufficent memory
  */
 pqueue_t *pqueue_init(size_t n, pqueue_cmp_pri_f cmppri, pqueue_get_pri_f getpri,
-        pqueue_set_pri_f setpri, pqueue_get_pos_f getpos, pqueue_set_pos_f setpos);
+		      pqueue_set_pri_f setpri, pqueue_get_pos_f getpos, pqueue_set_pos_f setpos);
 
 /**
  * free all memory used by the queue
@@ -108,8 +105,7 @@ int pqueue_insert(pqueue_t *q, void *d);
  * @param new_pri the new priority
  * @param d the entry
  */
-void
-pqueue_change_priority(pqueue_t *q, pqueue_pri_t new_pri, void *d);
+void pqueue_change_priority(pqueue_t *q, pqueue_pri_t new_pri, void *d);
 
 /**
  * pop the highest-ranking item from the queue.

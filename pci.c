@@ -135,6 +135,7 @@ void nvmev_proc_bars(void)
 			queue->phase = 1;
 			queue->sq_depth = bar->aqa.asqs + 1; /* asqs and acqs are 0-based */
 			queue->cq_depth = bar->aqa.acqs + 1;
+			smp_mb();
 			nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 			nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
 
@@ -175,12 +176,13 @@ void nvmev_proc_bars(void)
 		queue->nvme_sq = kcalloc(num_pages, sizeof(struct nvme_command *), GFP_KERNEL);
 		BUG_ON(!queue->nvme_sq && "Error on setup admin submission queue");
 		NVMEV_DEBUG("made admin SQ - %d entries\n", num_pages);
-		nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 
 		for (i = 0; i < num_pages; i++) {
 			queue->nvme_sq[i] =
 				page_address(pfn_to_page(nvmev_vdev->bar->u_asq >> PAGE_SHIFT) + i);
 		}
+		smp_mb();
+		nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 
 		modified = true;
 	}
@@ -208,13 +210,14 @@ void nvmev_proc_bars(void)
 		queue->nvme_cq = kcalloc(num_pages, sizeof(struct nvme_completion *), GFP_KERNEL);
 		BUG_ON(!queue->nvme_cq && "Error on setup admin completion queue");
 		NVMEV_DEBUG("made admin CQ - %d entries\n", num_pages);
-		nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
 		queue->cq_head = 0;
 
 		for (i = 0; i < num_pages; i++) {
 			queue->nvme_cq[i] =
 				page_address(pfn_to_page(nvmev_vdev->bar->u_acq >> PAGE_SHIFT) + i);
 		}
+		smp_mb();
+		nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
 
 		modified = true;
 	}
@@ -235,6 +238,7 @@ void nvmev_proc_bars(void)
 		/* Shutdown */
 		if (bar->cc.shn == 1) {
 			bar->csts.shst = 2;
+			smp_mb();
 			nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 			nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
 			nvmev_vdev->admin_q->cq_head = 0;

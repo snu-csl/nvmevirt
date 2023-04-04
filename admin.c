@@ -21,10 +21,8 @@
 #define cq_entry(entry_id) \
 	queue->nvme_cq[CQ_ENTRY_TO_PAGE_NUM(entry_id)][CQ_ENTRY_TO_PAGE_OFFSET(entry_id)]
 
-static void *prp_address(unsigned long prp)
-{
-	return page_address(pfn_to_page(prp >> PAGE_SHIFT)) + (prp & ~PAGE_MASK);
-}
+#define prp_address_offset(prp, offset) (page_address(pfn_to_page(prp >> PAGE_SHIFT) + offset) + (prp & ~PAGE_MASK))
+#define prp_address(prp) prp_address_offset(prp, 0)
 
 static void __nvmev_admin_create_cq(int eid, int cq_head)
 {
@@ -60,7 +58,7 @@ static void __nvmev_admin_create_cq(int eid, int cq_head)
 	num_pages = DIV_ROUND_UP(cq->queue_size * sizeof(struct nvme_completion), PAGE_SIZE);
 	cq->cq = kzalloc(sizeof(struct nvme_completion *) * num_pages, GFP_KERNEL);
 	for (i = 0; i < num_pages; i++) {
-		cq->cq[i] = page_address(pfn_to_page(cmd->prp1 >> PAGE_SHIFT) + i);
+		cq->cq[i] = prp_address_offset(cmd->prp1, i);
 	}
 
 	nvmev_vdev->cqes[cq->qid] = cq;
@@ -120,7 +118,7 @@ static void __nvmev_admin_create_sq(int eid, int cq_head)
 	sq->sq = kzalloc(sizeof(struct nvme_command *) * num_pages, GFP_KERNEL);
 
 	for (i = 0; i < num_pages; i++) {
-		sq->sq[i] = page_address(pfn_to_page(cmd->prp1 >> PAGE_SHIFT) + i);
+		sq->sq[i] = prp_address_offset(cmd->prp1, i);
 	}
 	nvmev_vdev->sqes[sq->qid] = sq;
 
@@ -190,7 +188,7 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 
 #if BASE_SSD == ZNS_PROTOTYPE
 	//Workaround. TODO: handling get log page
-	page = page_address(pfn_to_page(sq_entry(eid).identify.prp1 >> PAGE_SHIFT));
+	page = prp_address(sq_entry(eid).identify.prp1);
 	memset(page, 0xFFFFFFFF, PAGE_SIZE);
 #else
 	struct nvme_common_command *cmd = &sq_entry(eid).common;
@@ -209,7 +207,7 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 	smart_log.temperature[0] = 0 & 0xff;
 	smart_log.temperature[1] = (0 >> 8) & 0xff;
 
-	page = page_address(pfn_to_page(sq_entry(eid).identify.prp1 >> PAGE_SHIFT));
+	page = prp_address(sq_entry(eid).identify.prp1);
 	memcpy(page, &smart_log, len);
 #endif
 
@@ -307,7 +305,7 @@ static void __nvmev_admin_identify_namespace_desc(int eid, int cq_head)
 
 	NVMEV_DEBUG("[%s] ns %d\n", __FUNCTION__, cmd->nsid);
 
-	ns_desc = page_address(pfn_to_page((cmd->prp1) >> PAGE_SHIFT));
+	ns_desc = prp_address(cmd->prp1);
 	memset(ns_desc, 0x00, sizeof(*ns_desc));
 
 	ns_desc->nidt = NVME_NIDT_CSI;

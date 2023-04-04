@@ -127,9 +127,10 @@ void nvmev_proc_bars(void)
 		// Initalize admin queue
 		old_bar->aqa = bar->u_aqa;
 
-		queue = kzalloc(sizeof(struct nvmev_admin_queue), GFP_KERNEL);
-
 		if (nvmev_vdev->admin_q == NULL) {
+			queue = kzalloc(sizeof(struct nvmev_admin_queue), GFP_KERNEL);
+			BUG_ON(queue == NULL);
+
 			queue->cq_head = 0;
 			queue->phase = 1;
 			queue->sq_depth = bar->aqa.asqs + 1; /* asqs and acqs are 0-based */
@@ -137,15 +138,31 @@ void nvmev_proc_bars(void)
 			nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 			nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
 
-			nvmev_vdev->admin_q = queue;
+			WRITE_ONCE(nvmev_vdev->admin_q, queue);
+		} else {
+			NVMEV_ERROR("re-initializing admin queue\n");
 		}
 
 		modified = true;
 	}
+	barrier();
 	if (old_bar->asq != bar->u_asq) {
-		old_bar->asq = bar->u_asq;
-
 		queue = nvmev_vdev->admin_q;
+		if (queue == NULL) {
+			/*
+			 * asq/acq can't be updated later than aqa, but in an unlikely case, this
+			 * can be triggered before an aqa update due to memory re-ordering and lack
+			 * of barriers.
+			 *
+			 * If that's the case, simply run the loop again after a full barrier so
+			 * that the aqa code (initializing the admin queue) can run prior to this.
+			 */
+			NVMEV_INFO("asq triggered before aqa, retrying\n");
+			smp_mb();
+			return;
+		}
+
+		old_bar->asq = bar->u_asq;
 
 		if (queue->nvme_sq) {
 			kfree(queue->nvme_sq);
@@ -167,10 +184,17 @@ void nvmev_proc_bars(void)
 
 		modified = true;
 	}
+	barrier();
 	if (old_bar->acq != bar->u_acq) {
-		old_bar->acq = bar->u_acq;
-
 		queue = nvmev_vdev->admin_q;
+		if (queue == NULL) {
+			// See comment above
+			NVMEV_INFO("acq triggered before aqa, retrying\n");
+			smp_mb();
+			return;
+		}
+
+		old_bar->acq = bar->u_acq;
 
 		if (queue->nvme_cq) {
 			kfree(queue->nvme_cq);
@@ -194,6 +218,7 @@ void nvmev_proc_bars(void)
 
 		modified = true;
 	}
+	barrier();
 	if (old_bar->cc != bar->u_cc) {
 		/* Enable */
 		if (bar->cc.en == 1) {
@@ -219,6 +244,7 @@ void nvmev_proc_bars(void)
 
 		modified = true;
 	}
+	barrier();
 
 	if (modified)
 		smp_mb();

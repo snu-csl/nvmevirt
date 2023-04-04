@@ -107,6 +107,7 @@ void nvmev_proc_bars(void)
 		memcpy(&old_bar->csts, &bar->csts, sizeof(old_bar->csts));
 	}
 #endif
+#if 0 /* Unused registers */
 	if (old_bar->intms != bar->intms) {
 		memcpy(&old_bar->intms, &bar->intms, sizeof(old_bar->intms));
 	}
@@ -116,6 +117,7 @@ void nvmev_proc_bars(void)
 	if (old_bar->nssr != bar->nssr) {
 		memcpy(&old_bar->nssr, &bar->nssr, sizeof(old_bar->nssr));
 	}
+#endif
 	if (old_bar->aqa != bar->u_aqa) {
 		// Initalize admin queue
 		memcpy(&old_bar->aqa, &bar->aqa, sizeof(old_bar->aqa));

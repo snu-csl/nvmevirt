@@ -80,12 +80,17 @@ void nvmev_signal_irq(int msi_index)
 }
 #endif
 
+/*
+ * If a change is detected, issue a full SMP memory barrier so that
+ * the rest of the changes can be seen in order.
+ */
 void nvmev_proc_bars(void)
 {
 	struct __nvme_bar *old_bar = nvmev_vdev->old_bar;
 	struct nvme_ctrl_regs *bar = nvmev_vdev->bar;
 	struct nvmev_admin_queue *queue;
 	unsigned int num_pages, i;
+	bool modified = false;
 
 #if 0 /* Read-only register */
 	if (old_bar->cap != bar->u_cap) {
@@ -134,6 +139,8 @@ void nvmev_proc_bars(void)
 
 			nvmev_vdev->admin_q = queue;
 		}
+
+		modified = true;
 	}
 	if (old_bar->asq != bar->u_asq) {
 		memcpy(&old_bar->asq, &bar->asq, sizeof(old_bar->asq));
@@ -157,6 +164,8 @@ void nvmev_proc_bars(void)
 			queue->nvme_sq[i] =
 				page_address(pfn_to_page(nvmev_vdev->bar->u_asq >> PAGE_SHIFT) + i);
 		}
+
+		modified = true;
 	}
 	if (old_bar->acq != bar->u_acq) {
 		memcpy(&old_bar->acq, &bar->acq, sizeof(old_bar->acq));
@@ -182,6 +191,8 @@ void nvmev_proc_bars(void)
 			queue->nvme_cq[i] =
 				page_address(pfn_to_page(nvmev_vdev->bar->u_acq >> PAGE_SHIFT) + i);
 		}
+
+		modified = true;
 	}
 	if (old_bar->cc != bar->u_cc) {
 		/* Enable */
@@ -205,7 +216,12 @@ void nvmev_proc_bars(void)
 		}
 
 		memcpy(&old_bar->cc, &bar->cc, sizeof(old_bar->cc));
+
+		modified = true;
 	}
+
+	if (modified)
+		smp_mb();
 }
 
 int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)

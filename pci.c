@@ -125,7 +125,7 @@ void nvmev_proc_bars(void)
 #endif
 	if (old_bar->aqa != bar->u_aqa) {
 		// Initalize admin queue
-		memcpy(&old_bar->aqa, &bar->aqa, sizeof(old_bar->aqa));
+		old_bar->aqa = bar->u_aqa;
 
 		queue = kzalloc(sizeof(struct nvmev_admin_queue), GFP_KERNEL);
 
@@ -143,7 +143,7 @@ void nvmev_proc_bars(void)
 		modified = true;
 	}
 	if (old_bar->asq != bar->u_asq) {
-		memcpy(&old_bar->asq, &bar->asq, sizeof(old_bar->asq));
+		old_bar->asq = bar->u_asq;
 
 		queue = nvmev_vdev->admin_q;
 
@@ -168,7 +168,7 @@ void nvmev_proc_bars(void)
 		modified = true;
 	}
 	if (old_bar->acq != bar->u_acq) {
-		memcpy(&old_bar->acq, &bar->acq, sizeof(old_bar->acq));
+		old_bar->acq = bar->u_acq;
 
 		queue = nvmev_vdev->admin_q;
 
@@ -215,7 +215,7 @@ void nvmev_proc_bars(void)
 			nvmev_vdev->admin_q->cq_head = 0;
 		}
 
-		memcpy(&old_bar->cc, &bar->cc, sizeof(old_bar->cc));
+		old_bar->cc = bar->u_cc;
 
 		modified = true;
 	}

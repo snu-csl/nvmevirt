@@ -718,11 +718,12 @@ int dmatest_chan_set(const char *val)
 #endif
 	struct dmatest_info *info = &test_info;
 	struct dmatest_chan *dtc;
-	char chan_reset_val[20];
+	char chan_reset_val[CHANNEL_NAME_LEN];
 	int ret = 0;
 
 	mutex_lock(&info->lock);
-	memcpy(test_channel, val, 20);
+	BUG_ON(strlen(val) >= CHANNEL_NAME_LEN);
+	strcpy(test_channel, val);
 
 	/* Reject channels that are already registered */
 	list_for_each_entry(dtc, &info->channels, node) {

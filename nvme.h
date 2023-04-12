@@ -241,6 +241,22 @@ struct nvme_smart_log {
 };
 
 enum {
+	NVME_CMD_EFFECTS_CSUPP = 1 << 0,
+	NVME_CMD_EFFECTS_LBCC = 1 << 1,
+	NVME_CMD_EFFECTS_NCC = 1 << 2,
+	NVME_CMD_EFFECTS_NIC = 1 << 3,
+	NVME_CMD_EFFECTS_CCC = 1 << 4,
+	NVME_CMD_EFFECTS_CSE_MASK = 3 << 16,
+	NVME_CMD_EFFECTS_UUID_SEL = 1 << 19,
+};
+
+struct nvme_effects_log {
+	__le32 acs[256];
+	__le32 iocs[256];
+	__u8 resv[2048];
+};
+
+enum {
 	NVME_SMART_CRIT_SPARE = 1 << 0,
 	NVME_SMART_CRIT_TEMPERATURE = 1 << 1,
 	NVME_SMART_CRIT_RELIABILITY = 1 << 2,
@@ -421,11 +437,24 @@ enum nvme_admin_opcode {
 	nvme_admin_set_features = 0x09,
 	nvme_admin_get_features = 0x0a,
 	nvme_admin_async_event = 0x0c,
+	nvme_admin_ns_mgmt = 0x0d,
 	nvme_admin_activate_fw = 0x10,
 	nvme_admin_download_fw = 0x11,
+	nvme_admin_dev_self_test = 0x14,
+	nvme_admin_ns_attach = 0x15,
+	nvme_admin_keep_alive = 0x18,
+	nvme_admin_directive_send = 0x19,
+	nvme_admin_directive_recv = 0x1a,
+	nvme_admin_virtual_mgmt = 0x1c,
+	nvme_admin_nvme_mi_send = 0x1d,
+	nvme_admin_nvme_mi_recv = 0x1e,
+	nvme_admin_dbbuf = 0x7C,
 	nvme_admin_format_nvm = 0x80,
 	nvme_admin_security_send = 0x81,
 	nvme_admin_security_recv = 0x82,
+	nvme_admin_sanitize_nvm = 0x84,
+	nvme_admin_get_lba_status = 0x86,
+	nvme_admin_vendor_start = 0xC0,
 };
 
 enum {
@@ -454,6 +483,14 @@ enum {
 	NVME_LOG_ERROR = 0x01,
 	NVME_LOG_SMART = 0x02,
 	NVME_LOG_FW_SLOT = 0x03,
+	NVME_LOG_CHANGED_NS = 0x04,
+	NVME_LOG_CMD_EFFECTS = 0x05,
+	NVME_LOG_DEVICE_SELF_TEST = 0x06,
+	NVME_LOG_TELEMETRY_HOST = 0x07,
+	NVME_LOG_TELEMETRY_CTRL = 0x08,
+	NVME_LOG_ENDURANCE_GROUP = 0x09,
+	NVME_LOG_ANA = 0x0c,
+	NVME_LOG_DISC = 0x70,
 	NVME_LOG_RESERVATION = 0x80,
 	NVME_FWACT_REPL = (0 << 3),
 	NVME_FWACT_REPL_ACTV = (1 << 3),

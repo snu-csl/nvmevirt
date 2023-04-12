@@ -185,28 +185,56 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_get_log_page_command *cmd = &sq_entry(eid).get_log_page;
-	struct nvme_smart_log smart_log;
 	void *page;
 	uint32_t len = ((((uint32_t)cmd->numdu << 16) | cmd->numdl) + 1) << 2;
 
 	page = prp_address(cmd->prp1);
 
+	switch (cmd->lid) {
+	case NVME_LOG_SMART: {
+		struct nvme_smart_log smart_log = {
+			.critical_warning = 0,
+			.spare_thresh = 20,
+			.host_reads[0] = cpu_to_le64(0),
+			.host_writes[0] = cpu_to_le64(0),
+			.num_err_log_entries[0] = cpu_to_le64(0),
+			.temperature[0] = 0 & 0xff,
+			.temperature[1] = (0 >> 8) & 0xff,
+		};
+
+		NVMEV_INFO("Handling NVME_LOG_SMART\n");
+
+		memcpy(page, &smart_log, len);
+		break;
+	}
+	case NVME_LOG_CMD_EFFECTS: {
+		struct nvme_effects_log effects_log = {
+			.acs = {
+				[nvme_admin_get_log_page] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				[nvme_admin_identify] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				// [nvme_admin_abort_cmd] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				[nvme_admin_set_features] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				[nvme_admin_get_features] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				[nvme_admin_async_event] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				// [nvme_admin_keep_alive] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+			},
+			.iocs = {
 #if BASE_SSD == ZNS_PROTOTYPE
-	//Workaround. TODO: handling get log page
-	memset(page, 0xFFFFFFFF, PAGE_SIZE);
-#else
-	memset(&smart_log, 0x0, sizeof(smart_log));
-
-	smart_log.critical_warning = 0;
-	smart_log.spare_thresh = 20;
-	smart_log.host_reads[0] = cpu_to_le64(0);
-	smart_log.host_writes[0] = cpu_to_le64(0);
-	smart_log.num_err_log_entries[0] = cpu_to_le64(0);
-	smart_log.temperature[0] = 0 & 0xff;
-	smart_log.temperature[1] = (0 >> 8) & 0xff;
-
-	memcpy(page, &smart_log, len);
+				/* Zone Append is unsupported at the moment */
+				// [nvme_cmd_zone_append] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				[nvme_cmd_zone_mgmt_send] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP | NVME_CMD_EFFECTS_LBCC),
+				[nvme_cmd_zone_mgmt_recv] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
 #endif
+			},
+			.resv = { 0, },
+		};
+
+		NVMEV_INFO("Handling NVME_LOG_CMD_EFFECTS\n");
+
+		memcpy(page, &effects_log, len);
+		break;
+	}
+	}
 
 	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
 	cq_entry(cq_head).sq_id = 0;

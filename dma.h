@@ -44,6 +44,8 @@ static unsigned int transfer_size = 1024;
 // Use polling for completion instead of interrupts
 static bool polled = true;
 
+#define CHANNEL_NAME_LEN 20
+
 /**
  * struct dmatest_params - test parameters.
  * @buf_size:		size of the memcpy test buffer
@@ -56,7 +58,7 @@ static bool polled = true;
  */
 struct dmatest_params {
 	unsigned int buf_size;
-	char channel[20];
+	char channel[CHANNEL_NAME_LEN];
 	char device[32];
 	unsigned int max_channels;
 	int timeout;
@@ -117,7 +119,7 @@ struct dmatest_chan {
 	struct list_head threads;
 };
 
-static char test_channel[20];
+static char test_channel[CHANNEL_NAME_LEN];
 
 /* Maximum amount of mismatched bytes in buffer to print */
 #define MAX_ERROR_COUNT 32

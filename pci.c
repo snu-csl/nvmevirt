@@ -80,12 +80,17 @@ void nvmev_signal_irq(int msi_index)
 }
 #endif
 
+/*
+ * If a change is detected, issue a full SMP memory barrier so that
+ * the rest of the changes can be seen in order.
+ */
 void nvmev_proc_bars(void)
 {
 	struct __nvme_bar *old_bar = nvmev_vdev->old_bar;
 	struct nvme_ctrl_regs *bar = nvmev_vdev->bar;
 	struct nvmev_admin_queue *queue;
 	unsigned int num_pages, i;
+	bool modified = false;
 
 #if 0 /* Read-only register */
 	if (old_bar->cap != bar->u_cap) {
@@ -107,6 +112,7 @@ void nvmev_proc_bars(void)
 		memcpy(&old_bar->csts, &bar->csts, sizeof(old_bar->csts));
 	}
 #endif
+#if 0 /* Unused registers */
 	if (old_bar->intms != bar->intms) {
 		memcpy(&old_bar->intms, &bar->intms, sizeof(old_bar->intms));
 	}
@@ -116,27 +122,48 @@ void nvmev_proc_bars(void)
 	if (old_bar->nssr != bar->nssr) {
 		memcpy(&old_bar->nssr, &bar->nssr, sizeof(old_bar->nssr));
 	}
+#endif
 	if (old_bar->aqa != bar->u_aqa) {
 		// Initalize admin queue
-		memcpy(&old_bar->aqa, &bar->aqa, sizeof(old_bar->aqa));
-
-		queue = kzalloc(sizeof(struct nvmev_admin_queue), GFP_KERNEL);
+		old_bar->aqa = bar->u_aqa;
 
 		if (nvmev_vdev->admin_q == NULL) {
+			queue = kzalloc(sizeof(struct nvmev_admin_queue), GFP_KERNEL);
+			BUG_ON(queue == NULL);
+
 			queue->cq_head = 0;
 			queue->phase = 1;
 			queue->sq_depth = bar->aqa.asqs + 1; /* asqs and acqs are 0-based */
 			queue->cq_depth = bar->aqa.acqs + 1;
+			smp_mb();
 			nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 			nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
 
-			nvmev_vdev->admin_q = queue;
+			WRITE_ONCE(nvmev_vdev->admin_q, queue);
+		} else {
+			NVMEV_ERROR("re-initializing admin queue\n");
 		}
-	}
-	if (old_bar->asq != bar->u_asq) {
-		memcpy(&old_bar->asq, &bar->asq, sizeof(old_bar->asq));
 
+		modified = true;
+	}
+	barrier();
+	if (old_bar->asq != bar->u_asq) {
 		queue = nvmev_vdev->admin_q;
+		if (queue == NULL) {
+			/*
+			 * asq/acq can't be updated later than aqa, but in an unlikely case, this
+			 * can be triggered before an aqa update due to memory re-ordering and lack
+			 * of barriers.
+			 *
+			 * If that's the case, simply run the loop again after a full barrier so
+			 * that the aqa code (initializing the admin queue) can run prior to this.
+			 */
+			NVMEV_INFO("asq triggered before aqa, retrying\n");
+			smp_mb();
+			return;
+		}
+
+		old_bar->asq = bar->u_asq;
 
 		if (queue->nvme_sq) {
 			kfree(queue->nvme_sq);
@@ -149,17 +176,27 @@ void nvmev_proc_bars(void)
 		queue->nvme_sq = kcalloc(num_pages, sizeof(struct nvme_command *), GFP_KERNEL);
 		BUG_ON(!queue->nvme_sq && "Error on setup admin submission queue");
 		NVMEV_DEBUG("made admin SQ - %d entries\n", num_pages);
-		nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 
 		for (i = 0; i < num_pages; i++) {
 			queue->nvme_sq[i] =
 				page_address(pfn_to_page(nvmev_vdev->bar->u_asq >> PAGE_SHIFT) + i);
 		}
-	}
-	if (old_bar->acq != bar->u_acq) {
-		memcpy(&old_bar->acq, &bar->acq, sizeof(old_bar->acq));
+		smp_mb();
+		nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 
+		modified = true;
+	}
+	barrier();
+	if (old_bar->acq != bar->u_acq) {
 		queue = nvmev_vdev->admin_q;
+		if (queue == NULL) {
+			// See comment above
+			NVMEV_INFO("acq triggered before aqa, retrying\n");
+			smp_mb();
+			return;
+		}
+
+		old_bar->acq = bar->u_acq;
 
 		if (queue->nvme_cq) {
 			kfree(queue->nvme_cq);
@@ -173,14 +210,18 @@ void nvmev_proc_bars(void)
 		queue->nvme_cq = kcalloc(num_pages, sizeof(struct nvme_completion *), GFP_KERNEL);
 		BUG_ON(!queue->nvme_cq && "Error on setup admin completion queue");
 		NVMEV_DEBUG("made admin CQ - %d entries\n", num_pages);
-		nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
 		queue->cq_head = 0;
 
 		for (i = 0; i < num_pages; i++) {
 			queue->nvme_cq[i] =
 				page_address(pfn_to_page(nvmev_vdev->bar->u_acq >> PAGE_SHIFT) + i);
 		}
+		smp_mb();
+		nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
+
+		modified = true;
 	}
+	barrier();
 	if (old_bar->cc != bar->u_cc) {
 		/* Enable */
 		if (bar->cc.en == 1) {
@@ -197,13 +238,20 @@ void nvmev_proc_bars(void)
 		/* Shutdown */
 		if (bar->cc.shn == 1) {
 			bar->csts.shst = 2;
+			smp_mb();
 			nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 			nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
 			nvmev_vdev->admin_q->cq_head = 0;
 		}
 
-		memcpy(&old_bar->cc, &bar->cc, sizeof(old_bar->cc));
+		old_bar->cc = bar->u_cc;
+
+		modified = true;
 	}
+	barrier();
+
+	if (modified)
+		smp_mb();
 }
 
 int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)

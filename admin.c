@@ -234,6 +234,22 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 		__memcpy(page, &effects_log, len);
 		break;
 	}
+	default:
+		/*
+		 * The NVMe protocol mandates several commands (lid) to be implemented, but some
+		 * aren't in NVMeVirt.
+		 *
+		 * As the NVMe host device driver will always assume that the device will return
+		 * the correct values, blindly memset'ing the return buffer will always result in
+		 * heavy system malfunction due to incorrect memory dereferences.
+		 *
+		 * Warn the users and make it perfectly clear that this needs to be implemented.
+		 */
+		NVMEV_ERROR("Unimplemented log page identifier: 0x%hhx,"
+			    "the system will be unstable!\n",
+			    cmd->lid);
+		__memset(page, 0, len);
+		break;
 	}
 
 	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;

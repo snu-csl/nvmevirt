@@ -204,7 +204,7 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 
 		NVMEV_INFO("Handling NVME_LOG_SMART\n");
 
-		memcpy(page, &smart_log, len);
+		__memcpy(page, &smart_log, len);
 		break;
 	}
 	case NVME_LOG_CMD_EFFECTS: {
@@ -231,7 +231,7 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 
 		NVMEV_INFO("Handling NVME_LOG_CMD_EFFECTS\n");
 
-		memcpy(page, &effects_log, len);
+		__memcpy(page, &effects_log, len);
 		break;
 	}
 	}

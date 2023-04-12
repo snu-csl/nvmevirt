@@ -30,7 +30,7 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 
 	zns_ftl->zone_descs = kmalloc(sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
 	zns_ftl->report_buffer = kmalloc(sizeof(struct zone_report) +
-						 sizeof(struct zone_descriptor) * (nr_zones - 1),
+						 sizeof(struct zone_descriptor) * nr_zones,
 					 GFP_KERNEL);
 	zns_ftl->zwra_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
 

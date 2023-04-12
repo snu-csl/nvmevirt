@@ -184,19 +184,17 @@ static void __nvmev_admin_identify_ctrl(int eid, int cq_head)
 static void __nvmev_admin_get_log_page(int eid, int cq_head)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
+	struct nvme_get_log_page_command *cmd = &sq_entry(eid).get_log_page;
+	struct nvme_smart_log smart_log;
 	void *page;
+	uint32_t len = ((((uint32_t)cmd->numdu << 16) | cmd->numdl) + 1) << 2;
+
+	page = prp_address(cmd->prp1);
 
 #if BASE_SSD == ZNS_PROTOTYPE
 	//Workaround. TODO: handling get log page
-	page = prp_address(sq_entry(eid).identify.prp1);
 	memset(page, 0xFFFFFFFF, PAGE_SIZE);
 #else
-	struct nvme_common_command *cmd = &sq_entry(eid).common;
-	struct nvme_smart_log smart_log;
-	uint32_t dw10 = le32_to_cpu(cmd->cdw10[0]);
-	uint32_t dw11 = le32_to_cpu(cmd->cdw10[1]);
-	uint32_t len = ((((dw11 & 0xffff) << 16) | (dw10 >> 16)) + 1) << 2;
-
 	memset(&smart_log, 0x0, sizeof(smart_log));
 
 	smart_log.critical_warning = 0;
@@ -207,7 +205,6 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 	smart_log.temperature[0] = 0 & 0xff;
 	smart_log.temperature[1] = (0 >> 8) & 0xff;
 
-	page = prp_address(sq_entry(eid).identify.prp1);
 	memcpy(page, &smart_log, len);
 #endif
 

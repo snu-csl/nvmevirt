@@ -334,6 +334,31 @@ struct nvme_rw_command {
 	__le16 appmask;
 };
 
+struct nvme_get_log_page_command {
+	__u8 opcode;
+	__u8 flags;
+	__u16 command_id;
+	__le32 nsid;
+	__u64 rsvd2[2];
+	__le64 prp1;
+	__le64 prp2;
+	__u8 lid;
+	__u8 lsp; /* upper 4 bits reserved */
+	__le16 numdl;
+	__le16 numdu;
+	__u16 rsvd11;
+	union {
+		struct {
+			__le32 lpol;
+			__le32 lpou;
+		};
+		__le64 lpo;
+	};
+	__u8 rsvd14[3];
+	__u8 csi;
+	__u32 rsvd15;
+};
+
 enum {
 	NVME_RW_LR = 1 << 15,
 	NVME_RW_FUA = 1 << 14,
@@ -534,6 +559,7 @@ struct nvme_command {
 	union {
 		struct nvme_common_command common;
 		struct nvme_rw_command rw;
+		struct nvme_get_log_page_command get_log_page;
 		struct nvme_identify identify;
 		struct nvme_features features;
 		struct nvme_create_cq create_cq;

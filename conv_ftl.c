@@ -1030,16 +1030,9 @@ bool conv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struc
 	case nvme_cmd_flush:
 		conv_flush(ns, req, ret);
 		break;
-	case nvme_cmd_write_uncor:
-	case nvme_cmd_compare:
-	case nvme_cmd_write_zeroes:
-	case nvme_cmd_dsm:
-	case nvme_cmd_resv_register:
-	case nvme_cmd_resv_report:
-	case nvme_cmd_resv_acquire:
-	case nvme_cmd_resv_release:
-		break;
 	default:
+		NVMEV_ERROR("%s: unimplemented command: %s(%d)\n", __func__,
+			   nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
 		break;
 	}
 

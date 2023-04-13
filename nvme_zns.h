@@ -48,13 +48,6 @@ struct nvme_id_zns_ns {
 	__u8 vs[256];
 };
 
-/* IO command */
-enum nvme_opcode_zns {
-	nvme_cmd_zone_mgmt_send = 0x79,
-	nvme_cmd_zone_mgmt_recv = 0x7a,
-	nvme_cmd_zone_append = 0x7d,
-};
-
 enum {
 	NVME_SC_ZNS_INVALID_ZONE_OPERATION = ((NVME_SCT_CMD_SPECIFIC_STATUS << 8) | 0xB6),
 	NVME_SC_ZNS_ZRWA_RSRC_UNAVAIL,

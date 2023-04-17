@@ -47,7 +47,7 @@ static bool polled = true;
 #define CHANNEL_NAME_LEN 20
 
 /**
- * struct dmatest_params - test parameters.
+ * struct ioat_dma_params - test parameters.
  * @buf_size:		size of the memcpy test buffer
  * @channel:		bus ID of the channel to test
  * @device:		bus ID of the DMA Engine to test
@@ -56,7 +56,7 @@ static bool polled = true;
  * @transfer_size:	custom transfer size in bytes
  * @polled:		use polling for completion instead of interrupts
  */
-struct dmatest_params {
+struct ioat_dma_params {
 	unsigned int buf_size;
 	char channel[CHANNEL_NAME_LEN];
 	char device[32];
@@ -67,7 +67,7 @@ struct dmatest_params {
 };
 
 /**
- * struct dmatest_info - test information.
+ * struct ioat_dma_info - test information.
  * @params:		test parameters
  * @channels:		channels under test
  * @nr_channels:	number of channels under test
@@ -75,9 +75,9 @@ struct dmatest_params {
  * @did_init:		module has been initialized completely
  * @last_error:		test has faced configuration issues
  */
-static struct dmatest_info {
+static struct ioat_dma_info {
 	/* Test parameters */
-	struct dmatest_params params;
+	struct ioat_dma_params params;
 
 	/* Internal state */
 	struct list_head channels;
@@ -90,12 +90,12 @@ static struct dmatest_info {
 	.lock = __MUTEX_INITIALIZER(test_info.lock),
 };
 
-struct dmatest_done {
+struct ioat_dma_done {
 	bool done;
 	wait_queue_head_t *wait;
 };
 
-struct dmatest_data {
+struct ioat_dma_data {
 	u8 **raw;
 	u8 **aligned;
 	unsigned int cnt;
@@ -103,17 +103,17 @@ struct dmatest_data {
 	bool is_phys;
 };
 
-struct dmatest_thread {
+struct ioat_dma_thread {
 	struct list_head node;
-	struct dmatest_info *info;
+	struct ioat_dma_info *info;
 	struct task_struct *task;
 	struct dma_chan *chan;
-	struct dmatest_data src;
-	struct dmatest_data dst;
+	struct ioat_dma_data src;
+	struct ioat_dma_data dst;
 	enum dma_transaction_type type;
 };
 
-struct dmatest_chan {
+struct ioat_dma_chan {
 	struct list_head node;
 	struct dma_chan *chan;
 	struct list_head threads;
@@ -124,34 +124,8 @@ static char test_channel[CHANNEL_NAME_LEN];
 /* Maximum amount of mismatched bytes in buffer to print */
 #define MAX_ERROR_COUNT 32
 
-/*
- * Initialization patterns. All bytes in the source buffer has bit 7
- * set, all bytes in the destination buffer has bit 7 cleared.
- *
- * Bit 6 is set for all bytes which are to be copied by the DMA
- * engine. Bit 5 is set for all bytes which are to be overwritten by
- * the DMA engine.
- *
- * The remaining bits are the inverse of a counter which increments by
- * one for each byte address.
- */
-#define PATTERN_SRC 0x80
-#define PATTERN_DST 0x00
-#define PATTERN_COPY 0x40
-#define PATTERN_OVERWRITE 0x20
-#define PATTERN_COUNT_MASK 0x1f
-#define PATTERN_MEMSET_IDX 0x01
-
-/* Fixed point arithmetic ops */
-#define FIXPT_SHIFT 8
-#define FIXPNT_MASK 0xFF
-#define FIXPT_TO_INT(a) ((a) >> FIXPT_SHIFT)
-#define INT_TO_FIXPT(a) ((a) << FIXPT_SHIFT)
-#define FIXPT_GET_FRAC(a) ((((a)&FIXPNT_MASK) * 100) >> FIXPT_SHIFT)
-
 // DMA Init, Final Function
-int dmatest_chan_set(const char *val);
-int dmatest_func(void);
-int dmatest_submit(unsigned long src_off, unsigned long dst_off, unsigned int size);
+int ioat_dma_chan_set(const char *val);
+int ioat_dma_submit(unsigned long src_off, unsigned long dst_off, unsigned int size);
 
 #endif /* _LIB_DMA_H */

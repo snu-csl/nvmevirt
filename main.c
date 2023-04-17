@@ -83,6 +83,8 @@ static unsigned int io_unit_shift = 12;
 static char *cpus;
 static unsigned int debug = 0;
 
+extern int io_using_dma;
+
 static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
 {
 	unsigned long *arg = (unsigned long *)kp->arg;
@@ -534,6 +536,8 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 
 static int NVMeV_init(void)
 {
+	int ret = 0;
+	
 	nvmev_vdev = VDEV_INIT();
 	if (!nvmev_vdev)
 		return -EINVAL;
@@ -546,8 +550,15 @@ static int NVMeV_init(void)
 
 	NVMEV_NAMESPACE_INIT(nvmev_vdev);
 
-	dmatest_chan_set("dma7chan0");
-
+	if (io_using_dma) {
+		ret = ioat_dma_chan_set("dma7chan0");
+		
+		if (ret != 0) {
+			io_using_dma = false;
+			NVMEV_ERROR("Cannot use DMA engine, switch to memcpy\n");
+		}
+	}
+	
 	if (!NVMEV_PCI_INIT(nvmev_vdev)) {
 		goto ret_err;
 	}

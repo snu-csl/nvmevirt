@@ -33,7 +33,7 @@ struct buffer;
 #define sq_entry(entry_id) sq->sq[SQ_ENTRY_TO_PAGE_NUM(entry_id)][SQ_ENTRY_TO_PAGE_OFFSET(entry_id)]
 #define cq_entry(entry_id) cq->cq[CQ_ENTRY_TO_PAGE_NUM(entry_id)][CQ_ENTRY_TO_PAGE_OFFSET(entry_id)]
 
-static int io_using_dma = false;
+int io_using_dma = false;
 
 static inline unsigned long long __get_wallclock(void)
 {
@@ -187,9 +187,9 @@ static unsigned int __do_perform_io_using_dma(int sqid, int sq_entry)
 		io_size = min_t(size_t, remaining, page_size);
 
 		if (sq_entry(sq_entry).rw.opcode == nvme_cmd_write) {
-			dmatest_submit(paddr, nvmev_vdev->config.storage_start + offset, io_size);
+			ioat_dma_submit(paddr, nvmev_vdev->config.storage_start + offset, io_size);
 		} else if (sq_entry(sq_entry).rw.opcode == nvme_cmd_read) {
-			dmatest_submit(nvmev_vdev->config.storage_start + offset, paddr, io_size);
+			ioat_dma_submit(nvmev_vdev->config.storage_start + offset, paddr, io_size);
 		}
 
 		remaining -= io_size;

@@ -22,6 +22,7 @@
 #include "nvmev.h"
 #include "pci.h"
 
+#ifdef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 static int apicid_to_cpuid[256];
 
 static void __init_apicid_to_cpuid(void)
@@ -45,6 +46,19 @@ static void __signal_irq(struct msi_desc *msi_desc)
 
 	return;
 }
+#else
+static void __signal_irq(struct msi_desc *msi_desc)
+{
+	struct irq_data *irqd = irq_get_irq_data(msi_desc->irq);
+	struct irq_chip *chip = irq_data_get_irq_chip(irqd);
+
+	BUG_ON(!chip->irq_retrigger);
+	chip->irq_retrigger(irqd);
+
+	return;
+}
+
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 void nvmev_signal_irq(int msi_index)
@@ -578,7 +592,9 @@ bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev)
 	PCI_AERCAP_SETTINGS(nvmev_vdev->aercap);
 	PCI_PCIE_EXTCAP_SETTINGS(nvmev_vdev->pcie_exp_cap);
 
+#ifdef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 	__init_apicid_to_cpuid();
+#endif
 
 	nvmev_vdev->virt_bus = __create_pci_bus();
 	if (!nvmev_vdev->virt_bus)

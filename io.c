@@ -718,7 +718,7 @@ void NVMEV_IO_PROC_INIT(struct nvmev_dev *nvmev_vdev)
 
 		snprintf(pi->thread_name, sizeof(pi->thread_name), "nvmev_proc_io_%d", proc_idx);
 
-		pi->nvmev_io_worker = kthread_create(nvmev_kthread_io, pi, pi->thread_name);
+		pi->nvmev_io_worker = kthread_create(nvmev_kthread_io, pi, "%s", pi->thread_name);
 
 		kthread_bind(pi->nvmev_io_worker, nvmev_vdev->config.cpu_nr_proc_io[proc_idx]);
 		wake_up_process(pi->nvmev_io_worker);

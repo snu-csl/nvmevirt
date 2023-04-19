@@ -184,32 +184,78 @@ static void __nvmev_admin_identify_ctrl(int eid, int cq_head)
 static void __nvmev_admin_get_log_page(int eid, int cq_head)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
+	struct nvme_get_log_page_command *cmd = &sq_entry(eid).get_log_page;
 	void *page;
+	uint32_t len = ((((uint32_t)cmd->numdu << 16) | cmd->numdl) + 1) << 2;
 
+	page = prp_address(cmd->prp1);
+
+	switch (cmd->lid) {
+	case NVME_LOG_SMART: {
+		struct nvme_smart_log smart_log = {
+			.critical_warning = 0,
+			.spare_thresh = 20,
+			.host_reads[0] = cpu_to_le64(0),
+			.host_writes[0] = cpu_to_le64(0),
+			.num_err_log_entries[0] = cpu_to_le64(0),
+			.temperature[0] = 0 & 0xff,
+			.temperature[1] = (0 >> 8) & 0xff,
+		};
+
+		NVMEV_INFO("Handling NVME_LOG_SMART\n");
+
+		__memcpy(page, &smart_log, len);
+		break;
+	}
+	case NVME_LOG_CMD_EFFECTS: {
+		struct nvme_effects_log effects_log = {
+			.acs = {
+				[nvme_admin_get_log_page] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				[nvme_admin_identify] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				// [nvme_admin_abort_cmd] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				[nvme_admin_set_features] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				[nvme_admin_get_features] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				[nvme_admin_async_event] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				// [nvme_admin_keep_alive] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+			},
+			.iocs = {
 #if BASE_SSD == ZNS_PROTOTYPE
-	//Workaround. TODO: handling get log page
-	page = prp_address(sq_entry(eid).identify.prp1);
-	memset(page, 0xFFFFFFFF, PAGE_SIZE);
-#else
-	struct nvme_common_command *cmd = &sq_entry(eid).common;
-	struct nvme_smart_log smart_log;
-	uint32_t dw10 = le32_to_cpu(cmd->cdw10[0]);
-	uint32_t dw11 = le32_to_cpu(cmd->cdw10[1]);
-	uint32_t len = ((((dw11 & 0xffff) << 16) | (dw10 >> 16)) + 1) << 2;
-
-	memset(&smart_log, 0x0, sizeof(smart_log));
-
-	smart_log.critical_warning = 0;
-	smart_log.spare_thresh = 20;
-	smart_log.host_reads[0] = cpu_to_le64(0);
-	smart_log.host_writes[0] = cpu_to_le64(0);
-	smart_log.num_err_log_entries[0] = cpu_to_le64(0);
-	smart_log.temperature[0] = 0 & 0xff;
-	smart_log.temperature[1] = (0 >> 8) & 0xff;
-
-	page = prp_address(sq_entry(eid).identify.prp1);
-	memcpy(page, &smart_log, len);
+				/*
+				 * Zone Append is unsupported at the moment, but we fake it so that
+				 * Linux device driver doesn't lock it to R/O.
+				 *
+				 * A zone append command will result in device failure.
+				 */
+				[nvme_cmd_zone_append] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
+				[nvme_cmd_zone_mgmt_send] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP | NVME_CMD_EFFECTS_LBCC),
+				[nvme_cmd_zone_mgmt_recv] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
 #endif
+			},
+			.resv = { 0, },
+		};
+
+		NVMEV_INFO("Handling NVME_LOG_CMD_EFFECTS\n");
+
+		__memcpy(page, &effects_log, len);
+		break;
+	}
+	default:
+		/*
+		 * The NVMe protocol mandates several commands (lid) to be implemented, but some
+		 * aren't in NVMeVirt.
+		 *
+		 * As the NVMe host device driver will always assume that the device will return
+		 * the correct values, blindly memset'ing the return buffer will always result in
+		 * heavy system malfunction due to incorrect memory dereferences.
+		 *
+		 * Warn the users and make it perfectly clear that this needs to be implemented.
+		 */
+		NVMEV_ERROR("Unimplemented log page identifier: 0x%hhx,"
+			    "the system will be unstable!\n",
+			    cmd->lid);
+		__memset(page, 0, len);
+		break;
+	}
 
 	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
 	cq_entry(cq_head).sq_id = 0;

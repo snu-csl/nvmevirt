@@ -187,12 +187,15 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 	struct nvme_get_log_page_command *cmd = &sq_entry(eid).get_log_page;
 	void *page;
 	uint32_t len = ((((uint32_t)cmd->numdu << 16) | cmd->numdl) + 1) << 2;
+	void *log;
 
 	page = prp_address(cmd->prp1);
+	log = kmalloc(len, GFP_KERNEL);
+	BUG_ON(!log);
 
 	switch (cmd->lid) {
 	case NVME_LOG_SMART: {
-		struct nvme_smart_log smart_log = {
+		*(struct nvme_smart_log *)log = (struct nvme_smart_log) {
 			.critical_warning = 0,
 			.spare_thresh = 20,
 			.host_reads[0] = cpu_to_le64(0),
@@ -203,12 +206,10 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 		};
 
 		NVMEV_INFO("Handling NVME_LOG_SMART\n");
-
-		__memcpy(page, &smart_log, len);
 		break;
 	}
 	case NVME_LOG_CMD_EFFECTS: {
-		struct nvme_effects_log effects_log = {
+		*(struct nvme_effects_log *)log = (struct nvme_effects_log) {
 			.acs = {
 				[nvme_admin_get_log_page] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
 				[nvme_admin_identify] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
@@ -235,8 +236,6 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 		};
 
 		NVMEV_INFO("Handling NVME_LOG_CMD_EFFECTS\n");
-
-		__memcpy(page, &effects_log, len);
 		break;
 	}
 	default:
@@ -253,9 +252,11 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 		NVMEV_ERROR("Unimplemented log page identifier: 0x%hhx,"
 			    "the system will be unstable!\n",
 			    cmd->lid);
-		__memset(page, 0, len);
+		memset(log, 0x00, len);
 		break;
 	}
+	__memcpy(page, log, len);
+	kfree(log);
 
 	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
 	cq_entry(cq_head).sq_id = 0;

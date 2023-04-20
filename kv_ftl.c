@@ -1025,16 +1025,16 @@ void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *ma
 
 	NVMEV_INFO("KV Mapping Table: %lx + %x\n",
 		   nvmev_vdev->config.storage_start + nvmev_vdev->config.storage_size,
-		   KV_MAPPING_TABLE_SIZE << 20);
+		   KV_MAPPING_TABLE_SIZE);
 
 	kv_ftl->kv_mapping_table =
 		memremap(nvmev_vdev->config.storage_start + nvmev_vdev->config.storage_size,
-			 KV_MAPPING_TABLE_SIZE << 20, MEMREMAP_WB);
+			 KV_MAPPING_TABLE_SIZE, MEMREMAP_WB);
 
 	if (kv_ftl->kv_mapping_table == NULL)
 		NVMEV_ERROR("Failed to map kv mapping table.\n");
 	else
-		memset(kv_ftl->kv_mapping_table, 0x0, KV_MAPPING_TABLE_SIZE << 20);
+		memset(kv_ftl->kv_mapping_table, 0x0, KV_MAPPING_TABLE_SIZE);
 
 	if (ALLOCATOR_TYPE == ALLOCATOR_TYPE_BITMAP) {
 		kv_ftl->allocator_ops = bitmap_ops;
@@ -1048,7 +1048,7 @@ void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *ma
 		NVMEV_ERROR("Allocator init failed\n");
 	}
 
-	kv_ftl->hash_slots = (KV_MAPPING_TABLE_SIZE << 20) / KV_MAPPING_ENTRY_SIZE;
+	kv_ftl->hash_slots = KV_MAPPING_TABLE_SIZE / KV_MAPPING_ENTRY_SIZE;
 	NVMEV_INFO("Hash slots: %ld\n", kv_ftl->hash_slots);
 
 	for (i = 0; i < kv_ftl->hash_slots; i++) {

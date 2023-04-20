@@ -35,6 +35,15 @@ struct buffer;
 
 int io_using_dma = false;
 
+static inline unsigned int __get_io_worker(int sqid)
+{
+#ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
+	return (sqid - 1) % nvmev_vdev->config.nr_io_cpu;
+#else
+	return nvmev_vdev->proc_turn;
+#endif
+}
+
 static inline unsigned long long __get_wallclock(void)
 {
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
@@ -204,11 +213,7 @@ static void __enqueue_io_req(int sqid, int cqid, int sq_entry, unsigned long lon
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 
-#ifdef CONFIG_NVMEV_MULTI_IO_WORKER_BY_SQ
-	unsigned int proc_turn = (sqid - 1) % (nvmev_vdev->config.nr_io_cpu);
-#else
-	unsigned int proc_turn = nvmev_vdev->proc_turn;
-#endif
+	unsigned int proc_turn = __get_io_worker(sqid);
 	struct nvmev_proc_info *pi = &nvmev_vdev->proc_info[proc_turn];
 	unsigned int entry = pi->free_seq;
 
@@ -243,7 +248,7 @@ static void __enqueue_io_req(int sqid, int cqid, int sq_entry, unsigned long lon
 	pi->proc_table[entry].next = -1;
 
 	pi->proc_table[entry].writeback_cmd = false;
-	mb(); /* IO kthread shall see the updated pe at once */
+	mb(); /* IO worker shall see the updated pi at once */
 
 	// (END) -> (START) order, nsecs target ascending order
 	if (pi->io_seq == -1) {
@@ -283,11 +288,7 @@ static void __enqueue_io_req(int sqid, int cqid, int sq_entry, unsigned long lon
 void enqueue_writeback_io_req(int sqid, unsigned long long nsecs_target,
 			      struct buffer *write_buffer, unsigned int buffs_to_release)
 {
-#ifdef CONFIG_NVMEV_MULTI_IO_WORKER_BY_SQ
-	unsigned int proc_turn = (sqid - 1) % (nvmev_vdev->config.nr_io_cpu);
-#else
-	unsigned int proc_turn = nvmev_vdev->proc_turn;
-#endif
+	unsigned int proc_turn = __get_io_worker(sqid);
 	struct nvmev_proc_info *pi = &nvmev_vdev->proc_info[proc_turn];
 	unsigned int entry = pi->free_seq;
 
@@ -320,7 +321,7 @@ void enqueue_writeback_io_req(int sqid, unsigned long long nsecs_target,
 	pi->proc_table[entry].writeback_cmd = true;
 	pi->proc_table[entry].buffs_to_release = buffs_to_release;
 	pi->proc_table[entry].write_buffer = (void *)write_buffer;
-	mb(); /* IO kthread shall see the updated pe at once */
+	mb(); /* IO worker shall see the updated pi at once */
 
 	// (END) -> (START) order, nsecs target ascending order
 	if (pi->io_seq == -1) {
@@ -654,8 +655,9 @@ static int nvmev_kthread_io(void *data)
 
 		for (qidx = 1; qidx <= nvmev_vdev->nr_cq; qidx++) {
 			struct nvmev_completion_queue *cq = nvmev_vdev->cqes[qidx];
-#ifdef CONFIG_NVMEV_MULTI_IO_WORKER_BY_SQ
-			if ((pi->id) != ((qidx - 1) % nvmev_vdev->config.nr_io_cpu))
+
+#ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
+			if ((pi->id) != __get_io_worker(qidx))
 				continue;
 #endif
 			if (cq == NULL || !cq->irq_enabled)
@@ -708,19 +710,17 @@ void NVMEV_IO_PROC_INIT(struct nvmev_dev *nvmev_vdev)
 			pi->proc_table[i].prev = i - 1;
 		}
 		pi->proc_table[NR_MAX_PARALLEL_IO - 1].next = -1;
-#ifdef CONFIG_NVMEV_MULTI_IO_WORKER_BY_SQ
 		pi->id = proc_idx;
-#endif
 		pi->free_seq = 0;
 		pi->free_seq_end = NR_MAX_PARALLEL_IO - 1;
 		pi->io_seq = -1;
 		pi->io_seq_end = -1;
 
-		snprintf(pi->thread_name, sizeof(pi->thread_name), "nvmev_proc_io_%d", proc_idx);
+		snprintf(pi->thread_name, sizeof(pi->thread_name), "nvmev_io_worker_%d", proc_idx);
 
 		pi->nvmev_io_worker = kthread_create(nvmev_kthread_io, pi, "%s", pi->thread_name);
 
-		kthread_bind(pi->nvmev_io_worker, nvmev_vdev->config.cpu_nr_proc_io[proc_idx]);
+		kthread_bind(pi->nvmev_io_worker, nvmev_vdev->config.cpu_nr_io_workers[proc_idx]);
 		wake_up_process(pi->nvmev_io_worker);
 	}
 }

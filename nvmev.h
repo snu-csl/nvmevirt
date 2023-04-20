@@ -20,12 +20,12 @@
 #include <asm/apic.h>
 
 #include "nvme.h"
-#include "ssd_config.h"
 
-#undef CONFIG_NVMEV_DEBUG_VERBOSE
-
-#define CONFIG_NVMEV_MULTI_IO_WORKER_BY_SQ
+#define CONFIG_NVMEV_IO_WORKER_BY_SQ
 #undef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
+
+#undef CONFIG_NVMEV_VERBOSE
+#undef CONFIG_NVMEV_DEBUG_VERBOSE
 
 /*************************/
 #define NVMEV_DRV_NAME "NVMeVirt"
@@ -46,8 +46,9 @@
 #define PAGE_OFFSET_MASK (PAGE_SIZE - 1)
 #define PRP_PFN(x) ((unsigned long)((x) >> PAGE_SHIFT))
 
-#define KB(k) ((k)*1024)
-#define MB(m) (KB((m)*1024))
+#define KB(k) ((k) << 10)
+#define MB(m) ((m) << 20)
+#define GB(g) ((g) << 30)
 
 #define BYTE_TO_KB(b) ((b) >> 10)
 #define BYTE_TO_MB(b) ((b) >> 20)
@@ -63,6 +64,8 @@
 #define INVALID32 (0xFFFFFFFF)
 #define INVALID64 (0xFFFFFFFFFFFFFFFF)
 #define ASSERT(X)
+
+#include "ssd_config.h"
 
 struct nvmev_sq_stat {
 	unsigned int nr_dispatched;
@@ -132,19 +135,20 @@ struct nvmev_config {
 	unsigned long storage_start; //byte
 	unsigned long storage_size; // byte
 
+	unsigned int nr_io_units;
+	unsigned int io_unit_shift; // 2^
+
+	unsigned int cpu_nr_dispatcher;
+	unsigned int nr_io_cpu;
+	unsigned int cpu_nr_io_workers[32];
+
+	/* TODO Refactoring storage configurations */
 	unsigned int read_delay; // ns
 	unsigned int read_time; // ns
 	unsigned int read_trailing; // ns
 	unsigned int write_delay; // ns
 	unsigned int write_time; // ns
 	unsigned int write_trailing; // ns
-
-	unsigned int nr_io_units;
-	unsigned int io_unit_shift; // 2^
-
-	unsigned int cpu_nr_dispatcher;
-	unsigned int nr_io_cpu;
-	unsigned int cpu_nr_proc_io[32];
 };
 
 struct nvmev_proc_table {
@@ -183,10 +187,10 @@ struct nvmev_proc_info {
 	unsigned int free_seq_end; /* free io req tail index */
 	unsigned int io_seq; /* io req head index */
 	unsigned int io_seq_end; /* io req tail index */
-	unsigned int id;
 
 	unsigned long long proc_io_nsecs;
 
+	unsigned int id;
 	struct task_struct *nvmev_io_worker;
 	char thread_name[32];
 };
@@ -222,12 +226,16 @@ struct nvmev_dev {
 	u32 *old_dbs;
 	u32 __iomem *dbs;
 
-	int nr_ns;
-	int nr_sq, nr_cq;
+	struct nvmev_ns *ns;
+	unsigned int nr_ns;
+	unsigned int nr_sq;
+	unsigned int nr_cq;
 
 	struct nvmev_admin_queue *admin_q;
 	struct nvmev_submission_queue *sqes[NR_MAX_IO_QUEUE + 1];
 	struct nvmev_completion_queue *cqes[NR_MAX_IO_QUEUE + 1];
+
+	unsigned int mdts;
 
 	struct proc_dir_entry *proc_root;
 	struct proc_dir_entry *proc_read_times;
@@ -236,9 +244,6 @@ struct nvmev_dev {
 	struct proc_dir_entry *proc_stat;
 
 	unsigned long long *io_unit_stat;
-
-	struct nvmev_ns *ns;
-	int mdts;
 };
 
 struct nvmev_request {

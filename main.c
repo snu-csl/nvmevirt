@@ -23,8 +23,10 @@
 #include <linux/uaccess.h>
 #include <linux/version.h>
 
+#ifdef CONFIG_X86
 #include <asm/e820/types.h>
 #include <asm/e820/api.h>
+#endif
 
 #include "nvmev.h"
 #include "conv_ftl.h"
@@ -198,23 +200,11 @@ static void NVMEV_REG_PROC_FINAL(struct nvmev_dev *nvmev_vdev)
 	}
 }
 
-static int __validate_configs(void)
+#ifdef CONFIG_X86
+static int __validate_configs_arch(void)
 {
 	unsigned long resv_start_bytes;
 	unsigned long resv_end_bytes;
-
-	if (!memmap_start) {
-		NVMEV_ERROR("[memmap_start] should be specified\n");
-		return -EINVAL;
-	}
-
-	if (!memmap_size) {
-		NVMEV_ERROR("[memmap_size] should be specified\n");
-		return -EINVAL;
-	} else if (memmap_size <= MB(1)) {
-		NVMEV_ERROR("[memmap_size] should be bigger than 1MiB\n");
-		return -EINVAL;
-	}
 
 	resv_start_bytes = memmap_start;
 	resv_end_bytes = resv_start_bytes + memmap_size - 1;
@@ -229,6 +219,34 @@ static int __validate_configs(void)
 	if (!e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RESERVED)) {
 		NVMEV_ERROR("[mem %#010lx-%#010lx] is not reseved region\n",
 			    (unsigned long)resv_start_bytes, (unsigned long)resv_end_bytes);
+		return -EPERM;
+	}
+	return 0;
+}
+#else
+static int __validate_configs_arch(void)
+{
+	/* TODO: Validate architecture-specific configurations */
+	return 0;
+}
+#endif
+
+static int __validate_configs(void)
+{
+	if (!memmap_start) {
+		NVMEV_ERROR("[memmap_start] should be specified\n");
+		return -EINVAL;
+	}
+
+	if (!memmap_size) {
+		NVMEV_ERROR("[memmap_size] should be specified\n");
+		return -EINVAL;
+	} else if (memmap_size <= MB(1)) {
+		NVMEV_ERROR("[memmap_size] should be bigger than 1 MiB\n");
+		return -EINVAL;
+	}
+
+	if (__validate_configs_arch()) {
 		return -EPERM;
 	}
 
@@ -250,7 +268,7 @@ static int __validate_configs(void)
 
 static void __print_perf_configs(void)
 {
-#if 0
+#ifdef CONFIG_NVMEV_VERBOSE
 	unsigned long unit_perf_kb =
 			nvmev_vdev->config.nr_io_units << (nvmev_vdev->config.io_unit_shift - 10);
 	struct nvmev_config *cfg = &nvmev_vdev->config;
@@ -481,7 +499,7 @@ static bool __load_configs(struct nvmev_config *config)
 		if (first) {
 			config->cpu_nr_dispatcher = cpu_nr;
 		} else {
-			config->cpu_nr_proc_io[config->nr_io_cpu] = cpu_nr;
+			config->cpu_nr_io_workers[config->nr_io_cpu] = cpu_nr;
 			config->nr_io_cpu++;
 		}
 		first = false;
@@ -492,7 +510,7 @@ static bool __load_configs(struct nvmev_config *config)
 
 void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 {
-	unsigned long long remaining_capacity = nvmev_vdev->config.storage_size; // byte
+	unsigned long long remaining_capacity = nvmev_vdev->config.storage_size;
 	void *ns_addr = nvmev_vdev->storage_mapped;
 	const int nr_ns = NR_NAMESPACES;
 	const unsigned int disp_no = nvmev_vdev->config.cpu_nr_dispatcher;
@@ -551,11 +569,9 @@ static int NVMeV_init(void)
 	NVMEV_NAMESPACE_INIT(nvmev_vdev);
 
 	if (io_using_dma) {
-		ret = ioat_dma_chan_set("dma7chan0");
-		
-		if (ret != 0) {
+		if (!ioat_dma_chan_set("dma7chan0")) {
 			io_using_dma = false;
-			NVMEV_ERROR("Cannot use DMA engine, switch to memcpy\n");
+			NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
 		}
 	}
 	

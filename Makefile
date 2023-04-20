@@ -40,3 +40,6 @@ clean:
 cscope:
 		cscope -b -R
 		ctags *.[ch]
+
+.PHONY: tags
+tags: cscope

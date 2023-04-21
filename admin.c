@@ -192,7 +192,7 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 
 	switch (cmd->lid) {
 	case NVME_LOG_SMART: {
-		struct nvme_smart_log smart_log = {
+		static const struct nvme_smart_log smart_log = {
 			.critical_warning = 0,
 			.spare_thresh = 20,
 			.host_reads[0] = cpu_to_le64(0),
@@ -208,7 +208,7 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 		break;
 	}
 	case NVME_LOG_CMD_EFFECTS: {
-		struct nvme_effects_log effects_log = {
+		static const struct nvme_effects_log effects_log = {
 			.acs = {
 				[nvme_admin_get_log_page] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
 				[nvme_admin_identify] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),

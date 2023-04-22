@@ -401,6 +401,7 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 
 	/* PCIe, Write buffer are shared by all instances*/
 	for (i = 1; i < nr_parts; i++) {
+		kfree(conv_ftls[i].ssd->pcie->perf_model);
 		kfree(conv_ftls[i].ssd->pcie);
 		kfree(conv_ftls[i].ssd->write_buffer);
 

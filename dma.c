@@ -122,6 +122,7 @@ static int ioat_dma_add_channel(struct ioat_dma_info *info, struct dma_chan *cha
 	struct dma_device *dma_dev = chan->device;
 	unsigned int thread_count = 0;
 
+	// XXX: No corresponding kfree() yet
 	dtc = kmalloc(sizeof(struct ioat_dma_chan), GFP_KERNEL);
 	if (!dtc) {
 		pr_warn("No memory for %s\n", dma_chan_name(chan));

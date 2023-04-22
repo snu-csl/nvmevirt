@@ -267,6 +267,7 @@ static inline uint32_t get_cell(struct ssd *ssd, struct ppa *ppa)
 
 void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts);
 void ssd_init(struct ssd *ssd, struct ssdparams *spp, uint32_t cpu_nr_dispatcher);
+void ssd_remove(struct ssd *ssd);
 
 uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd);
 uint64_t ssd_advance_pcie(struct ssd *ssd, uint64_t request_time, uint64_t length);

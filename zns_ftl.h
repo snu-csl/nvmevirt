@@ -139,6 +139,7 @@ static inline uint64_t lba_to_lpn(struct zns_ftl *zns_ftl, uint64_t lba)
 /* zns external interface */
 void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
 			uint32_t cpu_nr_dispatcher);
+void zns_remove_namespace(struct nvmev_ns *ns);
 
 void zns_zmgmt_recv(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
 void zns_zmgmt_send(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);

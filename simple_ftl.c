@@ -122,3 +122,8 @@ void simple_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void
 
 	return;
 }
+
+void simple_remove_namespace(struct nvmev_ns *ns)
+{
+	// Nothing to do here
+}

@@ -192,6 +192,11 @@ static void ssd_init_nand_page(struct nand_page *pg, struct ssdparams *spp)
 	pg->status = PG_FREE;
 }
 
+static void ssd_remove_nand_page(struct nand_page *pg)
+{
+	kfree(pg->sec);
+}
+
 static void ssd_init_nand_blk(struct nand_block *blk, struct ssdparams *spp)
 {
 	int i;
@@ -206,6 +211,16 @@ static void ssd_init_nand_blk(struct nand_block *blk, struct ssdparams *spp)
 	blk->wp = 0;
 }
 
+static void ssd_remove_nand_blk(struct nand_block *blk)
+{
+	int i;
+
+	for (i = 0; i < blk->npgs; i++)
+		ssd_remove_nand_page(&blk->pg[i]);
+
+	kfree(blk->pg);
+}
+
 static void ssd_init_nand_plane(struct nand_plane *pl, struct ssdparams *spp)
 {
 	int i;
@@ -214,6 +229,16 @@ static void ssd_init_nand_plane(struct nand_plane *pl, struct ssdparams *spp)
 	for (i = 0; i < pl->nblks; i++) {
 		ssd_init_nand_blk(&pl->blk[i], spp);
 	}
+}
+
+static void ssd_remove_nand_plane(struct nand_plane *pl)
+{
+	int i;
+
+	for (i = 0; i < pl->nblks; i++)
+		ssd_remove_nand_blk(&pl->blk[i]);
+
+	kfree(pl->blk);
 }
 
 static void ssd_init_nand_lun(struct nand_lun *lun, struct ssdparams *spp)
@@ -226,6 +251,16 @@ static void ssd_init_nand_lun(struct nand_lun *lun, struct ssdparams *spp)
 	}
 	lun->next_lun_avail_time = 0;
 	lun->busy = false;
+}
+
+static void ssd_remove_nand_lun(struct nand_lun *lun)
+{
+	int i;
+
+	for (i = 0; i < lun->npls; i++)
+		ssd_remove_nand_plane(&lun->pl[i]);
+
+	kfree(lun->pl);
 }
 
 static void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
@@ -244,10 +279,27 @@ static void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
 	ch->perf_model->xfer_lat += (spp->fw_ch_xfer_lat * UNIT_XFER_SIZE / KB(4));
 }
 
+static void ssd_remove_ch(struct ssd_channel *ch)
+{
+	int i;
+
+	kfree(ch->perf_model);
+
+	for (i = 0; i < ch->nluns; i++)
+		ssd_remove_nand_lun(&ch->lun[i]);
+
+	kfree(ch->lun);
+}
+
 static void ssd_init_pcie(struct ssd_pcie *pcie, struct ssdparams *spp)
 {
 	pcie->perf_model = kmalloc(sizeof(struct channel_model), GFP_KERNEL);
 	chmodel_init(pcie->perf_model, spp->pcie_bandwidth);
+}
+
+static void ssd_remove_pcie(struct ssd_pcie *pcie)
+{
+	kfree(pcie->perf_model);
 }
 
 void ssd_init(struct ssd *ssd, struct ssdparams *spp, uint32_t cpu_nr_dispatcher)
@@ -272,6 +324,23 @@ void ssd_init(struct ssd *ssd, struct ssdparams *spp, uint32_t cpu_nr_dispatcher
 	buffer_init(ssd->write_buffer, spp->write_buffer_size);
 
 	return;
+}
+
+void ssd_remove(struct ssd *ssd)
+{
+	uint32_t i;
+
+	kfree(ssd->write_buffer);
+	if (ssd->pcie) {
+		kfree(ssd->pcie->perf_model);
+		kfree(ssd->pcie);
+	}
+
+	for (i = 0; i < ssd->sp.nchs; i++) {
+		ssd_remove_ch(&(ssd->ch[i]));
+	}
+
+	kfree(ssd->ch);
 }
 
 uint64_t ssd_advance_pcie(struct ssd *ssd, uint64_t request_time, uint64_t length)

@@ -156,6 +156,12 @@ static void init_lines(struct conv_ftl *conv_ftl)
 	lm->full_line_cnt = 0;
 }
 
+static void remove_lines(struct conv_ftl *conv_ftl)
+{
+	pqueue_free(conv_ftl->lm.victim_line_pq);
+	vfree(conv_ftl->lm.lines);
+}
+
 static void init_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
 	struct write_pointer *wpp;
@@ -326,6 +332,11 @@ static void init_maptbl(struct conv_ftl *conv_ftl)
 	}
 }
 
+static void remove_maptbl(struct conv_ftl *conv_ftl)
+{
+	vfree(conv_ftl->maptbl);
+}
+
 static void init_rmap(struct conv_ftl *conv_ftl)
 {
 	int i;
@@ -335,6 +346,11 @@ static void init_rmap(struct conv_ftl *conv_ftl)
 	for (i = 0; i < spp->tt_pgs; i++) {
 		conv_ftl->rmap[i] = INVALID_LPN;
 	}
+}
+
+static void remove_rmap(struct conv_ftl *conv_ftl)
+{
+	vfree(conv_ftl->rmap);
 }
 
 static void conv_init_ftl(struct conv_ftl *conv_ftl, struct convparams *cpp, struct ssd *ssd)
@@ -367,6 +383,13 @@ static void conv_init_ftl(struct conv_ftl *conv_ftl, struct convparams *cpp, str
 		   conv_ftl->ssd->sp.tt_pgs);
 
 	return;
+}
+
+static void conv_remove_ftl(struct conv_ftl *conv_ftl)
+{
+	remove_lines(conv_ftl);
+	remove_rmap(conv_ftl);
+	remove_maptbl(conv_ftl);
 }
 
 static void conv_init_params(struct convparams *cpp)
@@ -422,6 +445,32 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 		   size, ns->size, cpp.pba_pcent);
 
 	return;
+}
+
+void conv_remove_namespace(struct nvmev_ns *ns)
+{
+	struct conv_ftl *conv_ftls = (struct conv_ftl *)ns->ftls;
+	const uint32_t nr_parts = SSD_PARTITIONS;
+	uint32_t i;
+
+	/* PCIe, Write buffer are shared by all instances*/
+	for (i = 1; i < nr_parts; i++) {
+		/*
+		 * These were freed from conv_init_namespace() already.
+		 * Mark these NULL so that ssd_remove() skips it.
+		 */
+		conv_ftls[i].ssd->pcie = NULL;
+		conv_ftls[i].ssd->write_buffer = NULL;
+	}
+
+	for (i = 0; i < nr_parts; i++) {
+		conv_remove_ftl(&conv_ftls[i]);
+		ssd_remove(conv_ftls[i].ssd);
+		kfree(conv_ftls[i].ssd);
+	}
+
+	kfree(conv_ftls);
+	ns->ftls = NULL;
 }
 
 static inline bool valid_ppa(struct conv_ftl *conv_ftl, struct ppa *ppa)

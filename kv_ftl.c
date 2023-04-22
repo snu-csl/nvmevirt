@@ -1073,3 +1073,9 @@ void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *ma
 
 	return;
 }
+
+void kv_remove_namespace(struct nvmev_ns *ns)
+{
+	kfree(ns->ftls);
+	ns->ftls = NULL;
+}

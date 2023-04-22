@@ -53,6 +53,13 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 	}
 }
 
+static void __remove_descriptor(struct zns_ftl *zns_ftl)
+{
+	kfree(zns_ftl->zwra_buffer);
+	kfree(zns_ftl->report_buffer);
+	kfree(zns_ftl->zone_descs);
+}
+
 static void __init_resource(struct zns_ftl *zns_ftl)
 {
 	struct zone_resource_info *res_infos = zns_ftl->res_infos;
@@ -133,12 +140,17 @@ void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *m
 	return;
 }
 
-static void zns_exit(struct zns_ftl *zns_ftl)
+void zns_remove_namespace(struct nvmev_ns *ns)
 {
-	NVMEV_ZNS_DEBUG("%s \n", __FUNCTION__);
+	struct zns_ftl *zns_ftl = (struct zns_ftl *)ns->ftls;
 
-	kfree(zns_ftl->zone_descs);
-	kfree(zns_ftl->report_buffer);
+	ssd_remove(zns_ftl->ssd);
+
+	__remove_descriptor(zns_ftl);
+	kfree(zns_ftl->ssd);
+	kfree(zns_ftl);
+
+	ns->ftls = NULL;
 }
 
 static void zns_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)

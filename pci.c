@@ -463,9 +463,6 @@ void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev)
 	if (nvmev_vdev->virtDev)
 		kfree(nvmev_vdev->virtDev);
 
-	if (nvmev_vdev->io_unit_stat)
-		kfree(nvmev_vdev->io_unit_stat);
-
 	if (nvmev_vdev)
 		kfree(nvmev_vdev);
 }

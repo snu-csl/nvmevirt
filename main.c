@@ -615,8 +615,10 @@ static void NVMeV_exit(void)
 {
 	int i;
 
-	if (nvmev_vdev->virt_bus != NULL)
+	if (nvmev_vdev->virt_bus != NULL) {
+		pci_stop_root_bus(nvmev_vdev->virt_bus);
 		pci_remove_root_bus(nvmev_vdev->virt_bus);
+	}
 
 	NVMEV_REG_PROC_FINAL(nvmev_vdev);
 	NVMEV_IO_PROC_FINAL(nvmev_vdev);

@@ -613,24 +613,25 @@ ret_err:
 
 static void NVMeV_exit(void)
 {
+	int i;
+
+	if (nvmev_vdev->virt_bus != NULL)
+		pci_remove_root_bus(nvmev_vdev->virt_bus);
+
 	NVMEV_REG_PROC_FINAL(nvmev_vdev);
 	NVMEV_IO_PROC_FINAL(nvmev_vdev);
 
 	NVMEV_NAMESPACE_FINAL(nvmev_vdev);
 	NVMEV_STORAGE_FINAL(nvmev_vdev);
 
-	if (nvmev_vdev->virt_bus != NULL) {
-		int i;
-		pci_remove_root_bus(nvmev_vdev->virt_bus);
-
-		for (i = 0; i < nvmev_vdev->nr_sq; i++) {
-			kfree(nvmev_vdev->sqes[i]);
-		}
-
-		for (i = 0; i < nvmev_vdev->nr_cq; i++) {
-			kfree(nvmev_vdev->cqes[i]);
-		}
+	for (i = 0; i < nvmev_vdev->nr_sq; i++) {
+		kfree(nvmev_vdev->sqes[i]);
 	}
+
+	for (i = 0; i < nvmev_vdev->nr_cq; i++) {
+		kfree(nvmev_vdev->cqes[i]);
+	}
+
 	VDEV_FINALIZE(nvmev_vdev);
 
 	NVMEV_INFO("Virtual NVMe device closed\n");

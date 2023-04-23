@@ -246,7 +246,6 @@ void nvmev_proc_bars(void)
 			}
 		} else if (bar->cc.en == 0) {
 			bar->csts.rdy = 0;
-			bar->u_cc = 0;
 		}
 
 		/* Shutdown */

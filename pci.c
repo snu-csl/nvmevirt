@@ -63,9 +63,15 @@ static void __signal_irq(struct msi_desc *msi_desc)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 void nvmev_signal_irq(int msi_index)
 {
-	struct xarray *xa = &(&nvmev_vdev->pdev->dev)->msi.data->__store;
+	struct xarray *xa;
 	struct msi_desc *msi_desc;
 	unsigned long idx;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 2, 0)
+	xa = &(&nvmev_vdev->pdev->dev)->msi.data->__domains[MSI_DEFAULT_DOMAIN].store;
+#else
+	xa = &(&nvmev_vdev->pdev->dev)->msi.data->__store;
+#endif
 
 	//TODO: Does it have to be 0 ~ NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE?
 	xa_for_each_range(xa, idx, msi_desc, 0, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE) {

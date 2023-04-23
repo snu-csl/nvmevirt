@@ -409,8 +409,6 @@ static struct pci_bus *__create_pci_bus(void)
 		memset(nvmev_vdev->msix_table, 0x00, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE);
 	}
 
-	pci_bus_add_devices(nvmev_pci_bus);
-
 	NVMEV_INFO("Successfully created virtual PCI bus (node %d)\n", nvmev_vdev->pci_sd.node);
 
 	return nvmev_pci_bus;

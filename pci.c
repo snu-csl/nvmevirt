@@ -442,14 +442,17 @@ void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev)
 	if (nvmev_vdev->old_dbs)
 		kfree(nvmev_vdev->old_dbs);
 
+	if (nvmev_vdev->admin_q->nvme_cq)
+		kfree(nvmev_vdev->admin_q->nvme_cq);
+
+	if (nvmev_vdev->admin_q->nvme_sq)
+		kfree(nvmev_vdev->admin_q->nvme_sq);
+
 	if (nvmev_vdev->admin_q)
 		kfree(nvmev_vdev->admin_q);
 
 	if (nvmev_vdev->virtDev)
 		kfree(nvmev_vdev->virtDev);
-
-	if (nvmev_vdev->io_unit_stat)
-		kfree(nvmev_vdev->io_unit_stat);
 
 	if (nvmev_vdev)
 		kfree(nvmev_vdev);

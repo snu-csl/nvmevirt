@@ -500,7 +500,7 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 {
 	unsigned long long remaining_capacity = nvmev_vdev->config.storage_size;
 	void *ns_addr = nvmev_vdev->storage_mapped;
-	const int nr_ns = NR_NAMESPACES;
+	const int nr_ns = NR_NAMESPACES; // XXX: allow for dynamic nr_ns
 	const unsigned int disp_no = nvmev_vdev->config.cpu_nr_dispatcher;
 	int i;
 	unsigned long long size;
@@ -537,7 +537,25 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 
 void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 {
-	//TODO : should free memory allocated in ssd_init, zns_init, kv_init
+	struct nvmev_ns *ns = nvmev_vdev->ns;
+	const int nr_ns = NR_NAMESPACES; // XXX: allow for dynamic nvmev_vdev->nr_ns
+	int i;
+
+	for (i = 0; i < nr_ns; i++) {
+		if (NS_SSD_TYPE(i) == SSD_TYPE_NVM)
+			simple_remove_namespace(&ns[i]);
+		else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
+			conv_remove_namespace(&ns[i]);
+		else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
+			zns_remove_namespace(&ns[i]);
+		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
+			kv_remove_namespace(&ns[i]);
+		else
+			NVMEV_ASSERT(0);
+	}
+
+	kfree(ns);
+	nvmev_vdev->ns = NULL;
 }
 
 static int NVMeV_init(void)
@@ -585,24 +603,27 @@ ret_err:
 
 static void NVMeV_exit(void)
 {
+	int i;
+
+	if (nvmev_vdev->virt_bus != NULL) {
+		pci_stop_root_bus(nvmev_vdev->virt_bus);
+		pci_remove_root_bus(nvmev_vdev->virt_bus);
+	}
+
 	NVMEV_REG_PROC_FINAL(nvmev_vdev);
 	NVMEV_IO_PROC_FINAL(nvmev_vdev);
 
 	NVMEV_NAMESPACE_FINAL(nvmev_vdev);
 	NVMEV_STORAGE_FINAL(nvmev_vdev);
 
-	if (nvmev_vdev->virt_bus != NULL) {
-		int i;
-		pci_remove_root_bus(nvmev_vdev->virt_bus);
-
-		for (i = 0; i < nvmev_vdev->nr_sq; i++) {
-			kfree(nvmev_vdev->sqes[i]);
-		}
-
-		for (i = 0; i < nvmev_vdev->nr_cq; i++) {
-			kfree(nvmev_vdev->cqes[i]);
-		}
+	for (i = 0; i < nvmev_vdev->nr_sq; i++) {
+		kfree(nvmev_vdev->sqes[i]);
 	}
+
+	for (i = 0; i < nvmev_vdev->nr_cq; i++) {
+		kfree(nvmev_vdev->cqes[i]);
+	}
+
 	VDEV_FINALIZE(nvmev_vdev);
 
 	NVMEV_INFO("Virtual NVMe device closed\n");

@@ -16,7 +16,7 @@
 #define _NVMEVIRT_SSD_H
 
 #include <linux/types.h>
-#include "pqueue.h"
+#include "pqueue/pqueue.h"
 #include "ssd_config.h"
 #include "channel_model.h"
 /*

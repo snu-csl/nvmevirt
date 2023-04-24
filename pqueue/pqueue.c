@@ -23,7 +23,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "nvmev.h"
+#include "../nvmev.h"
 #include "pqueue.h"
 
 #define left(i) ((i) << 1)

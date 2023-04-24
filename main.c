@@ -572,6 +572,8 @@ static int NVMeV_init(void)
 	NVMEV_IO_PROC_INIT(nvmev_vdev);
 	NVMEV_DISPATCHER_INIT(nvmev_vdev);
 
+	pci_bus_add_devices(nvmev_vdev->virt_bus);
+
 	NVMEV_INFO("Successfully created Virtual NVMe deivce\n");
 
 	return 0;

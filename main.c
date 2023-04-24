@@ -557,7 +557,7 @@ static int NVMeV_init(void)
 	NVMEV_NAMESPACE_INIT(nvmev_vdev);
 
 	if (io_using_dma) {
-		if (!ioat_dma_chan_set("dma7chan0")) {
+		if (ioat_dma_chan_set("dma7chan0") != 0) {
 			io_using_dma = false;
 			NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
 		}

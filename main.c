@@ -618,6 +618,6 @@ static void NVMeV_exit(void)
 	NVMEV_INFO("Virtual NVMe device closed\n");
 }
 
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL v2");
 module_init(NVMeV_init);
 module_exit(NVMeV_exit);

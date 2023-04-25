@@ -110,7 +110,6 @@ static int ioat_dma_add_channel(struct ioat_dma_info *info, struct dma_chan *cha
 	struct dma_device *dma_dev = chan->device;
 	unsigned int thread_count = 0;
 
-	// XXX: No corresponding kfree() yet
 	dtc = kmalloc(sizeof(struct ioat_dma_chan), GFP_KERNEL);
 	if (!dtc) {
 		pr_warn("No memory for %s\n", dma_chan_name(chan));
@@ -242,4 +241,34 @@ add_chan_err:
 	mutex_unlock(&info->lock);
 
 	return ret;
+}
+
+static void ioat_dma_cleanup_channel(struct ioat_dma_chan *dtc)
+{
+	struct ioat_dma_thread	*thread;
+	struct ioat_dma_thread	*_thread;
+	int			ret;
+
+	/* terminate all transfers on specified channels */
+	dmaengine_terminate_sync(dtc->chan);
+
+	kfree(dtc);
+}
+
+void ioat_dma_cleanup(void)
+{
+	struct ioat_dma_info *info = &test_info;
+
+	struct ioat_dma_chan *dtc, *_dtc;
+	struct dma_chan *chan;
+
+	list_for_each_entry_safe(dtc, _dtc, &info->channels, node) {
+		list_del(&dtc->node);
+		chan = dtc->chan;
+		ioat_dma_cleanup_channel(dtc);
+		pr_debug("dropped channel %s\n", dma_chan_name(chan));
+		dma_release_channel(chan);
+	}
+
+	info->nr_channels = 0;
 }

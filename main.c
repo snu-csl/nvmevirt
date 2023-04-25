@@ -616,6 +616,10 @@ static void NVMeV_exit(void)
 	NVMEV_NAMESPACE_FINAL(nvmev_vdev);
 	NVMEV_STORAGE_FINAL(nvmev_vdev);
 
+	if (io_using_dma) {
+		ioat_dma_cleanup();
+	}
+
 	for (i = 0; i < nvmev_vdev->nr_sq; i++) {
 		kfree(nvmev_vdev->sqes[i]);
 	}

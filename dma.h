@@ -78,26 +78,9 @@ static struct ioat_dma_info {
 	.lock = __MUTEX_INITIALIZER(test_info.lock),
 };
 
-struct ioat_dma_done {
-	bool done;
-	wait_queue_head_t *wait;
-};
-
-struct ioat_dma_data {
-	u8 **raw;
-	u8 **aligned;
-	unsigned int cnt;
-	unsigned long off;
-	bool is_phys;
-};
-
 struct ioat_dma_thread {
-	struct list_head node;
 	struct ioat_dma_info *info;
-	struct task_struct *task;
 	struct dma_chan *chan;
-	struct ioat_dma_data src;
-	struct ioat_dma_data dst;
 	enum dma_transaction_type type;
 };
 
@@ -115,5 +98,6 @@ static char test_channel[CHANNEL_NAME_LEN];
 // DMA Init, Final Function
 int ioat_dma_chan_set(const char *val);
 int ioat_dma_submit(unsigned long src_off, unsigned long dst_off, unsigned int size);
+void ioat_dma_cleanup(void);
 
 #endif /* _LIB_DMA_H */

@@ -71,11 +71,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 
 	uint64_t slba = cmd->slba;
 	uint64_t nr_lba = __nr_lbas_from_rw_cmd(cmd);
-
-	uint64_t slpn = lba_to_lpn(zns_ftl, slba);
-	uint64_t elpn = lba_to_lpn(zns_ftl, slba + nr_lba - 1);
-	uint64_t lpn;
-
+	uint64_t slpn, elpn, lpn;
 	// get zone from start_lbai
 	uint32_t zid = lba_to_zone(zns_ftl, slba);
 	enum zone_state state = zone_descs[zid].state;
@@ -91,6 +87,15 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 
 	uint64_t pgs = 0, pg_off;
 
+	if (cmd->opcode == nvme_cmd_zone_append) { 
+		slba = zone_descs[zid].wp;
+		cmd->slba = slba;
+		ret->result = slba;
+	}
+	
+	slpn = lba_to_lpn(zns_ftl, slba);
+	elpn = lba_to_lpn(zns_ftl, slba + nr_lba - 1);
+	
 	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n", __FUNCTION__, slba,
 			nr_lba, zid, state);
 

@@ -169,6 +169,7 @@ bool zns_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct
 
 	switch (cmd->common.opcode) {
 	case nvme_cmd_write:
+	case nvme_cmd_zone_append:
 		if (!zns_write(ns, req, ret))
 			return false;
 		break;
@@ -185,8 +186,6 @@ bool zns_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct
 	case nvme_cmd_zone_mgmt_recv:
 		zns_zmgmt_recv(ns, req, ret);
 		break;
-	case nvme_cmd_zone_append:
-		NVMEV_INFO("Zone Append is not implemented yet!\n");
 	default:
 		NVMEV_ERROR("%s: unimplemented command: %s(%d)\n", __func__,
 			   nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);

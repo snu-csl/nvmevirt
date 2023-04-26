@@ -49,8 +49,8 @@
 #define LBA_TO_BYTE(lba) ((lba) << 9)
 #define BYTE_TO_LBA(byte) ((byte) >> 9)
 
-#define INVALID32 (0xFFFFFFFF)
-#define INVALID64 (0xFFFFFFFFFFFFFFFF)
+#define BITMASK32_ALL (0xFFFFFFFF)
+#define BITMASK64_ALL (0xFFFFFFFFFFFFFFFF)
 #define ASSERT(X)
 
 #include "ssd_config.h"
@@ -244,7 +244,7 @@ struct nvmev_result {
 	uint32_t status;
 	uint64_t nsecs_target;
 	uint32_t early_completion;
-	uint64_t wp; // only for zone append
+	uint64_t result;
 };
 
 struct nvmev_ns {

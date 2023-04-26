@@ -81,7 +81,8 @@ static unsigned int __do_perform_io(int sqid, int sq_entry)
 				io_size = PAGE_SIZE - mem_offs;
 		}
 
-		if (sq_entry(sq_entry).rw.opcode == nvme_cmd_write) {
+		if (sq_entry(sq_entry).rw.opcode == nvme_cmd_write || 
+			sq_entry(sq_entry).rw.opcode == nvme_cmd_zone_append) {
 			memcpy(nvmev_vdev->ns[nsid].mapped + offset, vaddr + mem_offs, io_size);
 		} else if (sq_entry(sq_entry).rw.opcode == nvme_cmd_read) {
 			memcpy(vaddr + mem_offs, nvmev_vdev->ns[nsid].mapped + offset, io_size);
@@ -183,7 +184,8 @@ static unsigned int __do_perform_io_using_dma(int sqid, int sq_entry)
 
 		io_size = min_t(size_t, remaining, page_size);
 
-		if (sq_entry(sq_entry).rw.opcode == nvme_cmd_write) {
+		if (sq_entry(sq_entry).rw.opcode == nvme_cmd_write || 
+			sq_entry(sq_entry).rw.opcode == nvme_cmd_zone_append) {
 			ioat_dma_submit(paddr, nvmev_vdev->config.storage_start + offset, io_size);
 		} else if (sq_entry(sq_entry).rw.opcode == nvme_cmd_read) {
 			ioat_dma_submit(nvmev_vdev->config.storage_start + offset, paddr, io_size);

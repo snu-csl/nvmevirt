@@ -207,7 +207,7 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 				// [nvme_admin_keep_alive] = cpu_to_le32(NVME_CMD_EFFECTS_CSUPP),
 			},
 			.iocs = {
-#if BASE_SSD == ZNS_PROTOTYPE
+#if SUPPORTED_SSD_TYPE(ZNS)
 				/*
 				 * Zone Append is unsupported at the moment, but we fake it so that
 				 * Linux device driver doesn't lock it to R/O.

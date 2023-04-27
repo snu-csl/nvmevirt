@@ -8,7 +8,7 @@
 #include "nvmev.h"
 #include "dma.h"
 
-#if ((BASE_SSD == SAMSUNG_970PRO) || (BASE_SSD) == ZNS_PROTOTYPE)
+#if (SUPPORTED_SSD_TYPE(CONV) || SUPPORTED_SSD_TYPE(ZNS))
 #include "ssd.h"
 #else
 struct buffer;
@@ -616,7 +616,7 @@ static int nvmev_kthread_io(void *data)
 
 			if (pe->nsecs_target <= curr_nsecs) {
 				if (pe->writeback_cmd) {
-#if (BASE_SSD == SAMSUNG_970PRO || BASE_SSD == ZNS_PROTOTYPE)
+#if (SUPPORTED_SSD_TYPE(CONV) || SUPPORTED_SSD_TYPE(ZNS))
 					buffer_release((struct buffer *)pe->write_buffer,
 						       pe->buffs_to_release);
 #endif

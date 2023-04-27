@@ -384,7 +384,7 @@ static struct pci_bus *__create_pci_bus(void)
 		nvmev_vdev->bar->cap.mpsmin = 0;
 		nvmev_vdev->bar->cap.mqes = 1024 - 1; // 0-based value
 
-#if (BASE_SSD == ZNS_PROTOTYPE)
+#if (SUPPORTED_SSD_TYPE(ZNS))
 		nvmev_vdev->bar->cap.css = CAP_CSS_BIT_SPECIFIC;
 #endif
 

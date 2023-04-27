@@ -96,17 +96,22 @@ static inline uint64_t zone_to_slpn(struct zns_ftl *zns_ftl, uint32_t zid)
 
 static inline uint32_t lba_to_zone(struct zns_ftl *zns_ftl, uint64_t lba)
 {
-	return (lba) / (BYTE_TO_LBA(zns_ftl->zp.zone_size));
+	return (lba) / (zns_ftl->zp.zone_size / zns_ftl->ssd->sp.secsz);
 }
 
 static inline uint64_t zone_to_slba(struct zns_ftl *zns_ftl, uint32_t zid)
 {
-	return (zid) * (BYTE_TO_LBA(zns_ftl->zp.zone_size));
+	return (zid) * (zns_ftl->zp.zone_size / zns_ftl->ssd->sp.secsz);
 }
 
 static inline uint64_t zone_to_elba(struct zns_ftl *zns_ftl, uint32_t zid)
 {
 	return zone_to_slba(zns_ftl, zid + 1) - 1;
+}
+
+static inline uint64_t zone_to_elpn(struct zns_ftl *zns_ftl, uint32_t zid)
+{
+	return zone_to_elba(zns_ftl, zid) / zns_ftl->ssd->sp.secs_per_pg;
 }
 
 static inline uint32_t die_to_channel(struct zns_ftl *zns_ftl, uint32_t die)

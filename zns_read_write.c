@@ -71,7 +71,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 
 	uint64_t slba = cmd->slba;
 	uint64_t nr_lba = __nr_lbas_from_rw_cmd(cmd);
-	uint64_t slpn, elpn, lpn;
+	uint64_t slpn, elpn, lpn, zone_elpn;
 	// get zone from start_lbai
 	uint32_t zid = lba_to_zone(zns_ftl, slba);
 	enum zone_state state = zone_descs[zid].state;
@@ -86,7 +86,9 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	struct nand_cmd swr;
 
 	uint64_t pgs = 0, pg_off;
-
+	uint32_t bufs_to_release;
+	uint32_t unalinged_space = zns_ftl->zp.zone_size % (spp->pgs_per_oneshotpg * spp->pgsz); 
+	
 	if (cmd->opcode == nvme_cmd_zone_append) { 
 		slba = zone_descs[zid].wp;
 		cmd->slba = slba;
@@ -95,7 +97,8 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	
 	slpn = lba_to_lpn(zns_ftl, slba);
 	elpn = lba_to_lpn(zns_ftl, slba + nr_lba - 1);
-	
+	zone_elpn = zone_to_elpn(zns_ftl, zid);
+
 	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n", __FUNCTION__, slba,
 			nr_lba, zid, state);
 
@@ -173,7 +176,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 		pgs = min(elpn - lpn + 1, (uint64_t)(spp->pgs_per_oneshotpg - pg_off));
 
 		/* Aggregate write io in flash page */
-		if ((pg_off + pgs) == spp->pgs_per_oneshotpg) {
+		if (((pg_off + pgs) == spp->pgs_per_oneshotpg) || ((lpn + pgs - 1) == zone_elpn)) {
 			swr.type = USER_IO;
 			swr.cmd = NAND_WRITE;
 			swr.stime = nsecs_xfer_completed;
@@ -181,14 +184,17 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			swr.interleave_pci_dma = false;
 			swr.ppa = &ppa;
 			nsecs_completed = ssd_advance_nand(zns_ftl->ssd, &swr);
-			nsecs_latest = (nsecs_completed > nsecs_latest) ? nsecs_completed :
-									  nsecs_latest;
+			nsecs_latest = (nsecs_completed > nsecs_latest) ? nsecs_completed : nsecs_latest;
 			NVMEV_ZNS_DEBUG("%s Flush slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n",
 					__FUNCTION__, slba, nr_lba, zid, state);
 
+			if (((lpn + pgs - 1) == zone_elpn) && (unalinged_space > 0))
+				bufs_to_release = unalinged_space;
+			else
+				bufs_to_release = spp->pgs_per_oneshotpg * spp->pgsz;
+			
 			enqueue_writeback_io_req(req->sq_id, nsecs_completed,
-						 zns_ftl->ssd->write_buffer,
-						 spp->pgs_per_oneshotpg * spp->pgsz);
+						 zns_ftl->ssd->write_buffer, bufs_to_release);
 		}
 	}
 

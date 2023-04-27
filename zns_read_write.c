@@ -86,6 +86,8 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	struct nand_cmd swr;
 
 	uint64_t pgs = 0, pg_off;
+
+	struct buffer *write_buffer;
 	uint32_t bufs_to_release;
 	uint32_t unalinged_space = zns_ftl->zp.zone_size % (spp->pgs_per_oneshotpg * spp->pgsz); 
 	
@@ -101,6 +103,14 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 
 	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n", __FUNCTION__, slba,
 			nr_lba, zid, state);
+
+	if (zns_ftl->zp.zone_wb_size) 
+		write_buffer = &(zns_ftl->zone_write_buffer[zid]);
+	else
+		write_buffer = zns_ftl->ssd->write_buffer;
+	
+	if (buffer_allocate(write_buffer, LBA_TO_BYTE(nr_lba)) < LBA_TO_BYTE(nr_lba))
+		return false;
 
 	if ((LBA_TO_BYTE(nr_lba) % spp->write_unit_size) != 0) {
 		status = NVME_SC_ZNS_INVALID_WRITE;
@@ -193,8 +203,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			else
 				bufs_to_release = spp->pgs_per_oneshotpg * spp->pgsz;
 			
-			enqueue_writeback_io_req(req->sq_id, nsecs_completed,
-						 zns_ftl->ssd->write_buffer, bufs_to_release);
+			enqueue_writeback_io_req(req->sq_id, nsecs_completed, write_buffer, bufs_to_release);
 		}
 	}
 
@@ -372,18 +381,12 @@ bool zns_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resu
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)ns->ftls;
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	struct nvme_rw_command *cmd = &(req->cmd->rw);
-
-	uint64_t nr_lba = __nr_lbas_from_rw_cmd(cmd);
 	uint64_t slpn = lba_to_lpn(zns_ftl, cmd->slba);
 
 	// get zone from start_lba
 	uint32_t zid = lpn_to_zone(zns_ftl, slpn);
 
-	NVMEV_DEBUG("%s slba 0x%llx nr_lba 0x%lx zone_id %d \n", __FUNCTION__, cmd->slba, nr_lba,
-		    zid);
-
-	if (buffer_allocate(zns_ftl->ssd->write_buffer, LBA_TO_BYTE(nr_lba)) < LBA_TO_BYTE(nr_lba))
-		return false;
+	NVMEV_DEBUG("%s slba 0x%llx zone_id %d \n", __FUNCTION__, cmd->slba, zid);
 
 	if (zone_descs[zid].zrwav == 0)
 		return __zns_write(zns_ftl, req, ret);

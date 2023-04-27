@@ -125,7 +125,7 @@ void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
 	spp->ch_bandwidth = NAND_CHANNEL_BANDWIDTH;
 	spp->pcie_bandwidth = PCIE_BANDWIDTH;
 
-	spp->write_buffer_size = WRITE_BUFFER_SIZE;
+	spp->write_buffer_size = GLOBAL_WB_SIZE;
 	spp->write_early_completion = WRITE_EARLY_COMPLETION;
 
 	/* calculated values */

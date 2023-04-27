@@ -119,7 +119,8 @@ static void __reset_zone(struct zns_ftl *zns_ftl, uint64_t zid)
 	zone_descs[zid].wp = zone_descs[zid].zslba;
 	zone_descs[zid].zrwav = 0;
 
-	buffer_refill(&zns_ftl->zwra_buffer[zid]);
+	if (zns_ftl->zp.zrwa_buffer_size)
+		buffer_refill(&zns_ftl->zwra_buffer[zid]);
 }
 
 static uint32_t __zmgmt_send_reset_zone(struct zns_ftl *zns_ftl, uint64_t zid)

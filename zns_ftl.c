@@ -15,12 +15,18 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 	uint64_t zslba = 0;
 	uint32_t i = 0;
 	const uint32_t zrwa_buffer_size = zns_ftl->zp.zrwa_buffer_size;
+	const uint32_t zone_wb_size = zns_ftl->zp.zone_wb_size;
 
 	zns_ftl->zone_descs = kmalloc(sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
 	zns_ftl->report_buffer = kmalloc(sizeof(struct zone_report) +
 						 sizeof(struct zone_descriptor) * nr_zones,
 					 GFP_KERNEL);
-	zns_ftl->zwra_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
+
+	if (zrwa_buffer_size)
+		zns_ftl->zwra_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
+	
+	if (zone_wb_size)
+		zns_ftl->zone_write_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
 
 	zone_descs = zns_ftl->zone_descs;
 	memset(zone_descs, 0, sizeof(struct zone_descriptor) * zns_ftl->zp.nr_zones);
@@ -34,7 +40,11 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 		zslba += BYTE_TO_LBA(zone_size);
 		zone_descs[i].zone_capacity = BYTE_TO_LBA(zone_size);
 
-		buffer_init(&(zns_ftl->zwra_buffer[i]), zrwa_buffer_size);
+		if (zrwa_buffer_size)
+			buffer_init(&(zns_ftl->zwra_buffer[i]), zrwa_buffer_size);
+
+		if (zone_wb_size)
+			buffer_init(&(zns_ftl->zone_write_buffer[i]), zone_wb_size);
 
 		NVMEV_ZNS_DEBUG("[i] zslba 0x%llx zone capacity 0x%llx\n", zone_descs[i].zslba,
 				zone_descs[i].zone_capacity);
@@ -43,7 +53,12 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 
 static void __remove_descriptor(struct zns_ftl *zns_ftl)
 {
-	kfree(zns_ftl->zwra_buffer);
+	if (zns_ftl->zp.zrwa_buffer_size)
+		kfree(zns_ftl->zwra_buffer);
+
+	if (zns_ftl->zp.zone_wb_size)
+		kfree(zns_ftl->zone_write_buffer);
+			
 	kfree(zns_ftl->report_buffer);
 	kfree(zns_ftl->zone_descs);
 }
@@ -70,6 +85,7 @@ static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64
 	zpp->nr_active_zones = zpp->nr_zones; // max
 	zpp->nr_open_zones = zpp->nr_zones; // max
 	zpp->nr_zrwa_zones = MAX_ZRWA_ZONES;
+	zpp->zone_wb_size = ZONE_WB_SIZE;
 	zpp->zrwa_size = ZRWA_SIZE;
 	zpp->zrwafg_size = ZRWAFG_SIZE;
 	zpp->zrwa_buffer_size = ZRWA_BUFFER_SIZE;
@@ -80,7 +96,7 @@ static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64
 	/* It should be 4KB aligned, according to lpn size */
 	NVMEV_ASSERT((zpp->zone_size % spp->pgsz) == 0);
 
-	NVMEV_INFO("zone_size=%d(KB), # zones=%d # die/zone=%d \n", zpp->zone_size, zpp->nr_zones,
+	NVMEV_INFO("zone_size=%u(Byte),%u(MB), # zones=%d # die/zone=%d \n", zpp->zone_size, BYTE_TO_MB(zpp->zone_size), zpp->nr_zones,
 		   zpp->dies_per_zone);
 }
 

@@ -16,6 +16,7 @@ struct znsparams {
 	uint32_t nr_open_zones;
 	uint32_t dies_per_zone;
 	uint32_t zone_size; //bytes
+	uint32_t zone_wb_size;
 
 	/*related to zrwa*/
 	uint32_t nr_zrwa_zones;
@@ -38,6 +39,7 @@ struct zns_ftl {
 	struct zone_resource_info res_infos[RES_TYPE_COUNT];
 	struct zone_descriptor *zone_descs;
 	struct zone_report *report_buffer;
+	struct buffer *zone_write_buffer;
 	struct buffer *zwra_buffer;
 	void *storage_base_addr;
 };

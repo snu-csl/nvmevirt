@@ -11,30 +11,30 @@ static inline uint64_t __get_ioclock(struct ssd *ssd)
 	return cpu_clock(ssd->cpu_nr_dispatcher);
 }
 
-void buffer_init(struct buffer *buf, uint32_t size)
+void buffer_init(struct buffer *buf, size_t size)
 {
 	spin_lock_init(&buf->lock);
-	buf->initial = size;
+	buf->size = size;
 	buf->remaining = size;
 }
 
-uint32_t buffer_allocate(struct buffer *buf, uint32_t size)
+uint32_t buffer_allocate(struct buffer *buf, size_t size)
 {
 	while (!spin_trylock(&buf->lock)) {
 		cpu_relax();
 	}
 
 	if (buf->remaining < size) {
-		spin_unlock(&buf->lock);
-		return 0;
+		size = 0;
 	}
 
 	buf->remaining -= size;
+
 	spin_unlock(&buf->lock);
 	return size;
 }
 
-bool buffer_release(struct buffer *buf, uint32_t size)
+bool buffer_release(struct buffer *buf, size_t size)
 {
 	while (!spin_trylock(&buf->lock))
 		;
@@ -48,7 +48,7 @@ void buffer_refill(struct buffer *buf)
 {
 	while (!spin_trylock(&buf->lock))
 		;
-	buf->remaining = buf->initial;
+	buf->remaining = buf->size;
 	spin_unlock(&buf->lock);
 }
 

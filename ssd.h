@@ -132,8 +132,8 @@ struct nand_cmd {
 };
 
 struct buffer {
-	uint32_t initial;
-	uint32_t remaining;
+	size_t size;
+	size_t remaining;
 	spinlock_t lock;
 };
 
@@ -262,9 +262,9 @@ uint64_t ssd_advance_pcie(struct ssd *ssd, uint64_t request_time, uint64_t lengt
 uint64_t ssd_advance_write_buffer(struct ssd *ssd, uint64_t request_time, uint64_t length);
 uint64_t ssd_next_idle_time(struct ssd *ssd);
 
-void buffer_init(struct buffer *buf, uint32_t size);
-uint32_t buffer_allocate(struct buffer *buf, uint32_t size);
-bool buffer_release(struct buffer *buf, uint32_t size);
+void buffer_init(struct buffer *buf, size_t size);
+uint32_t buffer_allocate(struct buffer *buf, size_t size);
+bool buffer_release(struct buffer *buf, size_t size);
 void buffer_refill(struct buffer *buf);
 
 void adjust_ftl_latency(int target, int lat);

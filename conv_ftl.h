@@ -17,7 +17,7 @@ struct convparams {
 	int pba_pcent; /* (physical space / logical space) * 100*/
 };
 
-typedef struct line {
+struct line {
 	int id; /* line id, the same as corresponding block id */
 	int ipc; /* invalid page count in this line */
 	int vpc; /* valid page count in this line */
@@ -25,7 +25,7 @@ typedef struct line {
 	struct list_head entry;
 	/* position in the priority queue for victim lines */
 	size_t pos;
-} line;
+};
 
 /* wp: record next write addr */
 struct write_pointer {

@@ -1,6 +1,95 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include "dma.h"
+#include <linux/err.h>
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
+#include <linux/freezer.h>
+#include <linux/init.h>
+#include <linux/sched/task.h>
+#include <linux/slab.h>
+
+// Size of the memcpy test buffer
+static unsigned int test_buf_size = 4096;
+
+// Bus ID of the DMA Engine to test (default: any)
+static char test_device[32];
+
+// Maximum number of channels to use (default: all)
+static unsigned int max_channels;
+
+// Transfer Timeout in msec (default: 3000), Pass -1 for infinite timeout
+static int timeout = 3000;
+
+// Optional custom transfer size in bytes (default: not used (0))
+static unsigned int transfer_size = 1024;
+
+// Use polling for completion instead of interrupts
+static bool polled = true;
+
+#define CHANNEL_NAME_LEN 20
+
+/**
+ * struct ioat_dma_params - test parameters.
+ * @buf_size:		size of the memcpy test buffer
+ * @channel:		bus ID of the channel to test
+ * @device:		bus ID of the DMA Engine to test
+ * @max_channels:	maximum number of channels to use
+ * @timeout:		transfer timeout in msec, -1 for infinite timeout
+ * @transfer_size:	custom transfer size in bytes
+ * @polled:		use polling for completion instead of interrupts
+ */
+struct ioat_dma_params {
+	unsigned int buf_size;
+	char channel[CHANNEL_NAME_LEN];
+	char device[32];
+	unsigned int max_channels;
+	int timeout;
+	unsigned int transfer_size;
+	bool polled;
+};
+
+/**
+ * struct ioat_dma_info - test information.
+ * @params:		test parameters
+ * @channels:		channels under test
+ * @nr_channels:	number of channels under test
+ * @lock:		access protection to the fields of this structure
+ * @did_init:		module has been initialized completely
+ * @last_error:		test has faced configuration issues
+ */
+static struct ioat_dma_info {
+	/* Test parameters */
+	struct ioat_dma_params params;
+
+	/* Internal state */
+	struct list_head channels;
+	unsigned int nr_channels;
+	int last_error;
+	struct mutex lock;
+	bool did_init;
+} test_info = {
+	.channels = LIST_HEAD_INIT(test_info.channels),
+	.lock = __MUTEX_INITIALIZER(test_info.lock),
+};
+
+struct ioat_dma_thread {
+	struct ioat_dma_info *info;
+	struct dma_chan *chan;
+	enum dma_transaction_type type;
+};
+
+struct ioat_dma_chan {
+	struct list_head node;
+	struct dma_chan *chan;
+	struct list_head threads;
+};
+
+static char test_channel[CHANNEL_NAME_LEN];
+
+/* Maximum amount of mismatched bytes in buffer to print */
+#define MAX_ERROR_COUNT 32
+
 
 static struct ioat_dma_thread dma_thread;
 
@@ -18,67 +107,52 @@ static bool ioat_dma_match_device(struct ioat_dma_params *params, struct dma_dev
 	return strcmp(dev_name(device->dev), params->device) == 0;
 }
 
-static void result(const char *err, unsigned int n, unsigned long src_off, unsigned long dst_off,
+static void result(const char *err, unsigned int n, dma_addr_t src_addr, dma_addr_t dst_addr,
 		   unsigned int len, unsigned long data)
 {
-	if (IS_ERR_VALUE(data)) {
-		pr_debug("%s: result #%u: '%s' with src_off=0x%lx dst_off=0x%lx len=0x%x (%ld)\n",
-			 current->comm, n, err, src_off, dst_off, len, data);
-	} else {
-		pr_debug("%s: result #%u: '%s' with src_off=0x%lx dst_off=0x%lx len=0x%x (%lu)\n",
-			 current->comm, n, err, src_off, dst_off, len, data);
-	}
+	pr_debug("%s: result #%u: '%s' with src_addr=0x%llx dst_addr=0x%llx len=0x%x (%ld)\n",
+			current->comm, n, err, src_addr, dst_addr, len, data);
 }
 
-int ioat_dma_submit(unsigned long src_off, unsigned long dst_off, unsigned int size)
+int ioat_dma_submit(dma_addr_t src_addr, dma_addr_t dst_addr, unsigned int size)
 {
 	struct ioat_dma_thread *thread = &dma_thread;
 	struct ioat_dma_info *info;
-	struct ioat_dma_params *params;
 	struct dma_chan *chan;
 	struct dma_device *dev;
 	dma_cookie_t cookie;
 	enum dma_status status;
-	enum dma_ctrl_flags flags;
-	u8 *pq_coefs = NULL;
-	dma_addr_t src_addr, dst_addr;
+	enum dma_ctrl_flags flags = DMA_CTRL_ACK;	/* Always use polled mode */
 	int ret;
 	int i;
 	struct dma_async_tx_descriptor *tx = NULL;
 
 	set_freezable();
 
-	pr_debug("START: 0x%lx -> 0x%lx, len: %d\n", src_off, dst_off, size);
+	pr_debug("START: 0x%llx -> 0x%llx, len: %d\n", src_addr, dst_addr, size);
 
 	ret = -ENOMEM;
 
 	smp_rmb();
 	info = thread->info;
-	params = &info->params;
 	chan = thread->chan;
 	dev = chan->device;
-
-	/* Always use polled mode */
-	flags = DMA_CTRL_ACK;
-
-	src_addr = src_off;
-	dst_addr = dst_off;
 
 	/* thread->type is always DMA_MEMCPY */
 	tx = dev->device_prep_dma_memcpy(chan, dst_addr, src_addr, size, flags);
 
 	if (!tx) {
-		result("prep error", 1, src_off, dst_off, size, ret);
+		result("prep error", 1, src_addr, dst_addr, size, ret);
 		msleep(100);
-		goto err_out;
+		goto out;
 	}
 
 	cookie = tx->tx_submit(tx);
 
 	if (dma_submit_error(cookie)) {
-		result("submit error", 1, src_off, dst_off, size, ret);
+		result("submit error", 1, src_addr, dst_addr, size, ret);
 		msleep(100);
-		goto err_out;
+		goto out;
 	}
 
 	/* Always use polled mode */
@@ -88,14 +162,14 @@ int ioat_dma_submit(unsigned long src_off, unsigned long dst_off, unsigned int s
 	if (status != DMA_COMPLETE &&
 	    !(dma_has_cap(DMA_COMPLETION_NO_ORDER, dev->cap_mask) && status == DMA_OUT_OF_ORDER)) {
 		result(status == DMA_ERROR ? "completion error status" : "completion busy status",
-		       1, src_off, dst_off, size, ret);
-		goto err_out;
+		       1, src_addr, dst_addr, size, ret);
+		goto out;
 	}
 
 	ret = 0;
 
-err_out:
-	pr_debug("DONE: 0x%lx -> 0x%lx, len: %d\n", src_off, dst_off, size);
+out:
+	pr_debug("DONE: 0x%llx -> 0x%llx, len: %d\n", src_addr, dst_addr, size);
 
 	/* terminate all transfers on specified channels */
 	if (ret)
@@ -187,18 +261,17 @@ int ioat_dma_chan_set(const char *val)
 {
 	struct ioat_dma_info *info = &test_info;
 	struct ioat_dma_chan *dtc;
-	char chan_reset_val[CHANNEL_NAME_LEN];
 	int ret = 0;
 
-	mutex_lock(&info->lock);
 	BUG_ON(strlen(val) >= CHANNEL_NAME_LEN);
+
+	mutex_lock(&info->lock);
 	strcpy(test_channel, val);
 
 	/* Reject channels that are already registered */
 	list_for_each_entry(dtc, &info->channels, node) {
 		if (strcmp(dma_chan_name(dtc->chan), strim(test_channel)) == 0) {
 			dtc = list_last_entry(&info->channels, struct ioat_dma_chan, node);
-			strlcpy(chan_reset_val, dma_chan_name(dtc->chan), sizeof(chan_reset_val));
 			ret = -EBUSY;
 			goto add_chan_err;
 		}
@@ -218,14 +291,12 @@ int ioat_dma_chan_set(const char *val)
 		if ((strcmp(dma_chan_name(dtc->chan), strim(test_channel)) != 0) &&
 		    (strcmp("", strim(test_channel)) != 0)) {
 			ret = -EINVAL;
-			strlcpy(chan_reset_val, dma_chan_name(dtc->chan), sizeof(chan_reset_val));
 			pr_err("ERROR on DMA engine %d\n", __LINE__);
 			goto add_chan_err;
 		}
 
 	} else {
 		/* Clear test_channel if no channels were added successfully */
-		strlcpy(chan_reset_val, "", sizeof(chan_reset_val));
 		ret = -EBUSY;
 		pr_err("ERROR on DMA engine %d\n", __LINE__);
 		goto add_chan_err;
@@ -245,10 +316,6 @@ add_chan_err:
 
 static void ioat_dma_cleanup_channel(struct ioat_dma_chan *dtc)
 {
-	struct ioat_dma_thread	*thread;
-	struct ioat_dma_thread	*_thread;
-	int			ret;
-
 	/* terminate all transfers on specified channels */
 	dmaengine_terminate_sync(dtc->chan);
 

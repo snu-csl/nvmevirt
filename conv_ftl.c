@@ -908,8 +908,7 @@ static bool conv_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvm
 				srd.xfer_size = xfer_size;
 				srd.ppa = &prev_ppa;
 				nsecs_completed = ssd_advance_nand(conv_ftl->ssd, &srd);
-				nsecs_latest = (nsecs_completed > nsecs_latest) ? nsecs_completed :
-										  nsecs_latest;
+				nsecs_latest = max(nsecs_completed, nsecs_latest);
 			}
 
 			xfer_size = spp->pgsz;
@@ -921,8 +920,7 @@ static bool conv_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvm
 			srd.xfer_size = xfer_size;
 			srd.ppa = &prev_ppa;
 			nsecs_completed = ssd_advance_nand(conv_ftl->ssd, &srd);
-			nsecs_latest = (nsecs_completed > nsecs_latest) ? nsecs_completed :
-									  nsecs_latest;
+			nsecs_latest = max(nsecs_completed, nsecs_latest);
 		}
 	}
 

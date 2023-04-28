@@ -73,7 +73,7 @@ static unsigned int io_unit_shift = 12;
 static char *cpus;
 static unsigned int debug = 0;
 
-extern int io_using_dma;
+int io_using_dma = false;
 
 static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
 {

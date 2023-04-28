@@ -21,7 +21,7 @@ struct buffer;
 #define sq_entry(entry_id) sq->sq[SQ_ENTRY_TO_PAGE_NUM(entry_id)][SQ_ENTRY_TO_PAGE_OFFSET(entry_id)]
 #define cq_entry(entry_id) cq->cq[CQ_ENTRY_TO_PAGE_NUM(entry_id)][CQ_ENTRY_TO_PAGE_OFFSET(entry_id)]
 
-int io_using_dma = false;
+extern bool io_using_dma;
 
 static inline unsigned int __get_io_worker(int sqid)
 {

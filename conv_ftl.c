@@ -138,7 +138,7 @@ static void init_lines(struct conv_ftl *conv_ftl)
 		};
 
 		/* initialize all the lines as free lines */
-		list_add_tail(&line->entry, &lm->free_line_list);
+		list_add_tail(&lm->lines[i].entry, &lm->free_line_list);
 		lm->free_line_cnt++;
 	}
 

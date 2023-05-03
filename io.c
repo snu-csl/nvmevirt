@@ -398,7 +398,7 @@ static void __reclaim_completed_reqs(void)
 	}
 }
 
-static size_t __nvmev_proc_io(int sqid, int sq_entry)
+static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 	unsigned long long nsecs_start = __get_wallclock();
@@ -433,6 +433,7 @@ static size_t __nvmev_proc_io(int sqid, int sq_entry)
 
 	if (!ns->proc_io_cmd(ns, &req, &ret))
 		return false;
+	*io_size = (sq_entry(sq_entry).rw.length + 1) << 9;
 
 #ifdef PERF_DEBUG
 	prev_clock2 = local_clock();
@@ -480,7 +481,8 @@ int nvmev_proc_io_sq(int sqid, int new_db, int old_db)
 		num_proc += sq->queue_size;
 
 	for (seq = 0; seq < num_proc; seq++) {
-		if (!__nvmev_proc_io(sqid, sq_entry))
+		size_t io_size;
+		if (!__nvmev_proc_io(sqid, sq_entry, &io_size))
 			break;
 
 		if (++sq_entry == sq->queue_size) {
@@ -488,13 +490,13 @@ int nvmev_proc_io_sq(int sqid, int new_db, int old_db)
 		}
 		sq->stat.nr_dispatched++;
 		sq->stat.nr_in_flight++;
-		//sq->stat.total_io += io_size;
+		sq->stat.total_io += io_size;
+
 	}
 	sq->stat.nr_dispatch++;
 	sq->stat.max_nr_in_flight = max_t(int, sq->stat.max_nr_in_flight, sq->stat.nr_in_flight);
 
 	latest_db = (old_db + seq) % sq->queue_size;
-	//latest_db = new_db;
 	return latest_db;
 }
 

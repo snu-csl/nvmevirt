@@ -6,7 +6,7 @@
 #include "nvmev.h"
 #include "conv_ftl.h"
 
-void enqueue_writeback_io_req(int sqid, unsigned long long nsecs_target,
+void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
 			      struct buffer *write_buffer, unsigned int buffs_to_release);
 
 static inline bool last_pg_in_wordline(struct conv_ftl *conv_ftl, struct ppa *ppa)
@@ -1009,7 +1009,7 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 			nsecs_completed = ssd_advance_nand(conv_ftl->ssd, &swr);
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
 
-			enqueue_writeback_io_req(req->sq_id, nsecs_completed, wbuf,
+			schedule_internal_operation(req->sq_id, nsecs_completed, wbuf,
 						 spp->pgs_per_oneshotpg * spp->pgsz);
 		}
 

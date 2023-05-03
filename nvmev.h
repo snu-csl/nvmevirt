@@ -161,9 +161,9 @@ struct nvmev_proc_table {
 	unsigned int result0;
 	unsigned int result1;
 
-	bool writeback_cmd;
+	bool is_internal;
 	void *write_buffer;
-	unsigned int buffs_to_release;
+	size_t buffs_to_release;
 
 	unsigned int next, prev;
 };
@@ -243,8 +243,6 @@ struct nvmev_request {
 struct nvmev_result {
 	uint32_t status;
 	uint64_t nsecs_target;
-	uint32_t early_completion;
-	uint64_t result;
 };
 
 struct nvmev_ns {

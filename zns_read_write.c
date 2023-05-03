@@ -251,7 +251,7 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	uint64_t nr_lbas_flush = 0, lpn, remaining, pgs = 0, pg_off;
 
 	NVMEV_DEBUG(
-		"%s slba 0x%llx nr_lba 0x%llx zone_id %d state %d wp 0x%llx zrwa_impl_start 0x%llx zrwa_impl_end 0x%llx  buffer %d\n",
+		"%s slba 0x%llx nr_lba 0x%llx zone_id %d state %d wp 0x%llx zrwa_impl_start 0x%llx zrwa_impl_end 0x%llx  buffer %lu\n",
 		__FUNCTION__, slba, nr_lba, zid, state, prev_wp, zrwa_impl_start, zrwa_impl_end,
 		zns_ftl->zwra_buffer[zid].remaining);
 
@@ -312,14 +312,14 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 		nr_lbas_flush = DIV_ROUND_UP((elba - zrwa_impl_start + 1), lbas_per_zrwafg) *
 				lbas_per_zrwafg;
 
-		NVMEV_DEBUG("%s implicitly flush zid %d wp before 0x%llx after 0x%llx buffer %d",
+		NVMEV_DEBUG("%s implicitly flush zid %d wp before 0x%llx after 0x%llx buffer %lu",
 			    __FUNCTION__, zid, prev_wp, zone_descs[zid].wp + nr_lbas_flush,
 			    zns_ftl->zwra_buffer[zid].remaining);
 	} else if (elba == zone_to_elba(zns_ftl, zid)) {
 		// Workaround. move wp to end of the zone and make state full implicitly
 		nr_lbas_flush = elba - prev_wp + 1;
 
-		NVMEV_DEBUG("%s end of zone zid %d wp before 0x%llx after 0x%llx buffer %d",
+		NVMEV_DEBUG("%s end of zone zid %d wp before 0x%llx after 0x%llx buffer %lu",
 			    __FUNCTION__, zid, prev_wp, zone_descs[zid].wp + nr_lbas_flush,
 			    zns_ftl->zwra_buffer[zid].remaining);
 	}

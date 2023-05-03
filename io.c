@@ -294,9 +294,8 @@ void enqueue_writeback_io_req(int sqid, unsigned long long nsecs_target,
 	pi->free_seq = pi->proc_table[entry].next;
 	BUG_ON(pi->free_seq >= NR_MAX_PARALLEL_IO);
 
-	NVMEV_DEBUG("%s/%u[%d], sq %d cq %d, entry %d %llu + %llu\n", pi->thread_name, entry,
-		    sq_entry(sq_entry).rw.opcode, sqid, cqid, sq_entry, nsecs_start,
-		    ret->nsecs_target - nsecs_start);
+	NVMEV_DEBUG("%s/%u, writeback sq %d %llu + %llu\n", pi->thread_name, entry,
+		    sqid, local_clock(), nsecs_target - local_clock());
 
 	/////////////////////////////////
 	pi->proc_table[entry].sqid = sqid;

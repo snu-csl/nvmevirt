@@ -113,7 +113,7 @@ struct zone_report {
 	__u64 rsvd[7];
 
 	//several zone descriptors..
-	struct zone_descriptor zd[0];
+	struct zone_descriptor zd[1];
 };
 
 // zone management receive command

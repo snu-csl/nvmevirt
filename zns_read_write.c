@@ -357,7 +357,7 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			nsecs_completed = ssd_advance_nand(zns_ftl->ssd, &swr);
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
 
-			schedule_write_buffer_release(req->sq_id, nsecs_completed,
+			schedule_internal_operation(req->sq_id, nsecs_completed,
 						 &zns_ftl->zwra_buffer[zid],
 						 spp->pgs_per_oneshotpg * spp->pgsz);
 		}

@@ -106,7 +106,7 @@ $ sudo dmesg
 [  144.812917] nvme nvme0: pci function 0001:10:00.0
 [  144.812975] NVMeVirt: Successfully created virtual PCI bus (node 1)
 [  144.813911] NVMeVirt: nvmev_proc_io_0 started on cpu 7 (node 1)
-[  144.813972] NVMeVirt: Successfully created Virtual NVMe deivce
+[  144.813972] NVMeVirt: Successfully created Virtual NVMe device
 [  144.814032] NVMeVirt: nvmev_dispatcher started on cpu 8 (node 1)
 [  144.822075] nvme nvme0: 48/0/0 default/read/poll queues
 ```

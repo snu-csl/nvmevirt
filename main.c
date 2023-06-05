@@ -592,7 +592,7 @@ static int NVMeV_init(void)
 
 	pci_bus_add_devices(nvmev_vdev->virt_bus);
 
-	NVMEV_INFO("Successfully created Virtual NVMe deivce\n");
+	NVMEV_INFO("Successfully created Virtual NVMe device\n");
 
 	return 0;
 

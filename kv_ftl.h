@@ -190,7 +190,8 @@ struct kv_ftl {
 };
 
 bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
-unsigned int kv_perform_io_cmd(struct nvmev_ns *ns, struct nvme_command *cmd, uint32_t *status);
+bool kv_identify_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command cmd);
+unsigned int kv_perform_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command *cmd, uint32_t *status);
 void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
 		       uint32_t cpu_nr_dispatcher);
 void kv_remove_namespace(struct nvmev_ns *ns);

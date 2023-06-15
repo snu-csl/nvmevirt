@@ -783,7 +783,7 @@ static unsigned int __do_perform_kv_batch(struct kv_ftl *kv_ftl, struct nvme_kv_
 	return 0;
 }
 
-static unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
+unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
 				 unsigned int *status)
 {
 	int iter = 0;
@@ -812,7 +812,7 @@ static unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command c
 	return iter;
 }
 
-static unsigned int kv_iter_close(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
+unsigned int kv_iter_close(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
 				  unsigned int *status)
 {
 	int iter = cmd.kv_iter_req.iter_handle;
@@ -984,12 +984,12 @@ bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct 
 	return true;
 }
 
-static bool kv_identify_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command cmd)
+bool kv_identify_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command cmd)
 {
 	return is_kv_cmd(cmd.common.opcode);
 }
 
-static unsigned int kv_perform_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command *cmd,
+unsigned int kv_perform_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command *cmd,
 					   uint32_t *status)
 {
 	struct kv_ftl *kv_ftl = (struct kv_ftl *)ns->ftls;

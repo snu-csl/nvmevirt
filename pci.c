@@ -351,14 +351,15 @@ static struct pci_bus *__create_pci_bus(void)
 	struct pci_bus *nvmev_pci_bus = NULL;
 	struct pci_dev *dev;
 
-	memset(&nvmev_vdev->pci_ops, 0, sizeof(nvmev_vdev->pci_ops));
-	nvmev_vdev->pci_ops.read = nvmev_pci_read;
-	nvmev_vdev->pci_ops.write = nvmev_pci_write;
+	nvmev_vdev->pci_ops = (struct pci_ops) {
+		.read = nvmev_pci_read,
+		.write = nvmev_pci_write,
+	};
 
-	memset(&nvmev_vdev->pci_sd, 0, sizeof(nvmev_vdev->pci_sd));
-	nvmev_vdev->pci_sd.domain = NVMEV_PCI_DOMAIN_NUM;
-	nvmev_vdev->pci_sd.node =
-		cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher); // PCI_NUMA_NODE
+	nvmev_vdev->pci_sd = (struct pci_sysdata) {
+		.domain = NVMEV_PCI_DOMAIN_NUM,
+		.node = cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher),
+	};
 
 	nvmev_pci_bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_vdev->pci_ops, &nvmev_vdev->pci_sd);
 
@@ -373,6 +374,7 @@ static struct pci_bus *__create_pci_bus(void)
 		res->parent = &iomem_resource;
 
 		nvmev_vdev->pdev = dev;
+		printk("IRQ: %u\n", dev->irq);
 
 		nvmev_vdev->bar = memremap(pci_resource_start(dev, 0), PAGE_SIZE * 2, MEMREMAP_WT);
 		memset(nvmev_vdev->bar, 0x0, PAGE_SIZE * 2);
@@ -442,14 +444,15 @@ void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev)
 	if (nvmev_vdev->old_dbs)
 		kfree(nvmev_vdev->old_dbs);
 
-	if (nvmev_vdev->admin_q->nvme_cq)
-		kfree(nvmev_vdev->admin_q->nvme_cq);
+	if (nvmev_vdev->admin_q) {
+		if (nvmev_vdev->admin_q->nvme_cq)
+			kfree(nvmev_vdev->admin_q->nvme_cq);
 
-	if (nvmev_vdev->admin_q->nvme_sq)
-		kfree(nvmev_vdev->admin_q->nvme_sq);
+		if (nvmev_vdev->admin_q->nvme_sq)
+			kfree(nvmev_vdev->admin_q->nvme_sq);
 
-	if (nvmev_vdev->admin_q)
 		kfree(nvmev_vdev->admin_q);
+	}
 
 	if (nvmev_vdev->virtDev)
 		kfree(nvmev_vdev->virtDev);

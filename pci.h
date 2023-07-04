@@ -568,8 +568,6 @@ void PCI_PCIE_EXTCAP_SETTINGS(struct pci_exp_hdr *exp_cap);
 #define PCI_CFG_SPACE_SIZE 256
 #define PCIE_EXPCAP_START 0x50
 
-#define PCI_NUMA_NODE 1
-
 enum {
 	CAP_CSS_BIT_NVM = (1 << 0),
 	CAP_CSS_BIT_SPECIFIC = (1 << 6),

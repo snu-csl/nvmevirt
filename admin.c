@@ -9,7 +9,8 @@
 #define cq_entry(entry_id) \
 	queue->nvme_cq[CQ_ENTRY_TO_PAGE_NUM(entry_id)][CQ_ENTRY_TO_PAGE_OFFSET(entry_id)]
 
-#define prp_address_offset(prp, offset) (page_address(pfn_to_page(prp >> PAGE_SHIFT) + offset) + (prp & ~PAGE_MASK))
+#define prp_address_offset(prp, offset) \
+	(page_address(pfn_to_page(prp >> PAGE_SHIFT) + offset) + (prp & ~PAGE_MASK))
 #define prp_address(prp) prp_address_offset(prp, 0)
 
 static void __nvmev_admin_create_cq(int eid, int cq_head)

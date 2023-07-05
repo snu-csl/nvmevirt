@@ -274,7 +274,8 @@ static void __enqueue_io_req(int sqid, int cqid, int sq_entry, unsigned long lon
 	unsigned int entry;
 
 	pi = __allocate_proc_table_entry(sqid, &entry);
-	if (!pi) return;
+	if (!pi)
+		return;
 
 	pe = pi->proc_table + entry;
 
@@ -303,14 +304,15 @@ static void __enqueue_io_req(int sqid, int cqid, int sq_entry, unsigned long lon
 }
 
 void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
-			      struct buffer *write_buffer, size_t buffs_to_release)
+				 struct buffer *write_buffer, size_t buffs_to_release)
 {
 	struct nvmev_proc_info *pi;
 	struct nvmev_proc_table *pe;
 	unsigned int entry;
 
 	pi = __allocate_proc_table_entry(sqid, &entry);
-	if (!pi) return;
+	if (!pi)
+		return;
 
 	pe = pi->proc_table + entry;
 
@@ -478,7 +480,6 @@ int nvmev_proc_io_sq(int sqid, int new_db, int old_db)
 		sq->stat.nr_dispatched++;
 		sq->stat.nr_in_flight++;
 		sq->stat.total_io += io_size;
-
 	}
 	sq->stat.nr_dispatch++;
 	sq->stat.max_nr_in_flight = max_t(int, sq->stat.max_nr_in_flight, sq->stat.nr_in_flight);

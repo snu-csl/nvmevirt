@@ -346,22 +346,35 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 	return 0;
 };
 
+static void __dump_pci_dev(struct pci_dev *dev)
+{
+	printk("bus: %p, subordinate: %p\n", dev->bus, dev->subordinate);
+	printk("vendor: %x, device: %x\n", dev->vendor, dev->device);
+	printk("s_vendor: %x, s_device: %x\n", dev->subsystem_vendor, dev->subsystem_device);
+	printk("devfn: %u, class: %x\n", dev->devfn, dev->class);
+	printk("sysdata: %p, slot: %p\n", dev->sysdata, dev->slot);
+	printk("pin: %d, irq: %u\n", dev->pin, dev->irq);
+	printk("msi: %d, msi-x:%d\n", dev->msi_enabled, dev->msix_enabled);
+	printk("resource[0]: %llx\n", pci_resource_start(dev, 0));
+}
+
 static struct pci_bus *__create_pci_bus(void)
 {
 	struct pci_bus *nvmev_pci_bus = NULL;
 	struct pci_dev *dev;
 
-	nvmev_vdev->pci_ops = (struct pci_ops) {
+	nvmev_vdev->pci_ops = (struct pci_ops){
 		.read = nvmev_pci_read,
 		.write = nvmev_pci_write,
 	};
 
-	nvmev_vdev->pci_sd = (struct pci_sysdata) {
+	nvmev_vdev->pci_sysdata = (struct pci_sysdata){
 		.domain = NVMEV_PCI_DOMAIN_NUM,
 		.node = cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher),
 	};
 
-	nvmev_pci_bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_vdev->pci_ops, &nvmev_vdev->pci_sd);
+	nvmev_pci_bus =
+		pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_vdev->pci_ops, &nvmev_vdev->pci_sysdata);
 
 	if (!nvmev_pci_bus) {
 		NVMEV_ERROR("Unable to create PCI bus\n");
@@ -404,7 +417,8 @@ static struct pci_bus *__create_pci_bus(void)
 		memset(nvmev_vdev->msix_table, 0x00, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE);
 	}
 
-	NVMEV_INFO("Successfully created virtual PCI bus (node %d)\n", nvmev_vdev->pci_sd.node);
+	NVMEV_INFO("Successfully created virtual PCI bus (node %d)\n",
+		   nvmev_vdev->pci_sysdata.node);
 
 	return nvmev_pci_bus;
 };
@@ -489,8 +503,7 @@ void PCI_HEADER_SETTINGS(struct pci_header *pcihdr, unsigned long base_pa)
 	pcihdr->ss.ssid = 0x370d;
 	pcihdr->ss.ssvid = 0x0c51;
 
-	pcihdr->erom =
-		0x0; //PFN_PHYS(page_to_pfn(bar_pages));//page_to_pfn(bar_pages);//0xDF300000;
+	pcihdr->erom = 0x0;
 
 	pcihdr->cap = OFFS_PCI_PM_CAP;
 

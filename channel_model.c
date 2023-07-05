@@ -85,8 +85,8 @@ uint64_t chmodel_request(struct channel_model *ch, uint64_t request_time, uint64
 
 	while (1) {
 		consumed_credits = (remaining_credits <= ch->avail_credits[pos]) ?
-					   remaining_credits :
-					   ch->avail_credits[pos];
+						 remaining_credits :
+						 ch->avail_credits[pos];
 		ch->avail_credits[pos] -= consumed_credits;
 		remaining_credits -= consumed_credits;
 
@@ -106,7 +106,7 @@ uint64_t chmodel_request(struct channel_model *ch, uint64_t request_time, uint64
 	}
 
 	valid_length = (pos >= ch->head) ? (pos - ch->head + 1) :
-					   (NR_CREDIT_ENTRIES - (ch->head - pos - 1));
+						 (NR_CREDIT_ENTRIES - (ch->head - pos - 1));
 
 	if (valid_length > ch->valid_len)
 		ch->valid_len = valid_length;

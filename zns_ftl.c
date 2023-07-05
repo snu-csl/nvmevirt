@@ -18,13 +18,12 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 	const uint32_t zone_wb_size = zns_ftl->zp.zone_wb_size;
 
 	zns_ftl->zone_descs = kmalloc(sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
-	zns_ftl->report_buffer = kmalloc(sizeof(struct zone_report) +
-						 sizeof(struct zone_descriptor) * nr_zones,
-					 GFP_KERNEL);
+	zns_ftl->report_buffer = kmalloc(
+		sizeof(struct zone_report) + sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
 
 	if (zrwa_buffer_size)
 		zns_ftl->zwra_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
-	
+
 	if (zone_wb_size)
 		zns_ftl->zone_write_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
 
@@ -58,7 +57,7 @@ static void __remove_descriptor(struct zns_ftl *zns_ftl)
 
 	if (zns_ftl->zp.zone_wb_size)
 		kfree(zns_ftl->zone_write_buffer);
-			
+
 	kfree(zns_ftl->report_buffer);
 	kfree(zns_ftl->zone_descs);
 }
@@ -67,17 +66,17 @@ static void __init_resource(struct zns_ftl *zns_ftl)
 {
 	struct zone_resource_info *res_infos = zns_ftl->res_infos;
 
-	res_infos[ACTIVE_ZONE] = (struct zone_resource_info) {
+	res_infos[ACTIVE_ZONE] = (struct zone_resource_info){
 		.total_cnt = zns_ftl->zp.nr_zones,
 		.acquired_cnt = 0,
 	};
 
-	res_infos[OPEN_ZONE] = (struct zone_resource_info) {
+	res_infos[OPEN_ZONE] = (struct zone_resource_info){
 		.total_cnt = zns_ftl->zp.nr_zones,
 		.acquired_cnt = 0,
 	};
 
-	res_infos[ZRWA_ZONE] = (struct zone_resource_info) {
+	res_infos[ZRWA_ZONE] = (struct zone_resource_info){
 		.total_cnt = zns_ftl->zp.nr_zones,
 		.acquired_cnt = 0,
 	};
@@ -85,7 +84,7 @@ static void __init_resource(struct zns_ftl *zns_ftl)
 
 static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64_t capacity)
 {
-	*zpp = (struct znsparams) {
+	*zpp = (struct znsparams){
 		.zone_size = ZONE_SIZE,
 		.nr_zones = capacity / ZONE_SIZE,
 		.dies_per_zone = DIES_PER_ZONE,
@@ -104,15 +103,15 @@ static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64
 	/* It should be 4KB aligned, according to lpn size */
 	NVMEV_ASSERT((zpp->zone_size % spp->pgsz) == 0);
 
-	NVMEV_INFO("zone_size=%u(Byte),%u(MB), # zones=%d # die/zone=%d \n", zpp->zone_size, BYTE_TO_MB(zpp->zone_size), zpp->nr_zones,
-		   zpp->dies_per_zone);
+	NVMEV_INFO("zone_size=%u(Byte),%u(MB), # zones=%d # die/zone=%d \n", zpp->zone_size,
+		   BYTE_TO_MB(zpp->zone_size), zpp->nr_zones, zpp->dies_per_zone);
 }
 
 static void zns_init_ftl(struct zns_ftl *zns_ftl, struct znsparams *zpp, struct ssd *ssd,
 			 void *mapped_addr)
 {
-	*zns_ftl = (struct zns_ftl ) {
-		.zp = *zpp,	/*copy znsparams*/
+	*zns_ftl = (struct zns_ftl){
+		.zp = *zpp, /*copy znsparams*/
 
 		.ssd = ssd,
 		.storage_base_addr = mapped_addr,
@@ -142,7 +141,7 @@ void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *m
 	zns_init_params(&zpp, &spp, size);
 	zns_init_ftl(zns_ftl, &zpp, ssd, mapped_addr);
 
-	*ns = (struct nvmev_ns) {
+	*ns = (struct nvmev_ns){
 		.id = id,
 		.csi = NVME_CSI_ZNS,
 		.nr_parts = nr_parts,
@@ -216,7 +215,7 @@ bool zns_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct
 		break;
 	default:
 		NVMEV_ERROR("%s: unimplemented command: %s(%d)\n", __func__,
-			   nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
+			    nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
 		break;
 	}
 

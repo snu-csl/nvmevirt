@@ -563,7 +563,7 @@ void PCI_PCIE_EXTCAP_SETTINGS(struct pci_exp_hdr *exp_cap);
 #define OFFS_PCI_MSIX_CAP 0x50
 #define OFFS_PCIE_CAP 0x60
 
-#define SZ_HEADER (0x60 + SZ_PCIE_CAP)
+#define SZ_HEADER (OFFS_PCIE_CAP + SZ_PCIE_CAP)
 
 #define PCI_CFG_SPACE_SIZE 256
 #define PCIE_EXPCAP_START 0x50

@@ -279,6 +279,7 @@ ForEachMacros:
   - 'for_each_memory'
   - 'for_each_migratetype_order'
   - 'for_each_missing_reg'
+  - 'for_each_msi_entry_safe'
   - 'for_each_net'
   - 'for_each_net_continue_reverse'
   - 'for_each_net_rcu'

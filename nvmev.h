@@ -195,7 +195,7 @@ struct nvmev_dev {
 
 	struct pci_dev *pdev;
 	struct pci_ops pci_ops;
-	struct pci_sysdata pci_sd;
+	struct pci_sysdata pci_sysdata;
 
 	struct nvmev_config config;
 	struct task_struct *nvmev_manager;

@@ -7,7 +7,7 @@
 #include "conv_ftl.h"
 
 void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
-			      struct buffer *write_buffer, unsigned int buffs_to_release);
+				 struct buffer *write_buffer, unsigned int buffs_to_release);
 
 static inline bool last_pg_in_wordline(struct conv_ftl *conv_ftl, struct ppa *ppa)
 {
@@ -129,7 +129,7 @@ static void init_lines(struct conv_ftl *conv_ftl)
 
 	lm->free_line_cnt = 0;
 	for (i = 0; i < lm->tt_lines; i++) {
-		lm->lines[i] = (struct line) {
+		lm->lines[i] = (struct line){
 			.id = i,
 			.ipc = 0,
 			.vpc = 0,
@@ -204,7 +204,7 @@ static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 	NVMEV_ASSERT(curline);
 
 	/* wp->curline is always our next-to-write super-block */
-	*wp = (struct write_pointer) {
+	*wp = (struct write_pointer){
 		.curline = curline,
 		.ch = 0,
 		.lun = 0,
@@ -213,7 +213,6 @@ static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 		.pl = 0,
 	};
 }
-
 
 static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
@@ -969,7 +968,8 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 	if (allocated_buf_size < LBA_TO_BYTE(nr_lba))
 		return false;
 
-	nsecs_latest = ssd_advance_write_buffer(conv_ftl->ssd, req->nsecs_start, LBA_TO_BYTE(nr_lba));
+	nsecs_latest =
+		ssd_advance_write_buffer(conv_ftl->ssd, req->nsecs_start, LBA_TO_BYTE(nr_lba));
 	nsecs_xfer_completed = nsecs_latest;
 
 	swr.stime = nsecs_latest;
@@ -981,7 +981,8 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 
 		conv_ftl = &conv_ftls[lpn % nr_parts];
 		local_lpn = lpn / nr_parts;
-		ppa = get_maptbl_ent(conv_ftl, local_lpn); // Check whether the given LPN has been written before
+		ppa = get_maptbl_ent(
+			conv_ftl, local_lpn); // Check whether the given LPN has been written before
 		if (mapped_ppa(&ppa)) {
 			/* update old page information first */
 			mark_page_invalid(conv_ftl, &ppa);
@@ -1010,7 +1011,7 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
 
 			schedule_internal_operation(req->sq_id, nsecs_completed, wbuf,
-						 spp->pgs_per_oneshotpg * spp->pgsz);
+						    spp->pgs_per_oneshotpg * spp->pgsz);
 		}
 
 		consume_write_credit(conv_ftl);
@@ -1068,7 +1069,7 @@ bool conv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struc
 		break;
 	default:
 		NVMEV_ERROR("%s: unimplemented command: %s(%d)\n", __func__,
-			   nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
+			    nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
 		break;
 	}
 

@@ -92,7 +92,7 @@ bool simple_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req,
 		break;
 	default:
 		NVMEV_ERROR("%s: unimplemented command: %s(%d)\n", __func__,
-			   nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
+			    nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
 		break;
 	}
 

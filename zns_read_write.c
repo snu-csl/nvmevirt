@@ -5,7 +5,7 @@
 #include "zns_ftl.h"
 
 void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
-			      struct buffer *write_buffer, size_t buffs_to_release);
+				 struct buffer *write_buffer, size_t buffs_to_release);
 
 static inline uint32_t __nr_lbas_from_rw_cmd(struct nvme_rw_command *cmd)
 {
@@ -194,7 +194,8 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 				.ppa = &ppa,
 			};
 			size_t bufs_to_release;
-			uint32_t unaligned_space = zns_ftl->zp.zone_size % (spp->pgs_per_oneshotpg * spp->pgsz);
+			uint32_t unaligned_space =
+				zns_ftl->zp.zone_size % (spp->pgs_per_oneshotpg * spp->pgsz);
 			uint64_t nsecs_completed = ssd_advance_nand(zns_ftl->ssd, &swr);
 
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
@@ -206,7 +207,8 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			else
 				bufs_to_release = spp->pgs_per_oneshotpg * spp->pgsz;
 
-			schedule_internal_operation(req->sq_id, nsecs_completed, write_buffer, bufs_to_release);
+			schedule_internal_operation(req->sq_id, nsecs_completed, write_buffer,
+						    bufs_to_release);
 		}
 	}
 
@@ -358,8 +360,8 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
 
 			schedule_internal_operation(req->sq_id, nsecs_completed,
-						 &zns_ftl->zwra_buffer[zid],
-						 spp->pgs_per_oneshotpg * spp->pgsz);
+						    &zns_ftl->zwra_buffer[zid],
+						    spp->pgs_per_oneshotpg * spp->pgsz);
 		}
 
 		lpn += pgs;

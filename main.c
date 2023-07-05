@@ -561,7 +561,7 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 static int NVMeV_init(void)
 {
 	int ret = 0;
-	
+
 	nvmev_vdev = VDEV_INIT();
 	if (!nvmev_vdev)
 		return -EINVAL;
@@ -580,7 +580,7 @@ static int NVMeV_init(void)
 			NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
 		}
 	}
-	
+
 	if (!NVMEV_PCI_INIT(nvmev_vdev)) {
 		goto ret_err;
 	}

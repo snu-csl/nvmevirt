@@ -225,11 +225,16 @@ struct nvmev_dev {
 
 	unsigned int mdts;
 
-	struct proc_dir_entry *proc_root;
-	struct proc_dir_entry *proc_read_times;
-	struct proc_dir_entry *proc_write_times;
-	struct proc_dir_entry *proc_io_units;
-	struct proc_dir_entry *proc_stat;
+//	struct proc_dir_entry *proc_root;
+//	struct proc_dir_entry *proc_read_times;
+//	struct proc_dir_entry *proc_write_times;
+//	struct proc_dir_entry *proc_io_units;
+//	struct proc_dir_entry *proc_stat;
+	struct dentry *debug_root;
+	struct dentry *debug_read_times;
+	struct dentry *debug_write_times;
+	struct dentry *debug_io_units;
+	struct dentry *debug_stat;
 
 	unsigned long long *io_unit_stat;
 };

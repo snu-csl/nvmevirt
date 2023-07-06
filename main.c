@@ -11,6 +11,8 @@
 #include <linux/uaccess.h>
 #include <linux/version.h>
 
+#include <linux/debugfs.h>
+
 #ifdef CONFIG_X86
 #include <asm/e820/types.h>
 #include <asm/e820/api.h>
@@ -407,6 +409,13 @@ static const struct file_operations proc_file_fops = {
 	.release = single_release,
 };
 #endif
+static const struct file_operations debug_file_fops = {
+	.open = __proc_file_open,
+	.write = __proc_file_write,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 
 void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 {
@@ -422,26 +431,26 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
 
-	nvmev_vdev->proc_root = proc_mkdir("nvmev", NULL);
-	nvmev_vdev->proc_read_times =
-		proc_create("read_times", 0664, nvmev_vdev->proc_root, &proc_file_fops);
-	nvmev_vdev->proc_write_times =
-		proc_create("write_times", 0664, nvmev_vdev->proc_root, &proc_file_fops);
-	nvmev_vdev->proc_io_units =
-		proc_create("io_units", 0664, nvmev_vdev->proc_root, &proc_file_fops);
-	nvmev_vdev->proc_stat = proc_create("stat", 0444, nvmev_vdev->proc_root, &proc_file_fops);
-	nvmev_vdev->proc_stat = proc_create("debug", 0444, nvmev_vdev->proc_root, &proc_file_fops);
+	nvmev_vdev->debug_root = debugfs_create_dir("nvmev",NULL);//proc_mkdir("nvmev", NULL);
+	nvmev_vdev->debug_read_times =
+		debugfs_create_file("read_times", 0664, nvmev_vdev->debug_root, NULL ,&debug_file_fops);
+	nvmev_vdev->debug_write_times =
+		debugfs_create_file("write_times", 0664, nvmev_vdev->debug_root, NULL, &debug_file_fops);
+	nvmev_vdev->debug_io_units =
+		debugfs_create_file("io_units", 0664, nvmev_vdev->debug_root, NULL , &debug_file_fops);
+	nvmev_vdev->debug_stat = debugfs_create_file("stat", 0444, nvmev_vdev->debug_root, NULL, &debug_file_fops);
+	nvmev_vdev->debug_stat = debugfs_create_file("debug", 0444, nvmev_vdev->debug_root, NULL ,&debug_file_fops);
 }
 
 void NVMEV_STORAGE_FINAL(struct nvmev_dev *nvmev_vdev)
 {
-	remove_proc_entry("read_times", nvmev_vdev->proc_root);
-	remove_proc_entry("write_times", nvmev_vdev->proc_root);
-	remove_proc_entry("io_units", nvmev_vdev->proc_root);
-	remove_proc_entry("stat", nvmev_vdev->proc_root);
-	remove_proc_entry("debug", nvmev_vdev->proc_root);
+	debugfs_remove(nvmev_vdev->debug_read_times);
+	debugfs_remove(nvmev_vdev->debug_write_times);
+	debugfs_remove(nvmev_vdev->debug_io_units);
+	debugfs_remove(nvmev_vdev->debug_stat);
+	debugfs_remove(nvmev_vdev->debug_stat);
 
-	remove_proc_entry("nvmev", NULL);
+	debugfs_remove(nvmev_vdev->debug_root);
 
 	if (nvmev_vdev->storage_mapped)
 		memunmap(nvmev_vdev->storage_mapped);

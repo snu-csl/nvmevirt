@@ -567,6 +567,13 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->ns = NULL;
 }
 
+typedef struct _Config{
+	char* command;
+	unsigned long memmap_start; // byte
+	unsigned long memmap_size; // byte
+
+}config;
+
 static int NVMeV_init(void)
 {
 	int ret = 0;
@@ -574,7 +581,11 @@ static int NVMeV_init(void)
 	nvmev_vdev = VDEV_INIT();
 	if (!nvmev_vdev)
 		return -EINVAL;
-
+	struct dentry *debug_root = debugfs_create_dir("nvmev",NULL);
+	while(true){
+		struct dentry *debug_config = debugfs_create_file("config",0664,debug_root, NULL, &debug_file_fops);	
+		
+/*
 	if (!__load_configs(&nvmev_vdev->config)) {
 		goto ret_err;
 	}
@@ -602,7 +613,10 @@ static int NVMeV_init(void)
 	pci_bus_add_devices(nvmev_vdev->virt_bus);
 
 	NVMEV_INFO("Successfully created Virtual NVMe device\n");
-
+*/
+	NVMEV_INFO("Successfully load Virtual NVMe device module\n");
+	
+	}
 	return 0;
 
 ret_err:

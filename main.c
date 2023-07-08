@@ -81,6 +81,7 @@ int io_using_dma = false;
 char input[128] ={0,};
 char * cmd;
 DEFINE_SPINLOCK(config_file_lock);
+int number = 0;
 
 static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
 {
@@ -607,8 +608,7 @@ static ssize_t __config_file_write(struct file *file, const char __user *buf, si
 	size_t nr_copied;
 
 	if (!strcmp(filename, "config")) {
-		
-//		printk("origin command is %s\n",buf);
+/* if config file then get parameter */		
 		nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
 		printk("copy to command is %s",input);	
 		
@@ -616,8 +616,59 @@ static ssize_t __config_file_write(struct file *file, const char __user *buf, si
 		cmd = parse_command(input);
 		printk("Memmap_start = %ld\n",memmap_start);
 		printk("Memmap_size = %ld\n", memmap_size);
+	
+/*And if command is create, then create file
+  if command is delete, then delete dir*/
 
-	}
+		if(strcmp(cmd, "create") == 0){
+
+		}
+		else if(strcmp(cmd, "delete") == 0){
+
+		}
+		else{
+			NVMEV_ERROR("Doesn't not command.");
+			return 0;
+		}
+
+		/* Below code, originally in the Init code.
+		if (!__load_configs(&nvmev_vdev->config)) {
+			goto ret_err;
+		}
+
+		NVMEV_STORAGE_INIT(nvmev_vdev);
+
+		NVMEV_NAMESPACE_INIT(nvmev_vdev);
+
+		if (io_using_dma) {
+			if (ioat_dma_chan_set("dma7chan0") != 0) {
+				io_using_dma = false;
+				NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
+			}
+		}
+	
+		if (!NVMEV_PCI_INIT(nvmev_vdev)) {
+			goto ret_err;
+		}
+
+		__print_perf_configs();
+
+		NVMEV_IO_PROC_INIT(nvmev_vdev);
+		NVMEV_DISPATCHER_INIT(nvmev_vdev);
+
+		pci_bus_add_devices(nvmev_vdev->virt_bus);
+	
+		NVMEV_INFO("Successfully created Virtual NVMe device\n");
+
+	
+		return 0;
+
+	ret_err:
+		VDEV_FINALIZE(nvmev_vdev);
+		return -EIO; 
+		
+
+	}*/
 
 	return count;
 }
@@ -642,48 +693,9 @@ static int NVMeV_init(void)
 	debug_root = debugfs_create_dir("nvmev",NULL);	
 	config_path = debugfs_create_file("config", 0444, debug_root, NULL ,&config_file_fops);
 	NVMEV_INFO("Successfully load Virtual NVMe device module\n");
-
-//	char *cmdline;
-//	while(true){
-//	
-//		
-//	}
-
-/*
-	if (!__load_configs(&nvmev_vdev->config)) {
-		goto ret_err;
-	}
-
-	NVMEV_STORAGE_INIT(nvmev_vdev);
-
-	NVMEV_NAMESPACE_INIT(nvmev_vdev);
-
-	if (io_using_dma) {
-		if (ioat_dma_chan_set("dma7chan0") != 0) {
-			io_using_dma = false;
-			NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
-		}
-	}
-	
-	if (!NVMEV_PCI_INIT(nvmev_vdev)) {
-		goto ret_err;
-	}
-
-	__print_perf_configs();
-
-	NVMEV_IO_PROC_INIT(nvmev_vdev);
-	NVMEV_DISPATCHER_INIT(nvmev_vdev);
-
-	pci_bus_add_devices(nvmev_vdev->virt_bus);
-
-	NVMEV_INFO("Successfully created Virtual NVMe device\n");
-*/
 	
 	return 0;
 
-ret_err:
-	VDEV_FINALIZE(nvmev_vdev);
-	return -EIO;
 }
 
 static void NVMeV_exit(void)

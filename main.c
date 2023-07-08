@@ -12,6 +12,7 @@
 #include <linux/version.h>
 
 #include <linux/debugfs.h>
+#include <linux/sched.h>
 
 #ifdef CONFIG_X86
 #include <asm/e820/types.h>
@@ -76,6 +77,10 @@ static char *cpus;
 static unsigned int debug = 0;
 
 int io_using_dma = false;
+
+char input[128] ={0,};
+char * cmd;
+DEFINE_SPINLOCK(config_file_lock);
 
 static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
 {
@@ -567,12 +572,65 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->ns = NULL;
 }
 
-typedef struct _Config{
-	char* command;
-	unsigned long memmap_start; // byte
-	unsigned long memmap_size; // byte
+static char *parse_command(char *cmd_line){
+	if(cmd_line == NULL)
+		return NULL; 
 
-}config;
+	char *command;
+	char *arg;
+	char *param, *val;
+
+	command = strsep(&cmd_line, " ");
+
+	while((arg = strsep(&cmd_line, " ")) != NULL){
+		
+		next_arg(arg,&param, &val);
+
+		if(strcmp(param, "memap_start") == 0)
+			memmap_start = memparse(val, NULL);
+
+		else if(strcmp(param, "memmap_size") == 0)
+			memmap_size = memparse(val, NULL);
+
+		else
+			cpus = val;
+
+	}
+	return command;
+}
+
+static ssize_t __config_file_write(struct file *file, const char __user *buf, size_t len,
+				 loff_t *offp)
+{
+	ssize_t count = len;
+	const char *filename = file->f_path.dentry->d_name.name;
+	size_t nr_copied;
+
+	if (!strcmp(filename, "config")) {
+		
+//		printk("origin command is %s\n",buf);
+		nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
+		printk("copy to command is %s",input);	
+		
+		printk("Command Start, Command is %s",input);
+		cmd = parse_command(input);
+		printk("Memmap_start = %ld\n",memmap_start);
+		printk("Memmap_size = %ld\n", memmap_size);
+
+	}
+
+	return count;
+}
+
+static const struct file_operations config_file_fops = {
+	.open = __proc_file_open,
+	.write = __config_file_write,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+struct dentry * debug_root;
+struct dentry * config_path;
 
 static int NVMeV_init(void)
 {
@@ -581,10 +639,16 @@ static int NVMeV_init(void)
 	nvmev_vdev = VDEV_INIT();
 	if (!nvmev_vdev)
 		return -EINVAL;
-	struct dentry *debug_root = debugfs_create_dir("nvmev",NULL);
-	while(true){
-		struct dentry *debug_config = debugfs_create_file("config",0664,debug_root, NULL, &debug_file_fops);	
-		
+	debug_root = debugfs_create_dir("nvmev",NULL);	
+	config_path = debugfs_create_file("config", 0444, debug_root, NULL ,&config_file_fops);
+	NVMEV_INFO("Successfully load Virtual NVMe device module\n");
+
+//	char *cmdline;
+//	while(true){
+//	
+//		
+//	}
+
 /*
 	if (!__load_configs(&nvmev_vdev->config)) {
 		goto ret_err;
@@ -614,9 +678,7 @@ static int NVMeV_init(void)
 
 	NVMEV_INFO("Successfully created Virtual NVMe device\n");
 */
-	NVMEV_INFO("Successfully load Virtual NVMe device module\n");
 	
-	}
 	return 0;
 
 ret_err:
@@ -632,6 +694,9 @@ static void NVMeV_exit(void)
 		pci_stop_root_bus(nvmev_vdev->virt_bus);
 		pci_remove_root_bus(nvmev_vdev->virt_bus);
 	}
+
+	debugfs_remove(config_path);
+	debugfs_remove(debug_root);
 
 	NVMEV_REG_PROC_FINAL(nvmev_vdev);
 	NVMEV_IO_PROC_FINAL(nvmev_vdev);

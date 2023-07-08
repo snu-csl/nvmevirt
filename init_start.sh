@@ -1,6 +1,5 @@
 #!/bin/bash
 
-make || exit
 
 echo "Load NVMeVirt kernel module.."
 sudo insmod ./nvmev.ko	\

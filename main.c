@@ -587,7 +587,7 @@ static char *parse_command(char *cmd_line){
 		
 		next_arg(arg,&param, &val);
 
-		if(strcmp(param, "memap_start") == 0)
+		if(strcmp(param, "memmap_start") == 0)
 			memmap_start = memparse(val, NULL);
 
 		else if(strcmp(param, "memmap_size") == 0)
@@ -619,12 +619,12 @@ static ssize_t __config_file_write(struct file *file, const char __user *buf, si
 	
 /*And if command is create, then create file
   if command is delete, then delete dir*/
-
+		printk("command = %s",cmd);
 		if(strcmp(cmd, "create") == 0){
-
+			printk("create implementation please");
 		}
 		else if(strcmp(cmd, "delete") == 0){
-
+			printk("delete implementation please");
 		}
 		else{
 			NVMEV_ERROR("Doesn't not command.");
@@ -669,7 +669,7 @@ static ssize_t __config_file_write(struct file *file, const char __user *buf, si
 		
 
 	}*/
-
+	}
 	return count;
 }
 
@@ -695,6 +695,10 @@ static int NVMeV_init(void)
 	NVMEV_INFO("Successfully load Virtual NVMe device module\n");
 	
 	return 0;
+
+ret_err:
+	VDEV_FINALIZE(nvmev_vdev);
+	return -EIO;
 
 }
 

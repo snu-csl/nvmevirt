@@ -237,6 +237,9 @@ struct nvmev_dev {
 	struct dentry *debug_stat;
 
 	unsigned long long *io_unit_stat;
+
+	struct list_head list_elem;
+	char *dev_name;
 };
 
 struct nvmev_request {

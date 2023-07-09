@@ -13,6 +13,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/sched.h>
+#include <linux/list.h>
 
 #ifdef CONFIG_X86
 #include <asm/e820/types.h>
@@ -57,7 +58,35 @@
  * 2. Memmap size
  ****************************************************************/
 
-struct nvmev_dev *nvmev_vdev = NULL;
+LIST_HEAD(devices);
+static unsigned int nr_dev = 0;
+
+int io_using_dma = false;
+
+char input[128] ={0,};
+char * cmd;
+DEFINE_SPINLOCK(config_file_lock);
+int number = 0;
+
+struct params {
+	unsigned long memmap_start;
+	unsigned long memmap_size;
+
+	unsigned int read_time;
+	unsigned int read_delay;
+	unsigned int read_trailing;
+
+	unsigned int write_time;
+	unsigned int write_delay;
+	unsigned int write_trailing;
+
+	unsigned int nr_io_units;
+	unsigned int io_unit_shift;
+
+	char *cpus;
+	char *name;
+	unsigned int debug;
+};
 
 static unsigned long memmap_start = 0;
 static unsigned long memmap_size = 0;
@@ -76,12 +105,6 @@ static unsigned int io_unit_shift = 12;
 static char *cpus;
 static unsigned int debug = 0;
 
-int io_using_dma = false;
-
-char input[128] ={0,};
-char * cmd;
-DEFINE_SPINLOCK(config_file_lock);
-int number = 0;
 
 static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
 {
@@ -95,29 +118,29 @@ static struct kernel_param_ops ops_parse_mem_param = {
 	.get = param_get_ulong,
 };
 
-module_param_cb(memmap_start, &ops_parse_mem_param, &memmap_start, 0444);
-MODULE_PARM_DESC(memmap_start, "Reserved memory address");
-module_param_cb(memmap_size, &ops_parse_mem_param, &memmap_size, 0444);
-MODULE_PARM_DESC(memmap_size, "Reserved memory size");
-module_param(read_time, uint, 0644);
-MODULE_PARM_DESC(read_time, "Read time in nanoseconds");
-module_param(read_delay, uint, 0644);
-MODULE_PARM_DESC(read_delay, "Read delay in nanoseconds");
-module_param(read_trailing, uint, 0644);
-MODULE_PARM_DESC(read_trailing, "Read trailing in nanoseconds");
-module_param(write_time, uint, 0644);
-MODULE_PARM_DESC(write_time, "Write time in nanoseconds");
-module_param(write_delay, uint, 0644);
-MODULE_PARM_DESC(write_delay, "Write delay in nanoseconds");
-module_param(write_trailing, uint, 0644);
-MODULE_PARM_DESC(write_trailing, "Write trailing in nanoseconds");
-module_param(nr_io_units, uint, 0444);
-MODULE_PARM_DESC(nr_io_units, "Number of I/O units that operate in parallel");
-module_param(io_unit_shift, uint, 0444);
-MODULE_PARM_DESC(io_unit_shift, "Size of each I/O unit (2^)");
-module_param(cpus, charp, 0444);
-MODULE_PARM_DESC(cpus, "CPU list for process, completion(int.) threads, Seperated by Comma(,)");
-module_param(debug, uint, 0644);
+// module_param_cb(memmap_start, &ops_parse_mem_param, &memmap_start, 0444);
+// MODULE_PARM_DESC(memmap_start, "Reserved memory address");
+// module_param_cb(memmap_size, &ops_parse_mem_param, &memmap_size, 0444);
+// MODULE_PARM_DESC(memmap_size, "Reserved memory size");
+// module_param(read_time, uint, 0644);
+// MODULE_PARM_DESC(read_time, "Read time in nanoseconds");
+// module_param(read_delay, uint, 0644);
+// MODULE_PARM_DESC(read_delay, "Read delay in nanoseconds");
+// module_param(read_trailing, uint, 0644);
+// MODULE_PARM_DESC(read_trailing, "Read trailing in nanoseconds");
+// module_param(write_time, uint, 0644);
+// MODULE_PARM_DESC(write_time, "Write time in nanoseconds");
+// module_param(write_delay, uint, 0644);
+// MODULE_PARM_DESC(write_delay, "Write delay in nanoseconds");
+// module_param(write_trailing, uint, 0644);
+// MODULE_PARM_DESC(write_trailing, "Write trailing in nanoseconds");
+// module_param(nr_io_units, uint, 0444);
+// MODULE_PARM_DESC(nr_io_units, "Number of I/O units that operate in parallel");
+// module_param(io_unit_shift, uint, 0444);
+// MODULE_PARM_DESC(io_unit_shift, "Size of each I/O unit (2^)");
+// module_param(cpus, charp, 0444);
+// MODULE_PARM_DESC(cpus, "CPU list for process, completion(int.) threads, Seperated by Comma(,)");
+// module_param(debug, uint, 0644);
 
 static void nvmev_proc_dbs(void)
 {
@@ -352,10 +375,10 @@ static ssize_t __proc_file_write(struct file *file, const char __user *buf, size
 	size_t nr_copied;
 
 	nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
-
+	
 	if (!strcmp(filename, "read_times")) {
-		ret = sscanf(input, "%u %u %u", &cfg->read_delay, &cfg->read_time,
-			     &cfg->read_trailing);
+		ret = sscanf(input, "%u %u %u", &cfg->read_delay, &cfg->read_time, 
+				 &cfg->read_trailing);
 		//adjust_ftl_latency(0, cfg->read_time);
 	} else if (!strcmp(filename, "write_times")) {
 		ret = sscanf(input, "%u %u %u", &cfg->write_delay, &cfg->write_time,
@@ -573,7 +596,7 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->ns = NULL;
 }
 
-static char *parse_command(char *cmd_line){
+static char *parse_command(char *cmd_line, struct params *p){
 	if(cmd_line == NULL)
 		return NULL; 
 
@@ -583,21 +606,94 @@ static char *parse_command(char *cmd_line){
 
 	command = strsep(&cmd_line, " ");
 
-	while((arg = strsep(&cmd_line, " ")) != NULL){
+	while ((arg = strsep(&cmd_line, " ")) != NULL){
 		
 		next_arg(arg,&param, &val);
 
-		if(strcmp(param, "memmap_start") == 0)
-			memmap_start = memparse(val, NULL);
+		if (strcmp(param, "memmap_start") == 0)
+			p->memmap_start = memparse(val, NULL);
 
-		else if(strcmp(param, "memmap_size") == 0)
-			memmap_size = memparse(val, NULL);
+		else if (strcmp(param, "memmap_size") == 0)
+			p->memmap_size = memparse(val, NULL);
+
+		else if (strcmp(param, "cpus") == 0)
+			p->cpus = val;
 
 		else
-			cpus = val;
-
+			p->name = val;
 	}
+
 	return command;
+}
+
+static struct params *PARAM_INIT(void) {
+	struct params *params;
+
+	params = kzalloc(sizeof(struct params), GFP_KERNEL);
+
+	params->memmap_start = 0;
+	params->memmap_size = 0;
+
+	params->read_time = 1;
+	params->read_delay = 1;
+	params->read_trailing = 0;
+
+	params->write_time = 1;
+	params->write_delay = 1;
+	params->write_trailing = 0;
+
+	params->nr_io_units = 8;
+	params->io_unit_shift = 12;
+
+	params->debug = 0;
+
+	return params;
+}
+
+static int create_device(struct params *p) {
+	struct nvmev_dev *nvmev_vdev;
+
+	nvmev_vdev = VDEV_INIT();
+	if (!nvmev_vdev)
+		return -EINVAL;
+
+	if (!__load_configs(&nvmev_vdev->config)) {
+			goto ret_err;
+	}
+
+	NVMEV_STORAGE_INIT(nvmev_vdev);
+
+	NVMEV_NAMESPACE_INIT(nvmev_vdev);
+
+	if (io_using_dma) {
+		if (ioat_dma_chan_set("dma7chan0") != 0) {
+			io_using_dma = false;
+			NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
+		}
+	}
+	
+	if (!NVMEV_PCI_INIT(nvmev_vdev)) {
+		goto ret_err;
+	}
+
+	__print_perf_configs();
+
+	NVMEV_IO_PROC_INIT(nvmev_vdev);
+	NVMEV_DISPATCHER_INIT(nvmev_vdev);
+
+	pci_bus_add_devices(nvmev_vdev->virt_bus);
+	
+	NVMEV_INFO("Successfully created Virtual NVMe device\n");
+
+	/* Put the list of devices for managing. */
+	INIT_LIST_HEAD(&nvmev_vdev->list_elem);
+	list_add(&nvmev_vdev->list_elem, &devices);
+	
+	return 0;
+
+ret_err:
+	VDEV_FINALIZE(nvmev_vdev);
+	return -EIO; 
 }
 
 static ssize_t __config_file_write(struct file *file, const char __user *buf, size_t len,
@@ -607,21 +703,26 @@ static ssize_t __config_file_write(struct file *file, const char __user *buf, si
 	const char *filename = file->f_path.dentry->d_name.name;
 	size_t nr_copied;
 
+	struct params *p;
+
 	if (!strcmp(filename, "config")) {
-/* if config file then get parameter */		
+	/* if config file then get parameter */		
 		nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
 		printk("copy to command is %s",input);	
 		
 		printk("Command Start, Command is %s",input);
-		cmd = parse_command(input);
+		p = PARAM_INIT();
+		cmd = parse_command(input, p);
 		printk("Memmap_start = %ld\n",memmap_start);
 		printk("Memmap_size = %ld\n", memmap_size);
 	
-/*And if command is create, then create file
-  if command is delete, then delete dir*/
+	/* And if command is create, then create file
+  	 * if command is delete, then delete dir
+	 */
 		printk("command = %s",cmd);
 		if(strcmp(cmd, "create") == 0){
 			printk("create implementation please");
+			create_device(p);
 		}
 		else if(strcmp(cmd, "delete") == 0){
 			printk("delete implementation please");
@@ -630,46 +731,8 @@ static ssize_t __config_file_write(struct file *file, const char __user *buf, si
 			NVMEV_ERROR("Doesn't not command.");
 			return 0;
 		}
-
-		/* Below code, originally in the Init code.
-		if (!__load_configs(&nvmev_vdev->config)) {
-			goto ret_err;
-		}
-
-		NVMEV_STORAGE_INIT(nvmev_vdev);
-
-		NVMEV_NAMESPACE_INIT(nvmev_vdev);
-
-		if (io_using_dma) {
-			if (ioat_dma_chan_set("dma7chan0") != 0) {
-				io_using_dma = false;
-				NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
-			}
-		}
-	
-		if (!NVMEV_PCI_INIT(nvmev_vdev)) {
-			goto ret_err;
-		}
-
-		__print_perf_configs();
-
-		NVMEV_IO_PROC_INIT(nvmev_vdev);
-		NVMEV_DISPATCHER_INIT(nvmev_vdev);
-
-		pci_bus_add_devices(nvmev_vdev->virt_bus);
-	
-		NVMEV_INFO("Successfully created Virtual NVMe device\n");
-
-	
-		return 0;
-
-	ret_err:
-		VDEV_FINALIZE(nvmev_vdev);
-		return -EIO; 
-		
-
-	}*/
 	}
+
 	return count;
 }
 
@@ -687,9 +750,6 @@ static int NVMeV_init(void)
 {
 	int ret = 0;
 	
-	nvmev_vdev = VDEV_INIT();
-	if (!nvmev_vdev)
-		return -EINVAL;
 	debug_root = debugfs_create_dir("nvmev",NULL);	
 	config_path = debugfs_create_file("config", 0444, debug_root, NULL ,&config_file_fops);
 	NVMEV_INFO("Successfully load Virtual NVMe device module\n");

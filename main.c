@@ -11,6 +11,9 @@
 #include <linux/uaccess.h>
 #include <linux/version.h>
 
+#include <linux/debugfs.h>
+#include <linux/sched.h>
+
 #ifdef CONFIG_X86
 #include <asm/e820/types.h>
 #include <asm/e820/api.h>
@@ -74,6 +77,11 @@ static char *cpus;
 static unsigned int debug = 0;
 
 int io_using_dma = false;
+
+char input[128] ={0,};
+char * cmd;
+DEFINE_SPINLOCK(config_file_lock);
+int number = 0;
 
 static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
 {
@@ -407,6 +415,13 @@ static const struct file_operations proc_file_fops = {
 	.release = single_release,
 };
 #endif
+static const struct file_operations debug_file_fops = {
+	.open = __proc_file_open,
+	.write = __proc_file_write,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 
 void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 {
@@ -422,26 +437,26 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
 
-	nvmev_vdev->proc_root = proc_mkdir("nvmev", NULL);
-	nvmev_vdev->proc_read_times =
-		proc_create("read_times", 0664, nvmev_vdev->proc_root, &proc_file_fops);
-	nvmev_vdev->proc_write_times =
-		proc_create("write_times", 0664, nvmev_vdev->proc_root, &proc_file_fops);
-	nvmev_vdev->proc_io_units =
-		proc_create("io_units", 0664, nvmev_vdev->proc_root, &proc_file_fops);
-	nvmev_vdev->proc_stat = proc_create("stat", 0444, nvmev_vdev->proc_root, &proc_file_fops);
-	nvmev_vdev->proc_stat = proc_create("debug", 0444, nvmev_vdev->proc_root, &proc_file_fops);
+	nvmev_vdev->debug_root = debugfs_create_dir("nvmev",NULL);//proc_mkdir("nvmev", NULL);
+	nvmev_vdev->debug_read_times =
+		debugfs_create_file("read_times", 0664, nvmev_vdev->debug_root, NULL ,&debug_file_fops);
+	nvmev_vdev->debug_write_times =
+		debugfs_create_file("write_times", 0664, nvmev_vdev->debug_root, NULL, &debug_file_fops);
+	nvmev_vdev->debug_io_units =
+		debugfs_create_file("io_units", 0664, nvmev_vdev->debug_root, NULL , &debug_file_fops);
+	nvmev_vdev->debug_stat = debugfs_create_file("stat", 0444, nvmev_vdev->debug_root, NULL, &debug_file_fops);
+	nvmev_vdev->debug_stat = debugfs_create_file("debug", 0444, nvmev_vdev->debug_root, NULL ,&debug_file_fops);
 }
 
 void NVMEV_STORAGE_FINAL(struct nvmev_dev *nvmev_vdev)
 {
-	remove_proc_entry("read_times", nvmev_vdev->proc_root);
-	remove_proc_entry("write_times", nvmev_vdev->proc_root);
-	remove_proc_entry("io_units", nvmev_vdev->proc_root);
-	remove_proc_entry("stat", nvmev_vdev->proc_root);
-	remove_proc_entry("debug", nvmev_vdev->proc_root);
+	debugfs_remove(nvmev_vdev->debug_read_times);
+	debugfs_remove(nvmev_vdev->debug_write_times);
+	debugfs_remove(nvmev_vdev->debug_io_units);
+	debugfs_remove(nvmev_vdev->debug_stat);
+	debugfs_remove(nvmev_vdev->debug_stat);
 
-	remove_proc_entry("nvmev", NULL);
+	debugfs_remove(nvmev_vdev->debug_root);
 
 	if (nvmev_vdev->storage_mapped)
 		memunmap(nvmev_vdev->storage_mapped);
@@ -558,6 +573,116 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->ns = NULL;
 }
 
+static char *parse_command(char *cmd_line){
+	if(cmd_line == NULL)
+		return NULL; 
+
+	char *command;
+	char *arg;
+	char *param, *val;
+
+	command = strsep(&cmd_line, " ");
+
+	while((arg = strsep(&cmd_line, " ")) != NULL){
+		
+		next_arg(arg,&param, &val);
+
+		if(strcmp(param, "memmap_start") == 0)
+			memmap_start = memparse(val, NULL);
+
+		else if(strcmp(param, "memmap_size") == 0)
+			memmap_size = memparse(val, NULL);
+
+		else
+			cpus = val;
+
+	}
+	return command;
+}
+
+static ssize_t __config_file_write(struct file *file, const char __user *buf, size_t len,
+				 loff_t *offp)
+{
+	ssize_t count = len;
+	const char *filename = file->f_path.dentry->d_name.name;
+	size_t nr_copied;
+
+	if (!strcmp(filename, "config")) {
+/* if config file then get parameter */		
+		nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
+		printk("copy to command is %s",input);	
+		
+		printk("Command Start, Command is %s",input);
+		cmd = parse_command(input);
+		printk("Memmap_start = %ld\n",memmap_start);
+		printk("Memmap_size = %ld\n", memmap_size);
+	
+/*And if command is create, then create file
+  if command is delete, then delete dir*/
+		printk("command = %s",cmd);
+		if(strcmp(cmd, "create") == 0){
+			printk("create implementation please");
+		}
+		else if(strcmp(cmd, "delete") == 0){
+			printk("delete implementation please");
+		}
+		else{
+			NVMEV_ERROR("Doesn't not command.");
+			return 0;
+		}
+
+		/* Below code, originally in the Init code.
+		if (!__load_configs(&nvmev_vdev->config)) {
+			goto ret_err;
+		}
+
+		NVMEV_STORAGE_INIT(nvmev_vdev);
+
+		NVMEV_NAMESPACE_INIT(nvmev_vdev);
+
+		if (io_using_dma) {
+			if (ioat_dma_chan_set("dma7chan0") != 0) {
+				io_using_dma = false;
+				NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
+			}
+		}
+	
+		if (!NVMEV_PCI_INIT(nvmev_vdev)) {
+			goto ret_err;
+		}
+
+		__print_perf_configs();
+
+		NVMEV_IO_PROC_INIT(nvmev_vdev);
+		NVMEV_DISPATCHER_INIT(nvmev_vdev);
+
+		pci_bus_add_devices(nvmev_vdev->virt_bus);
+	
+		NVMEV_INFO("Successfully created Virtual NVMe device\n");
+
+	
+		return 0;
+
+	ret_err:
+		VDEV_FINALIZE(nvmev_vdev);
+		return -EIO; 
+		
+
+	}*/
+	}
+	return count;
+}
+
+static const struct file_operations config_file_fops = {
+	.open = __proc_file_open,
+	.write = __config_file_write,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+struct dentry * debug_root;
+struct dentry * config_path;
+
 static int NVMeV_init(void)
 {
 	int ret = 0;
@@ -565,40 +690,16 @@ static int NVMeV_init(void)
 	nvmev_vdev = VDEV_INIT();
 	if (!nvmev_vdev)
 		return -EINVAL;
-
-	if (!__load_configs(&nvmev_vdev->config)) {
-		goto ret_err;
-	}
-
-	NVMEV_STORAGE_INIT(nvmev_vdev);
-
-	NVMEV_NAMESPACE_INIT(nvmev_vdev);
-
-	if (io_using_dma) {
-		if (ioat_dma_chan_set("dma7chan0") != 0) {
-			io_using_dma = false;
-			NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
-		}
-	}
+	debug_root = debugfs_create_dir("nvmev",NULL);	
+	config_path = debugfs_create_file("config", 0444, debug_root, NULL ,&config_file_fops);
+	NVMEV_INFO("Successfully load Virtual NVMe device module\n");
 	
-	if (!NVMEV_PCI_INIT(nvmev_vdev)) {
-		goto ret_err;
-	}
-
-	__print_perf_configs();
-
-	NVMEV_IO_PROC_INIT(nvmev_vdev);
-	NVMEV_DISPATCHER_INIT(nvmev_vdev);
-
-	pci_bus_add_devices(nvmev_vdev->virt_bus);
-
-	NVMEV_INFO("Successfully created Virtual NVMe device\n");
-
 	return 0;
 
 ret_err:
 	VDEV_FINALIZE(nvmev_vdev);
 	return -EIO;
+
 }
 
 static void NVMeV_exit(void)
@@ -609,6 +710,9 @@ static void NVMeV_exit(void)
 		pci_stop_root_bus(nvmev_vdev->virt_bus);
 		pci_remove_root_bus(nvmev_vdev->virt_bus);
 	}
+
+	debugfs_remove(config_path);
+	debugfs_remove(debug_root);
 
 	NVMEV_REG_PROC_FINAL(nvmev_vdev);
 	NVMEV_IO_PROC_FINAL(nvmev_vdev);

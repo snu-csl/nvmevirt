@@ -528,7 +528,6 @@ static void __nvmev_proc_admin_req(int entry_id)
 	case nvme_admin_get_features:
 		__nvmev_admin_get_features(entry_id, cq_head);
 		break;
-		break;
 	case nvme_admin_async_event:
 		cq_entry(cq_head).command_id = sq_entry(entry_id).features.command_id;
 		cq_entry(cq_head).sq_id = 0;

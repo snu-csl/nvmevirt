@@ -493,11 +493,17 @@ void nvmev_proc_io_cq(int cqid, int new_db, int old_db)
 	struct nvmev_completion_queue *cq = nvmev_vdev->cqes[cqid];
 	int i;
 	for (i = old_db; i != new_db; i++) {
+		int sqid = cq_entry(i).sq_id;
 		if (i >= cq->queue_size) {
 			i = -1;
 			continue;
 		}
-		nvmev_vdev->sqes[cq_entry(i).sq_id]->stat.nr_in_flight--;
+
+		/* Should check the validity here since SPDK deletes SQ immediately
+		 * before processing associated CQes */
+		if (!nvmev_vdev->sqes[sqid]) continue;
+
+		nvmev_vdev->sqes[sqid]->stat.nr_in_flight--;
 	}
 
 	cq->cq_tail = new_db - 1;

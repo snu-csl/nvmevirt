@@ -21,9 +21,9 @@ static void __init_apicid_to_cpuid(void)
 	}
 }
 
-static void __signal_irq(struct msi_desc *msi_desc)
+static void __signal_irq(unsigned int irq)
 {
-	struct irq_data *irqd = irq_get_irq_data(msi_desc->irq);
+	struct irq_data *irqd = irq_get_irq_data(irq);
 	struct irq_cfg *irqc = irqd_cfg(irqd);
 
 	unsigned int target = irqc->dest_apicid;
@@ -35,9 +35,9 @@ static void __signal_irq(struct msi_desc *msi_desc)
 	return;
 }
 #else
-static void __signal_irq(struct msi_desc *msi_desc)
+static void __signal_irq(unsigned int irq)
 {
-	struct irq_data *irqd = irq_get_irq_data(msi_desc->irq);
+	struct irq_data *irqd = irq_get_irq_data(irq);
 	struct irq_chip *chip = irq_data_get_irq_chip(irqd);
 
 	BUG_ON(!chip->irq_retrigger);
@@ -48,7 +48,7 @@ static void __signal_irq(struct msi_desc *msi_desc)
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
-static void __do_nvmev_signal_irq(int msi_index)
+static void __signal_msi_irq(int msi_index)
 {
 	struct xarray *xa;
 	struct msi_desc *msi_desc;
@@ -63,7 +63,7 @@ static void __do_nvmev_signal_irq(int msi_index)
 	//TODO: Does it have to be 0 ~ NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE?
 	xa_for_each_range(xa, idx, msi_desc, 0, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE) {
 		if (msi_desc->msi_index == msi_index) {
-			__signal_irq(msi_desc);
+			__signal_irq(msi_desc->irq);
 			return;
 		}
 	}
@@ -71,13 +71,13 @@ static void __do_nvmev_signal_irq(int msi_index)
 	BUG_ON(!msi_desc);
 }
 #else
-static void __do_nvmev_signal_irq(int msi_index)
+static void __signal_msi_irq(int msi_index)
 {
 	struct msi_desc *msi_desc, *tmp;
 
 	for_each_msi_entry_safe(msi_desc, tmp, (&nvmev_vdev->pdev->dev)) {
 		if (msi_desc->msi_attrib.entry_nr == msi_index) {
-			__signal_irq(msi_desc);
+			__signal_irq(msi_desc->irq);
 			return;
 		}
 	}
@@ -88,13 +88,14 @@ static void __do_nvmev_signal_irq(int msi_index)
 
 void nvmev_signal_irq(int msi_index)
 {
-	if (!nvmev_vdev->pdev->msix_enabled) {
-		BUG_ON(nvmev_vdev->intx_disabled);
-		asm("int $0x10");
-		return;
-	}
+	if (nvmev_vdev->pdev->msix_enabled) {
+		__signal_msi_irq(msi_index);
+	} else {
+		struct irq_data *irqd = irq_get_irq_data(nvmev_vdev->pdev->irq);
+		struct irq_common_data *irqc = irqd->common;
 
-	__do_nvmev_signal_irq(msi_index);
+		apic->send_IPI_mask(irqc->affinity, nvmev_vdev->pdev->irq);
+	}
 }
 
 /*

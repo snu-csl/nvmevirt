@@ -13,6 +13,8 @@
 #ifdef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 static int apicid_to_cpuid[256];
 
+struct nvmev_dev * nvmev_vdev = NULL;
+
 static void __init_apicid_to_cpuid(void)
 {
 	int i;
@@ -92,7 +94,7 @@ void nvmev_signal_irq(int msi_index)
  * If a change is detected, issue a full SMP memory barrier so that
  * the rest of the changes can be seen in order.
  */
-void nvmev_proc_bars(void)
+void nvmev_proc_bars(struct nvmev_dev *nvmev_vdev)
 {
 	struct __nvme_bar *old_bar = nvmev_vdev->old_bar;
 	struct nvme_ctrl_regs *bar = nvmev_vdev->bar;
@@ -346,7 +348,7 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 	return 0;
 };
 
-static struct pci_bus *__create_pci_bus(void)
+static struct pci_bus *__create_pci_bus(struct nvmev_dev * nvmev_vdev)
 {
 	struct pci_bus *nvmev_pci_bus = NULL;
 	struct pci_dev *dev;
@@ -360,9 +362,9 @@ static struct pci_bus *__create_pci_bus(void)
 		.domain = NVMEV_PCI_DOMAIN_NUM,
 		.node = cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher),
 	};
-
+	printk("hi\n");
 	nvmev_pci_bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_vdev->pci_ops, &nvmev_vdev->pci_sd);
-
+	printk("fuck..\n");
 	if (!nvmev_pci_bus) {
 		NVMEV_ERROR("Unable to create PCI bus\n");
 		return NULL;
@@ -580,20 +582,21 @@ void PCI_PCIE_EXTCAP_SETTINGS(struct pci_exp_hdr *exp_cap)
 	pcie_exp_cap->id.next = 0;
 }
 
-bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev)
+bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev2)
 {
+	nvmev_vdev = nvmev_vdev2;
 	PCI_HEADER_SETTINGS(nvmev_vdev->pcihdr, nvmev_vdev->config.memmap_start);
 	PCI_PMCAP_SETTINGS(nvmev_vdev->pmcap);
 	PCI_MSIXCAP_SETTINGS(nvmev_vdev->msixcap);
 	PCI_PCIECAP_SETTINGS(nvmev_vdev->pciecap);
 	PCI_AERCAP_SETTINGS(nvmev_vdev->aercap);
 	PCI_PCIE_EXTCAP_SETTINGS(nvmev_vdev->pcie_exp_cap);
-
 #ifdef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 	__init_apicid_to_cpuid();
 #endif
-
-	nvmev_vdev->virt_bus = __create_pci_bus();
+	printk("init\n");
+	nvmev_vdev->virt_bus = __create_pci_bus(nvmev_vdev);
+	printk("create\n");
 	if (!nvmev_vdev->virt_bus)
 		return false;
 

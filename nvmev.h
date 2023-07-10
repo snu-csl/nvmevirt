@@ -280,7 +280,7 @@ struct nvmev_dev *VDEV_INIT(void);
 void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev);
 
 // OPS_PCI
-void nvmev_proc_bars(void);
+void nvmev_proc_bars(struct nvmev_dev *nvmev_vdev);
 bool NVMEV_PCI_INIT(struct nvmev_dev *dev);
 void nvmev_signal_irq(int msi_index);
 
@@ -291,7 +291,7 @@ void nvmev_proc_admin_cq(int new_db, int old_db);
 // OPS I/O QUEUE
 void NVMEV_IO_PROC_INIT(struct nvmev_dev *nvmev_vdev);
 void NVMEV_IO_PROC_FINAL(struct nvmev_dev *nvmev_vdev);
-int nvmev_proc_io_sq(int qid, int new_db, int old_db);
-void nvmev_proc_io_cq(int qid, int new_db, int old_db);
+int nvmev_proc_io_sq(int qid, int new_db, int old_db,struct nvmev_dev *nvmev_vdev);
+void nvmev_proc_io_cq(int qid, int new_db, int old_db,struct nvmev_dev *nvmev_vdev);
 
 #endif /* _LIB_NVMEV_H */

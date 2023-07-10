@@ -454,7 +454,7 @@ static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size)
 	return true;
 }
 
-int nvmev_proc_io_sq(int sqid, int new_db, int old_db)
+int nvmev_proc_io_sq(int sqid, int new_db, int old_db,struct nvmev_dev *nvmev_vdev)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 	int num_proc = new_db - old_db;
@@ -487,7 +487,7 @@ int nvmev_proc_io_sq(int sqid, int new_db, int old_db)
 	return latest_db;
 }
 
-void nvmev_proc_io_cq(int cqid, int new_db, int old_db)
+void nvmev_proc_io_cq(int cqid, int new_db, int old_db,struct nvmev_dev *nvmev_vdev)
 {
 	struct nvmev_completion_queue *cq = nvmev_vdev->cqes[cqid];
 	int i;

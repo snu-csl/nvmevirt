@@ -34,7 +34,7 @@ install:
 .PHONY: clean
 clean:
 	   $(MAKE) -C $(KERNELDIR) M=$(PWD) clean
-	   rm -f cscope.out tags
+	   rm -f cscope.out tags nvmev.S
 
 .PHONY: cscope
 cscope:
@@ -43,3 +43,11 @@ cscope:
 
 .PHONY: tags
 tags: cscope
+
+.PHONY: format
+format:
+	clang-format -i *.[ch]
+
+.PHONY: dis
+dis:
+	objdump -d -S nvmev.ko > nvmev.S

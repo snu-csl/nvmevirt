@@ -341,6 +341,32 @@ static void __dump_pci_dev(struct pci_dev *dev)
 	*/
 }
 
+static void __init_nvme_ctrl_regs(struct pci_dev *dev)
+{
+	struct nvme_ctrl_regs *bar = memremap(pci_resource_start(dev, 0), PAGE_SIZE * 2, MEMREMAP_WT);
+	BUG_ON(!bar);
+
+	nvmev_vdev->bar = bar;
+	memset(bar, 0x0, PAGE_SIZE * 2);
+
+	nvmev_vdev->dbs = ((void *)bar) + PAGE_SIZE;
+
+	*bar = (struct nvme_ctrl_regs) {
+		.cap = {
+			.to = 1,
+			.mpsmin = 0,
+			.mqes = 1024 - 1, // 0-based value
+#if (SUPPORTED_SSD_TYPE(ZNS))
+			.css = CAP_CSS_BIT_SPECIFIC,
+#endif
+		},
+		.vs = {
+			.mjr = 1,
+			.mnr = 0,
+		},
+	};
+}
+
 static struct pci_bus *__create_pci_bus(void)
 {
 	struct pci_bus *bus = NULL;
@@ -369,23 +395,10 @@ static struct pci_bus *__create_pci_bus(void)
 		res->parent = &iomem_resource;
 
 		nvmev_vdev->pdev = dev;
-		dev->irq = NVMEV_INTX_IRQ;
-
+		dev->irq = nvmev_vdev->pcihdr->intr.iline;
 		__dump_pci_dev(dev);
 
-		nvmev_vdev->bar = memremap(pci_resource_start(dev, 0), PAGE_SIZE * 2, MEMREMAP_WT);
-		memset(nvmev_vdev->bar, 0x0, PAGE_SIZE * 2);
-
-		nvmev_vdev->dbs = ((void *)nvmev_vdev->bar) + PAGE_SIZE;
-
-		nvmev_vdev->bar->vs.mjr = 1;
-		nvmev_vdev->bar->vs.mnr = 0;
-		nvmev_vdev->bar->cap.mpsmin = 0;
-		nvmev_vdev->bar->cap.mqes = 1024 - 1; // 0-based value
-
-#if (SUPPORTED_SSD_TYPE(ZNS))
-		nvmev_vdev->bar->cap.css = CAP_CSS_BIT_SPECIFIC;
-#endif
+		__init_nvme_ctrl_regs(dev);
 
 		nvmev_vdev->old_dbs = kzalloc(PAGE_SIZE, GFP_KERNEL);
 		BUG_ON(!nvmev_vdev->old_dbs && "allocating old DBs memory");

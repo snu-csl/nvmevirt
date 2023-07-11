@@ -571,7 +571,7 @@ void nvmev_proc_admin_sq(int new_db, int old_db)
 		}
 	}
 
-	nvmev_signal_irq(0);
+	nvmev_signal_irq(0); /* ACQ is always associated with interrupt vector 0 */
 }
 
 void nvmev_proc_admin_cq(int new_db, int old_db)

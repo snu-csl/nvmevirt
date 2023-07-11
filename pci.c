@@ -37,41 +37,26 @@ static void __signal_irq(unsigned int irq)
 #else
 static void __signal_irq(unsigned int irq)
 {
-	struct irq_data *irqd = irq_get_irq_data(irq);
-	struct irq_chip *chip = irq_data_get_irq_chip(irqd);
+	struct irq_data *data = irq_get_irq_data(irq);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
 
 	BUG_ON(!chip->irq_retrigger);
-	chip->irq_retrigger(irqd);
+	chip->irq_retrigger(data);
 
 	return;
 }
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
-static void __signal_msi_irq(int msi_index)
+static void __process_msi_irq(int msi_index)
 {
-	struct xarray *xa;
-	struct msi_desc *msi_desc;
-	unsigned long idx;
+	unsigned int virq = msi_get_virq(&nvmev_vdev->pdev->dev, msi_index);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 2, 0)
-	xa = &(&nvmev_vdev->pdev->dev)->msi.data->__domains[MSI_DEFAULT_DOMAIN].store;
-#else
-	xa = &(&nvmev_vdev->pdev->dev)->msi.data->__store;
-#endif
-
-	//TODO: Does it have to be 0 ~ NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE?
-	xa_for_each_range(xa, idx, msi_desc, 0, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE) {
-		if (msi_desc->msi_index == msi_index) {
-			__signal_irq(msi_desc->irq);
-			return;
-		}
-	}
-	NVMEV_INFO("Failed to send IPI\n");
-	BUG_ON(!msi_desc);
+	BUG_ON(virq == 0);
+	__signal_irq(virq);
 }
 #else
-static void __signal_msi_irq(int msi_index)
+static void __process_msi_irq(int msi_index)
 {
 	struct msi_desc *msi_desc, *tmp;
 
@@ -89,12 +74,11 @@ static void __signal_msi_irq(int msi_index)
 void nvmev_signal_irq(int msi_index)
 {
 	if (nvmev_vdev->pdev->msix_enabled) {
-		__signal_msi_irq(msi_index);
+		__process_msi_irq(msi_index);
 	} else {
-		struct irq_data *irqd = irq_get_irq_data(nvmev_vdev->pdev->irq);
-		struct irq_common_data *irqc = irqd->common;
+		nvmev_vdev->pcihdr->sts.is = 1;
 
-		apic->send_IPI_mask(irqc->affinity, nvmev_vdev->pdev->irq);
+		__signal_irq(nvmev_vdev->pdev->irq);
 	}
 }
 
@@ -299,6 +283,9 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 			mask = PCI_COMMAND_INTX_DISABLE;
 			if ((val ^ _val) & PCI_COMMAND_INTX_DISABLE) {
 				nvmev_vdev->intx_disabled = !!(_val & PCI_COMMAND_INTX_DISABLE);
+				if (!nvmev_vdev->intx_disabled) {
+					nvmev_vdev->pcihdr->sts.is = 0;
+				}
 			}
 		} else if (target == PCI_STATUS) {
 			mask = 0xF200;
@@ -596,6 +583,7 @@ bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev)
 #ifdef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 	__init_apicid_to_cpuid();
 #endif
+	nvmev_vdev->intx_disabled = false;
 
 	nvmev_vdev->virt_bus = __create_pci_bus();
 	if (!nvmev_vdev->virt_bus)

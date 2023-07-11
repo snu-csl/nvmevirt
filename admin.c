@@ -468,6 +468,47 @@ static void __nvmev_admin_set_features(int eid, int cq_head)
 
 static void __nvmev_admin_get_features(int eid, int cq_head)
 {
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
+	struct nvme_features *cmd = &sq_entry(eid).features;
+	void *page;
+	__le32 result0 = 0;
+	__le32 result1 = 0;
+
+	NVMEV_DEBUG("%s: %x\n", __func__, cmd->fid);
+
+	page = prp_address(cmd->prp1);
+	if (page) memset(page, 0x00, PAGE_SIZE);
+
+	switch (sq_entry(eid).features.fid) {
+	case NVME_FEAT_ARBITRATION:
+	case NVME_FEAT_POWER_MGMT:
+	case NVME_FEAT_LBA_RANGE:
+	case NVME_FEAT_TEMP_THRESH:
+	case NVME_FEAT_ERR_RECOVERY:
+	case NVME_FEAT_VOLATILE_WC:
+		break;
+	case NVME_FEAT_NUM_QUEUES:
+		result0 = ((nvmev_vdev->nr_cq - 1) << 16 | (nvmev_vdev->nr_sq - 1));
+		break;
+	case NVME_FEAT_IRQ_COALESCE:
+	case NVME_FEAT_IRQ_CONFIG:
+	case NVME_FEAT_WRITE_ATOMIC:
+	case NVME_FEAT_ASYNC_EVENT:
+	case NVME_FEAT_AUTO_PST:
+	case NVME_FEAT_SW_PROGRESS:
+	case NVME_FEAT_HOST_ID:
+	case NVME_FEAT_RESV_MASK:
+	case NVME_FEAT_RESV_PERSIST:
+	default:
+		break;
+	}
+
+	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
+	cq_entry(cq_head).sq_id = 0;
+	cq_entry(cq_head).sq_head = eid;
+	cq_entry(cq_head).result0 = result0;
+	cq_entry(cq_head).result1 = result1;
+	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
 }
 
 static void __nvmev_proc_admin_req(int entry_id)

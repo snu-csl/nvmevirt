@@ -89,16 +89,23 @@ void nvmev_signal_irq(int msi_index)
 #endif
 
 /*
- * If a change is detected, issue a full SMP memory barrier so that
- * the rest of the changes can be seen in order.
+ * The host device driver can change multiple locations in the BAR.
+ * In a real device, these changes are processed one after the other,
+ * preserving their requesting order. However, in NVMeVirt, the changes
+ * can be DETECTED with the dispatcher, obsecuring the order between
+ * changes that are made between the checking loop. Thus, we have to
+ * process the changes strategically, in an order that are supposed
+ * to be...
+ *
+ * Also, memory barrier is not necessary here since BAR-related
+ * operations are only processed by the dispatcher.
  */
 void nvmev_proc_bars(void)
 {
-	struct __nvme_bar *old_bar = nvmev_vdev->old_bar;
-	struct nvme_ctrl_regs *bar = nvmev_vdev->bar;
-	struct nvmev_admin_queue *queue;
+	volatile struct __nvme_bar *old_bar = nvmev_vdev->old_bar;
+	volatile struct nvme_ctrl_regs *bar = nvmev_vdev->bar;
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	unsigned int num_pages, i;
-	bool modified = false;
 
 #if 0 /* Read-only register */
 	if (old_bar->cap != bar->u_cap) {
@@ -133,30 +140,28 @@ void nvmev_proc_bars(void)
 #endif
 	if (old_bar->aqa != bar->u_aqa) {
 		// Initalize admin queue
+		NVMEV_DEBUG("AQA: 0x%x -> 0x%x\n", old_bar->aqa, bar->u_aqa);
 		old_bar->aqa = bar->u_aqa;
 
-		if (nvmev_vdev->admin_q == NULL) {
+		if (!queue) {
 			queue = kzalloc(sizeof(struct nvmev_admin_queue), GFP_KERNEL);
 			BUG_ON(queue == NULL);
-
-			queue->cq_head = 0;
-			queue->phase = 1;
-			queue->sq_depth = bar->aqa.asqs + 1; /* asqs and acqs are 0-based */
-			queue->cq_depth = bar->aqa.acqs + 1;
-			smp_mb();
-			nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
-			nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
-
 			WRITE_ONCE(nvmev_vdev->admin_q, queue);
 		} else {
-			NVMEV_ERROR("re-initializing admin queue\n");
+			queue = nvmev_vdev->admin_q;
 		}
 
-		modified = true;
+		queue->cq_head = 0;
+		queue->phase = 1;
+		queue->sq_depth = bar->aqa.asqs + 1; /* asqs and acqs are 0-based */
+		queue->cq_depth = bar->aqa.acqs + 1;
+
+		nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
+		nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
+
+		goto out;
 	}
-	barrier();
 	if (old_bar->asq != bar->u_asq) {
-		queue = nvmev_vdev->admin_q;
 		if (queue == NULL) {
 			/*
 			 * asq/acq can't be updated later than aqa, but in an unlikely case, this
@@ -167,10 +172,10 @@ void nvmev_proc_bars(void)
 			 * that the aqa code (initializing the admin queue) can run prior to this.
 			 */
 			NVMEV_INFO("asq triggered before aqa, retrying\n");
-			smp_mb();
-			return;
+			goto out;
 		}
 
+		NVMEV_DEBUG("ASQ: 0x%llx -> 0x%llx\n", old_bar->asq, bar->u_asq);
 		old_bar->asq = bar->u_asq;
 
 		if (queue->nvme_sq) {
@@ -183,27 +188,24 @@ void nvmev_proc_bars(void)
 		num_pages = DIV_ROUND_UP(queue->sq_depth * sizeof(struct nvme_command), PAGE_SIZE);
 		queue->nvme_sq = kcalloc(num_pages, sizeof(struct nvme_command *), GFP_KERNEL);
 		BUG_ON(!queue->nvme_sq && "Error on setup admin submission queue");
-		NVMEV_DEBUG("made admin SQ - %d entries\n", num_pages);
 
 		for (i = 0; i < num_pages; i++) {
 			queue->nvme_sq[i] =
 				page_address(pfn_to_page(nvmev_vdev->bar->u_asq >> PAGE_SHIFT) + i);
 		}
-		smp_mb();
+
 		nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 
-		modified = true;
+		goto out;
 	}
-	barrier();
 	if (old_bar->acq != bar->u_acq) {
-		queue = nvmev_vdev->admin_q;
 		if (queue == NULL) {
 			// See comment above
 			NVMEV_INFO("acq triggered before aqa, retrying\n");
-			smp_mb();
-			return;
+			goto out;
 		}
 
+		NVMEV_DEBUG("ACQ: 0x%llx -> 0x%llx\n", old_bar->acq, bar->u_acq);
 		old_bar->acq = bar->u_acq;
 
 		if (queue->nvme_cq) {
@@ -217,26 +219,26 @@ void nvmev_proc_bars(void)
 			DIV_ROUND_UP(queue->cq_depth * sizeof(struct nvme_completion), PAGE_SIZE);
 		queue->nvme_cq = kcalloc(num_pages, sizeof(struct nvme_completion *), GFP_KERNEL);
 		BUG_ON(!queue->nvme_cq && "Error on setup admin completion queue");
-		NVMEV_DEBUG("made admin CQ - %d entries\n", num_pages);
 		queue->cq_head = 0;
 
 		for (i = 0; i < num_pages; i++) {
 			queue->nvme_cq[i] =
 				page_address(pfn_to_page(nvmev_vdev->bar->u_acq >> PAGE_SHIFT) + i);
 		}
-		smp_mb();
+
 		nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
 
-		modified = true;
+		goto out;
 	}
-	barrier();
 	if (old_bar->cc != bar->u_cc) {
+		NVMEV_DEBUG("CC: 0x%x:%x -> 0x%x:%x\n", old_bar->cc, old_bar->csts, bar->u_cc,
+			    bar->u_csts);
 		/* Enable */
 		if (bar->cc.en == 1) {
 			if (nvmev_vdev->admin_q) {
 				bar->csts.rdy = 1;
 			} else {
-				return;
+				WARN_ON("Enable device without init admin q");
 			}
 		} else if (bar->cc.en == 0) {
 			bar->csts.rdy = 0;
@@ -245,7 +247,7 @@ void nvmev_proc_bars(void)
 		/* Shutdown */
 		if (bar->cc.shn == 1) {
 			bar->csts.shst = 2;
-			smp_mb();
+
 			nvmev_vdev->dbs[0] = nvmev_vdev->old_dbs[0] = 0;
 			nvmev_vdev->dbs[1] = nvmev_vdev->old_dbs[1] = 0;
 			nvmev_vdev->admin_q->cq_head = 0;
@@ -253,12 +255,11 @@ void nvmev_proc_bars(void)
 
 		old_bar->cc = bar->u_cc;
 
-		modified = true;
+		goto out;
 	}
-	barrier();
-
-	if (modified)
-		smp_mb();
+out:
+	smp_mb();
+	return;
 }
 
 int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)

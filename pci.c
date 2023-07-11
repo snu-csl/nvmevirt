@@ -21,9 +21,9 @@ static void __init_apicid_to_cpuid(void)
 	}
 }
 
-static void __signal_irq(struct msi_desc *msi_desc)
+static void __signal_irq(unsigned int irq)
 {
-	struct irq_data *irqd = irq_get_irq_data(msi_desc->irq);
+	struct irq_data *irqd = irq_get_irq_data(irq);
 	struct irq_cfg *irqc = irqd_cfg(irqd);
 
 	unsigned int target = irqc->dest_apicid;
@@ -35,51 +35,34 @@ static void __signal_irq(struct msi_desc *msi_desc)
 	return;
 }
 #else
-static void __signal_irq(struct msi_desc *msi_desc)
+static void __signal_irq(unsigned int irq)
 {
-	struct irq_data *irqd = irq_get_irq_data(msi_desc->irq);
-	struct irq_chip *chip = irq_data_get_irq_chip(irqd);
+	struct irq_data *data = irq_get_irq_data(irq);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
 
 	BUG_ON(!chip->irq_retrigger);
-	chip->irq_retrigger(irqd);
+	chip->irq_retrigger(data);
 
 	return;
 }
-
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
-void nvmev_signal_irq(int msi_index)
+static void __process_msi_irq(int msi_index)
 {
-	struct xarray *xa;
-	struct msi_desc *msi_desc;
-	unsigned long idx;
+	unsigned int virq = msi_get_virq(&nvmev_vdev->pdev->dev, msi_index);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 2, 0)
-	xa = &(&nvmev_vdev->pdev->dev)->msi.data->__domains[MSI_DEFAULT_DOMAIN].store;
-#else
-	xa = &(&nvmev_vdev->pdev->dev)->msi.data->__store;
-#endif
-
-	//TODO: Does it have to be 0 ~ NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE?
-	xa_for_each_range(xa, idx, msi_desc, 0, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE) {
-		if (msi_desc->msi_index == msi_index) {
-			__signal_irq(msi_desc);
-			return;
-		}
-	}
-	NVMEV_INFO("Failed to send IPI\n");
-	BUG_ON(!msi_desc);
+	BUG_ON(virq == 0);
+	__signal_irq(virq);
 }
 #else
-void nvmev_signal_irq(int msi_index)
+static void __process_msi_irq(int msi_index)
 {
 	struct msi_desc *msi_desc, *tmp;
 
-	for_each_msi_entry_safe(msi_desc, tmp, (&nvmev_vdev->pdev->dev))
-	{
+	for_each_msi_entry_safe(msi_desc, tmp, (&nvmev_vdev->pdev->dev)) {
 		if (msi_desc->msi_attrib.entry_nr == msi_index) {
-			__signal_irq(msi_desc);
+			__signal_irq(msi_desc->irq);
 			return;
 		}
 	}
@@ -87,6 +70,17 @@ void nvmev_signal_irq(int msi_index)
 	BUG_ON(!msi_desc);
 }
 #endif
+
+void nvmev_signal_irq(int msi_index)
+{
+	if (nvmev_vdev->pdev->msix_enabled) {
+		__process_msi_irq(msi_index);
+	} else {
+		nvmev_vdev->pcihdr->sts.is = 1;
+
+		__signal_irq(nvmev_vdev->pdev->irq);
+	}
+}
 
 /*
  * The host device driver can change multiple locations in the BAR.
@@ -269,77 +263,62 @@ int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size,
 
 	memcpy(val, nvmev_vdev->virtDev + where, size);
 
+	NVMEV_DEBUG("[R] target: %x, size: %d, val: %x\n", where, size, *val);
+
 	return 0;
 };
 
 int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 _val)
 {
-	u32 mask = 0xFFFFFFFF;
-	u32 val;
+	u32 mask = ~(0U);
+	u32 val = 0x00;
 	int target = where;
+
+	WARN_ON(size > sizeof(_val));
 
 	memcpy(&val, nvmev_vdev->virtDev + where, size);
 
 	if (where < OFFS_PCI_PM_CAP) {
 		// PCI_HDR
-		if (target == 0x0)
-			mask = 0x0;
-		else if (target == 0x04)
-			mask = 0x0547;
-		else if (target == 0x06)
+		if (target == PCI_COMMAND) {
+			mask = PCI_COMMAND_INTX_DISABLE;
+			if ((val ^ _val) & PCI_COMMAND_INTX_DISABLE) {
+				nvmev_vdev->intx_disabled = !!(_val & PCI_COMMAND_INTX_DISABLE);
+				if (!nvmev_vdev->intx_disabled) {
+					nvmev_vdev->pcihdr->sts.is = 0;
+				}
+			}
+		} else if (target == PCI_STATUS) {
 			mask = 0xF200;
-		else if (target == 0x09)
-			mask = 0x0;
-		else if (target == 0x0d)
-			mask = 0x0;
-		else if (target == 0x0e)
-			mask = 0x0;
-		else if (target == 0x0f)
-			mask = 0x40;
-		else if (target == 0x10)
+		} else if (target == PCI_BIST) {
+			mask = PCI_BIST_START;
+		} else if (target == PCI_BASE_ADDRESS_0) {
 			mask = 0xFFFFC000;
-		else if (target == 0x18)
+		} else if (target == PCI_INTERRUPT_LINE) {
+			mask = 0xFF;
+		} else {
 			mask = 0x0;
-		else if (target == 0x1c)
-			mask = 0x0;
-		else if (target == 0x20)
-			mask = 0x0;
-		else if (target == 0x24)
-			mask = 0x0;
-		else if (target == 0x28)
-			mask = 0x0;
-		else if (target == 0x2c)
-			mask = 0x0;
-		else if (target == 0x34)
-			mask = 0x0;
-		else if (target == 0x3c)
-			mask = 0xF;
-		else if (target == 0x3e)
-			mask = 0x0;
-		else if (target == 0x3f)
-			mask = 0x0;
+		}
 	} else if (where < OFFS_PCI_MSIX_CAP) {
 		// PCI_PM_CAP
 	} else if (where < OFFS_PCIE_CAP) {
 		// PCI_MSIX_CAP
 		target -= OFFS_PCI_MSIX_CAP;
-		if (target == 0)
-			mask = 0x0;
-		else if (target == 2) {
-			mask = 0xC000;
+		if (target == PCI_MSIX_FLAGS) {
+			mask = PCI_MSIX_FLAGS_MASKALL | /* 0x4000 */
+			       PCI_MSIX_FLAGS_ENABLE; /* 0x8000 */
 
-			if ((val & mask) == mask) {
-				nvmev_vdev->msix_enabled = true;
-
-				NVMEV_DEBUG("msi-x enabled\n");
+			if ((nvmev_vdev->pdev) && ((val ^ _val) & PCI_MSIX_FLAGS_ENABLE)) {
+				nvmev_vdev->pdev->msix_enabled = !!(_val & PCI_MSIX_FLAGS_ENABLE);
 			}
-		} else if (target == 4)
+		} else {
 			mask = 0x0;
-		else if (target == 8)
-			mask = 0x0;
+		}
 	} else {
 		// PCIE_CAP
 	}
+	NVMEV_DEBUG("[W] 0x%x, mask: 0x%x, val: 0x%x -> 0x%x, size: %d, new: 0x%x\n", where, mask,
+		    val, _val, size, (val & (~mask)) | (_val & mask));
 
 	val = (val & (~mask)) | (_val & mask);
 	memcpy(nvmev_vdev->virtDev + where, &val, size);
@@ -349,19 +328,19 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 
 static void __dump_pci_dev(struct pci_dev *dev)
 {
-	printk("bus: %p, subordinate: %p\n", dev->bus, dev->subordinate);
-	printk("vendor: %x, device: %x\n", dev->vendor, dev->device);
-	printk("s_vendor: %x, s_device: %x\n", dev->subsystem_vendor, dev->subsystem_device);
-	printk("devfn: %u, class: %x\n", dev->devfn, dev->class);
-	printk("sysdata: %p, slot: %p\n", dev->sysdata, dev->slot);
-	printk("pin: %d, irq: %u\n", dev->pin, dev->irq);
-	printk("msi: %d, msi-x:%d\n", dev->msi_enabled, dev->msix_enabled);
-	printk("resource[0]: %llx\n", pci_resource_start(dev, 0));
+	NVMEV_DEBUG("bus: %p, subordinate: %p\n", dev->bus, dev->subordinate);
+	NVMEV_DEBUG("vendor: %x, device: %x\n", dev->vendor, dev->device);
+	NVMEV_DEBUG("s_vendor: %x, s_device: %x\n", dev->subsystem_vendor, dev->subsystem_device);
+	NVMEV_DEBUG("devfn: %u, class: %x\n", dev->devfn, dev->class);
+	NVMEV_DEBUG("sysdata: %p, slot: %p\n", dev->sysdata, dev->slot);
+	NVMEV_DEBUG("pin: %d, irq: %u\n", dev->pin, dev->irq);
+	NVMEV_DEBUG("msi: %d, msi-x:%d\n", dev->msi_enabled, dev->msix_enabled);
+	NVMEV_DEBUG("resource[0]: %llx\n", pci_resource_start(dev, 0));
 }
 
 static struct pci_bus *__create_pci_bus(void)
 {
-	struct pci_bus *nvmev_pci_bus = NULL;
+	struct pci_bus *bus = NULL;
 	struct pci_dev *dev;
 
 	nvmev_vdev->pci_ops = (struct pci_ops){
@@ -374,21 +353,22 @@ static struct pci_bus *__create_pci_bus(void)
 		.node = cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher),
 	};
 
-	nvmev_pci_bus =
-		pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_vdev->pci_ops, &nvmev_vdev->pci_sysdata);
+	bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_vdev->pci_ops, &nvmev_vdev->pci_sysdata);
 
-	if (!nvmev_pci_bus) {
+	if (!bus) {
 		NVMEV_ERROR("Unable to create PCI bus\n");
 		return NULL;
 	}
 
 	/* XXX Only support a singe NVMeVirt instance in the system for now */
-	list_for_each_entry(dev, &nvmev_pci_bus->devices, bus_list) {
+	list_for_each_entry(dev, &bus->devices, bus_list) {
 		struct resource *res = &dev->resource[0];
 		res->parent = &iomem_resource;
 
 		nvmev_vdev->pdev = dev;
-		printk("IRQ: %u\n", dev->irq);
+		dev->irq = NVMEV_INTX_IRQ;
+
+		__dump_pci_dev(dev);
 
 		nvmev_vdev->bar = memremap(pci_resource_start(dev, 0), PAGE_SIZE * 2, MEMREMAP_WT);
 		memset(nvmev_vdev->bar, 0x0, PAGE_SIZE * 2);
@@ -421,7 +401,7 @@ static struct pci_bus *__create_pci_bus(void)
 	NVMEV_INFO("Successfully created virtual PCI bus (node %d)\n",
 		   nvmev_vdev->pci_sysdata.node);
 
-	return nvmev_pci_bus;
+	return bus;
 };
 
 struct nvmev_dev *VDEV_INIT(void)
@@ -437,8 +417,6 @@ struct nvmev_dev *VDEV_INIT(void)
 	nvmev_vdev->pciecap = nvmev_vdev->virtDev + OFFS_PCIE_CAP;
 	nvmev_vdev->aercap = nvmev_vdev->virtDev + PCI_CFG_SPACE_SIZE;
 	nvmev_vdev->pcie_exp_cap = nvmev_vdev->virtDev + PCI_CFG_SPACE_SIZE;
-
-	nvmev_vdev->msix_enabled = true;
 
 	nvmev_vdev->admin_q = NULL;
 
@@ -509,7 +487,7 @@ void PCI_HEADER_SETTINGS(struct pci_header *pcihdr, unsigned long base_pa)
 	pcihdr->cap = OFFS_PCI_PM_CAP;
 
 	pcihdr->intr.ipin = 0;
-	pcihdr->intr.iline = 0;
+	pcihdr->intr.iline = NVMEV_INTX_IRQ;
 }
 
 void PCI_PMCAP_SETTINGS(struct pci_pm_cap *pmcap)
@@ -606,6 +584,7 @@ bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev)
 #ifdef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 	__init_apicid_to_cpuid();
 #endif
+	nvmev_vdev->intx_disabled = false;
 
 	nvmev_vdev->virt_bus = __create_pci_bus();
 	if (!nvmev_vdev->virt_bus)

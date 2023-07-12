@@ -319,7 +319,15 @@ struct nvme_reservation_status {
 	op(nvme_cmd_resv_release, 0x15)		\
 	op(nvme_cmd_zone_mgmt_send, 0x79)	\
 	op(nvme_cmd_zone_mgmt_recv, 0x7a)	\
-	op(nvme_cmd_zone_append, 0x7d)
+	op(nvme_cmd_zone_append, 0x7d) \
+	op(nvme_cmd_kv_store, 0x81) \
+	op(nvme_cmd_kv_append, 0x83) \
+	op(nvme_cmd_kv_retrieve, 0x90) \
+	op(nvme_cmd_kv_delete, 0xA1) \
+	op(nvme_cmd_kv_iter_req, 0xB1) \
+	op(nvme_cmd_kv_iter_read, 0xB2) \
+	op(nvme_cmd_kv_exist, 0xB3) \
+	op(nvme_cmd_kv_batch, 0x85) \
 
 #define ENUM_NVME_OP(name, value) name = value,
 #define STRING_NVME_OP(name, value) [name] = #name,

@@ -154,7 +154,7 @@ struct nvmev_config {
 	unsigned int write_trailing; // ns
 };
 
-struct nvmev_proc_table {
+struct nvmev_io_work {
 	int sqid;
 	int cqid;
 
@@ -183,18 +183,18 @@ struct nvmev_proc_table {
 	unsigned int next, prev;
 };
 
-struct nvmev_proc_info {
-	struct nvmev_proc_table *proc_table;
+struct nvmev_io_worker {
+	struct nvmev_io_work *work_queue;
 
 	unsigned int free_seq; /* free io req head index */
 	unsigned int free_seq_end; /* free io req tail index */
 	unsigned int io_seq; /* io req head index */
 	unsigned int io_seq_end; /* io req tail index */
 
-	unsigned long long proc_io_nsecs;
+	unsigned long long latest_nsecs;
 
 	unsigned int id;
-	struct task_struct *nvmev_io_worker;
+	struct task_struct *task_struct;
 	char thread_name[32];
 };
 
@@ -217,8 +217,8 @@ struct nvmev_dev {
 
 	void *storage_mapped;
 
-	struct nvmev_proc_info *proc_info;
-	unsigned int proc_turn;
+	struct nvmev_io_worker *io_workers;
+	unsigned int io_worker_turn;
 
 	void __iomem *msix_table;
 
@@ -297,8 +297,8 @@ void nvmev_proc_admin_sq(int new_db, int old_db);
 void nvmev_proc_admin_cq(int new_db, int old_db);
 
 // OPS I/O QUEUE
-void NVMEV_IO_PROC_INIT(struct nvmev_dev *nvmev_vdev);
-void NVMEV_IO_PROC_FINAL(struct nvmev_dev *nvmev_vdev);
+void NVMEV_IO_WORKER_INIT(struct nvmev_dev *nvmev_vdev);
+void NVMEV_IO_WORKER_FINAL(struct nvmev_dev *nvmev_vdev);
 int nvmev_proc_io_sq(int qid, int new_db, int old_db);
 void nvmev_proc_io_cq(int qid, int new_db, int old_db);
 

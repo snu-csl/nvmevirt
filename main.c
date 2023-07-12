@@ -180,7 +180,7 @@ static void NVMEV_DISPATCHER_INIT(struct nvmev_dev *nvmev_vdev)
 	wake_up_process(nvmev_vdev->nvmev_dispatcher);
 }
 
-static void NVMEV_REG_PROC_FINAL(struct nvmev_dev *nvmev_vdev)
+static void NVMEV_DISPATCHER_FINAL(struct nvmev_dev *nvmev_vdev)
 {
 	if (!IS_ERR_OR_NULL(nvmev_vdev->nvmev_dispatcher)) {
 		kthread_stop(nvmev_vdev->nvmev_dispatcher);
@@ -615,7 +615,7 @@ static int NVMeV_init(void)
 
 	__print_perf_configs();
 
-	NVMEV_IO_PROC_INIT(nvmev_vdev);
+	NVMEV_IO_WORKER_INIT(nvmev_vdev);
 	NVMEV_DISPATCHER_INIT(nvmev_vdev);
 
 	pci_bus_add_devices(nvmev_vdev->virt_bus);
@@ -638,8 +638,8 @@ static void NVMeV_exit(void)
 		pci_remove_root_bus(nvmev_vdev->virt_bus);
 	}
 
-	NVMEV_REG_PROC_FINAL(nvmev_vdev);
-	NVMEV_IO_PROC_FINAL(nvmev_vdev);
+	NVMEV_DISPATCHER_FINAL(nvmev_vdev);
+	NVMEV_IO_WORKER_FINAL(nvmev_vdev);
 
 	NVMEV_NAMESPACE_FINAL(nvmev_vdev);
 	NVMEV_STORAGE_FINAL(nvmev_vdev);

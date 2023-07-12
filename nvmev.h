@@ -68,7 +68,7 @@ struct nvmev_sq_stat {
 struct nvmev_submission_queue {
 	int qid;
 	int cqid;
-	int sq_priority;
+	int priority;
 	bool phys_contig;
 
 	int queue_size;

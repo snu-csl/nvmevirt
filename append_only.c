@@ -27,7 +27,7 @@ size_t append_only_allocate(u64 length, void *args)
 	latest += length;
 	total_written += length;
 
-	NVMEV_DEBUG("Returning offset %llu for length %llu", ret, length);
+	NVMEV_DEBUG("Returning offset %lu for length %llu", ret, length);
 
 	if (latest + 65536 >= dev_size) {
 		NVMEV_ERROR("append-only allocator is nearly full!!");

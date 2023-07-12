@@ -180,7 +180,7 @@ static void zns_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvm
 		latest = max(latest, ssd_next_idle_time(zns_ftl[i].ssd));
 	}
 
-	NVMEV_DEBUG("%s latency=%llu\n", __FUNCTION__, latest - start);
+	NVMEV_DEBUG("%s latency=%llu\n", __func__, latest - start);
 
 	ret->status = NVME_SC_SUCCESS;
 	ret->nsecs_target = latest;

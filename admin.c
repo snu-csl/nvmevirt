@@ -140,8 +140,6 @@ static void __nvmev_admin_create_sq(int eid)
 	nvmev_vdev->dbs[dbs_idx] = 0;
 	nvmev_vdev->old_dbs[dbs_idx] = 0;
 
-	NVMEV_DEBUG("%s: %d\n", __func__, sq->qid);
-
 	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
@@ -190,8 +188,6 @@ static void __nvmev_admin_get_log_page(int eid)
 			.temperature[1] = (0 >> 8) & 0xff,
 		};
 
-		NVMEV_INFO("Handling NVME_LOG_SMART\n");
-
 		__memcpy(page, &smart_log, len);
 		break;
 	}
@@ -221,8 +217,6 @@ static void __nvmev_admin_get_log_page(int eid)
 			},
 			.resv = { 0, },
 		};
-
-		NVMEV_INFO("Handling NVME_LOG_CMD_EFFECTS\n");
 
 		__memcpy(page, &effects_log, len);
 		break;
@@ -257,7 +251,6 @@ static void __nvmev_admin_identify_namespace(int eid)
 	struct nvme_id_ns *ns;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	size_t nsid = cmd->nsid - 1;
-	NVMEV_DEBUG("[%s] \n", __func__);
 
 	ns = prp_address(cmd->prp1);
 	memset(ns, 0x0, PAGE_SIZE);
@@ -308,14 +301,11 @@ static void __nvmev_admin_identify_namespaces(int eid)
 	unsigned int *ns;
 	int i;
 
-	NVMEV_DEBUG("[%s] ns %d\n", __func__, cmd->nsid);
-
 	ns = prp_address(cmd->prp1);
 	memset(ns, 0x00, PAGE_SIZE * 2);
 
 	for (i = 1; i <= nvmev_vdev->nr_ns; i++) {
 		if (i > cmd->nsid) {
-			NVMEV_DEBUG("[%s] ns %d %px\n", __func__, i, ns);
 			*ns = i;
 			ns++;
 		}
@@ -330,8 +320,6 @@ static void __nvmev_admin_identify_namespace_desc(int eid)
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_ns_desc *ns_desc;
 	int nsid = cmd->nsid - 1;
-
-	NVMEV_DEBUG("[%s] ns %d\n", __func__, cmd->nsid);
 
 	ns_desc = prp_address(cmd->prp1);
 	memset(ns_desc, 0x00, sizeof(*ns_desc));
@@ -353,8 +341,7 @@ static void __nvmev_admin_identify_zns_namespace(int eid)
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)nvmev_vdev->ns[nsid].ftls;
 	struct znsparams *zpp = &zns_ftl->zp;
 
-	NVMEV_ASSERT(nvmev_vdev->ns[nsid].csi == NVME_CSI_ZNS);
-	NVMEV_DEBUG("%s\n", __func__);
+	BUG_ON(nvmev_vdev->ns[nsid].csi != NVME_CSI_ZNS);
 
 	ns = prp_address(cmd->prp1);
 	memset(ns, 0x00, sizeof(*ns));
@@ -393,8 +380,6 @@ static void __nvmev_admin_identify_zns_ctrl(int eid)
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_zns_ctrl *res;
 
-	NVMEV_DEBUG("%s\n", __func__);
-
 	res = prp_address(cmd->prp1);
 
 	res->zasl = 0; // currently not support zone append command
@@ -429,8 +414,6 @@ static void __nvmev_admin_identify(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	int cns = sq_entry(eid).identify.cns;
-
-	NVMEV_DEBUG("%s: 0x%x\n", __func__, cns);
 
 	switch (cns) {
 	case 0x00:
@@ -467,8 +450,6 @@ static void __nvmev_admin_set_features(int eid)
 	struct nvme_features *cmd = &sq_entry(eid).features;
 	__le32 result0 = 0;
 	__le32 result1 = 0;
-
-	NVMEV_DEBUG("%s: %x\n", __func__, sq_entry(eid).features.fid);
 
 	switch (cmd->fid) {
 	case NVME_FEAT_ARBITRATION:
@@ -514,8 +495,6 @@ static void __nvmev_admin_get_features(int eid)
 	struct nvme_features *cmd = &sq_entry(eid).features;
 	__le32 result0 = 0;
 	__le32 result1 = 0;
-
-	NVMEV_DEBUG("%s: %x\n", __func__, cmd->fid);
 
 	switch (cmd->fid) {
 	case NVME_FEAT_ARBITRATION:

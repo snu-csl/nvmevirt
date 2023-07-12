@@ -21,7 +21,7 @@ static void __init_apicid_to_cpuid(void)
 	}
 }
 
-static void __signal_irq(unsigned int irq)
+static void __signal_irq(const char *type, unsigned int irq)
 {
 	struct irq_data *irqd = irq_get_irq_data(irq);
 	struct irq_cfg *irqc = irqd_cfg(irqd);
@@ -29,17 +29,18 @@ static void __signal_irq(unsigned int irq)
 	unsigned int target = irqc->dest_apicid;
 	unsigned int target_cpu = apicid_to_cpuid[target];
 
-	NVMEV_DEBUG("vector %d, dest_apicid %d, target_cpu %d\n", irqc->vector, target, target_cpu);
+	NVMEV_DEBUG_VERBOSE("irq: %s %d, vector %d, apic %d, cpu %d\n", type, irq, irqc->vector, target, target_cpu);
 	apic->send_IPI(target_cpu, irqc->vector);
 
 	return;
 }
 #else
-static void __signal_irq(unsigned int irq)
+static void __signal_irq(const char *type, unsigned int irq)
 {
 	struct irq_data *data = irq_get_irq_data(irq);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 
+	NVMEV_DEBUG_VERBOSE("irq: %s %d, vector %d\n", type, irq, irqd_cfg(data)->vector);
 	BUG_ON(!chip->irq_retrigger);
 	chip->irq_retrigger(data);
 
@@ -53,7 +54,7 @@ static void __process_msi_irq(int msi_index)
 	unsigned int virq = msi_get_virq(&nvmev_vdev->pdev->dev, msi_index);
 
 	BUG_ON(virq == 0);
-	__signal_irq(virq);
+	__signal_irq("msi", virq);
 }
 #else
 static void __process_msi_irq(int msi_index)
@@ -62,7 +63,7 @@ static void __process_msi_irq(int msi_index)
 
 	for_each_msi_entry_safe(msi_desc, tmp, (&nvmev_vdev->pdev->dev)) {
 		if (msi_desc->msi_attrib.entry_nr == msi_index) {
-			__signal_irq(msi_desc->irq);
+			__signal_irq("msi", msi_desc->irq);
 			return;
 		}
 	}
@@ -78,7 +79,7 @@ void nvmev_signal_irq(int msi_index)
 	} else {
 		nvmev_vdev->pcihdr->sts.is = 1;
 
-		__signal_irq(nvmev_vdev->pdev->irq);
+		__signal_irq("int", nvmev_vdev->pdev->irq);
 	}
 }
 
@@ -134,7 +135,7 @@ void nvmev_proc_bars(void)
 #endif
 	if (old_bar->aqa != bar->u_aqa) {
 		// Initalize admin queue
-		NVMEV_DEBUG("AQA: 0x%x -> 0x%x\n", old_bar->aqa, bar->u_aqa);
+		NVMEV_DEBUG("%s: aqa 0x%x -> 0x%x\n", __func__, old_bar->aqa, bar->u_aqa);
 		old_bar->aqa = bar->u_aqa;
 
 		if (!queue) {
@@ -169,7 +170,7 @@ void nvmev_proc_bars(void)
 			goto out;
 		}
 
-		NVMEV_DEBUG("ASQ: 0x%llx -> 0x%llx\n", old_bar->asq, bar->u_asq);
+		NVMEV_DEBUG("%s: asq 0x%llx -> 0x%llx\n", __func__, old_bar->asq, bar->u_asq);
 		old_bar->asq = bar->u_asq;
 
 		if (queue->nvme_sq) {
@@ -199,7 +200,7 @@ void nvmev_proc_bars(void)
 			goto out;
 		}
 
-		NVMEV_DEBUG("ACQ: 0x%llx -> 0x%llx\n", old_bar->acq, bar->u_acq);
+		NVMEV_DEBUG("%s: acq 0x%llx -> 0x%llx\n", __func__, old_bar->acq, bar->u_acq);
 		old_bar->acq = bar->u_acq;
 
 		if (queue->nvme_cq) {
@@ -225,7 +226,7 @@ void nvmev_proc_bars(void)
 		goto out;
 	}
 	if (old_bar->cc != bar->u_cc) {
-		NVMEV_DEBUG("CC: 0x%x:%x -> 0x%x:%x\n", old_bar->cc, old_bar->csts, bar->u_cc,
+		NVMEV_DEBUG("%s: cc 0x%x:%x -> 0x%x:%x\n", __func__, old_bar->cc, old_bar->csts, bar->u_cc,
 			    bar->u_csts);
 		/* Enable */
 		if (bar->cc.en == 1) {
@@ -263,7 +264,7 @@ int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size,
 
 	memcpy(val, nvmev_vdev->virtDev + where, size);
 
-	NVMEV_DEBUG("[R] target: %x, size: %d, val: %x\n", where, size, *val);
+	NVMEV_DEBUG_VERBOSE("[R] 0x%x, size: %d, val: 0x%x\n", where, size, *val);
 
 	return 0;
 };
@@ -317,7 +318,7 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 	} else {
 		// PCIE_CAP
 	}
-	NVMEV_DEBUG("[W] 0x%x, mask: 0x%x, val: 0x%x -> 0x%x, size: %d, new: 0x%x\n", where, mask,
+	NVMEV_DEBUG_VERBOSE("[W] 0x%x, mask: 0x%x, val: 0x%x -> 0x%x, size: %d, new: 0x%x\n", where, mask,
 		    val, _val, size, (val & (~mask)) | (_val & mask));
 
 	val = (val & (~mask)) | (_val & mask);
@@ -328,6 +329,7 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 
 static void __dump_pci_dev(struct pci_dev *dev)
 {
+	/*
 	NVMEV_DEBUG("bus: %p, subordinate: %p\n", dev->bus, dev->subordinate);
 	NVMEV_DEBUG("vendor: %x, device: %x\n", dev->vendor, dev->device);
 	NVMEV_DEBUG("s_vendor: %x, s_device: %x\n", dev->subsystem_vendor, dev->subsystem_device);
@@ -336,6 +338,7 @@ static void __dump_pci_dev(struct pci_dev *dev)
 	NVMEV_DEBUG("pin: %d, irq: %u\n", dev->pin, dev->irq);
 	NVMEV_DEBUG("msi: %d, msi-x:%d\n", dev->msi_enabled, dev->msix_enabled);
 	NVMEV_DEBUG("resource[0]: %llx\n", pci_resource_start(dev, 0));
+	*/
 }
 
 static struct pci_bus *__create_pci_bus(void)
@@ -398,8 +401,7 @@ static struct pci_bus *__create_pci_bus(void)
 		memset(nvmev_vdev->msix_table, 0x00, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE);
 	}
 
-	NVMEV_INFO("Successfully created virtual PCI bus (node %d)\n",
-		   nvmev_vdev->pci_sysdata.node);
+	NVMEV_INFO("Virtual PCI bus created (node %d)\n", nvmev_vdev->pci_sysdata.node);
 
 	return bus;
 };
@@ -456,8 +458,8 @@ void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev)
 
 void PCI_HEADER_SETTINGS(struct pci_header *pcihdr, unsigned long base_pa)
 {
-	pcihdr->id.did = 0x0101;
-	pcihdr->id.vid = 0x0c51;
+	pcihdr->id.did = NVMEV_DEVICE_ID;
+	pcihdr->id.vid = NVMEV_VENDOR_ID;
 	/*
 	pcihdr->cmd.id = 1;
 	pcihdr->cmd.bme = 1;
@@ -479,8 +481,8 @@ void PCI_HEADER_SETTINGS(struct pci_header *pcihdr, unsigned long base_pa)
 
 	pcihdr->mulbar = base_pa >> 32;
 
-	pcihdr->ss.ssid = 0x370d;
-	pcihdr->ss.ssvid = 0x0c51;
+	pcihdr->ss.ssid = NVMEV_SUBSYSTEM_ID;
+	pcihdr->ss.ssvid = NVMEV_SUBSYSTEM_VENDOR_ID;
 
 	pcihdr->erom = 0x0;
 

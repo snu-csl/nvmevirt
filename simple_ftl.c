@@ -12,7 +12,8 @@ static inline unsigned long long __get_wallclock(void)
 
 static size_t __cmd_io_size(struct nvme_rw_command *cmd)
 {
-	NVMEV_DEBUG("%d lba %llu length %d, %llx %llx\n", cmd->opcode, cmd->slba, cmd->length,
+	NVMEV_DEBUG_VERBOSE("[%c] %llu + %d, prp %llx %llx\n",
+			cmd->opcode == nvme_cmd_write ? 'W' : 'R', cmd->slba, cmd->length,
 		    cmd->prp1, cmd->prp2);
 
 	return (cmd->length + 1) << 9;
@@ -77,7 +78,7 @@ bool simple_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req,
 {
 	struct nvme_command *cmd = req->cmd;
 
-	NVMEV_ASSERT(ns->csi == NVME_CSI_NVM);
+	BUG_ON(ns->csi != NVME_CSI_NVM);
 	BUG_ON(BASE_SSD != INTEL_OPTANE);
 
 	switch (cmd->common.opcode) {
@@ -91,7 +92,7 @@ bool simple_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req,
 		ret->nsecs_target = __schedule_flush(req);
 		break;
 	default:
-		NVMEV_ERROR("%s: unimplemented command: %s(%d)\n", __func__,
+		NVMEV_ERROR("%s: command not implemented: %s (0x%x)\n", __func__,
 			    nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
 		break;
 	}

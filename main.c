@@ -174,17 +174,17 @@ static int nvmev_dispatcher(void *data)
 
 static void NVMEV_DISPATCHER_INIT(struct nvmev_dev *nvmev_vdev)
 {
-	nvmev_vdev->nvmev_manager = kthread_create(nvmev_dispatcher, NULL, "nvmev_dispatcher");
+	nvmev_vdev->nvmev_dispatcher = kthread_create(nvmev_dispatcher, NULL, "nvmev_dispatcher");
 	if (nvmev_vdev->config.cpu_nr_dispatcher != -1)
-		kthread_bind(nvmev_vdev->nvmev_manager, nvmev_vdev->config.cpu_nr_dispatcher);
-	wake_up_process(nvmev_vdev->nvmev_manager);
+		kthread_bind(nvmev_vdev->nvmev_dispatcher, nvmev_vdev->config.cpu_nr_dispatcher);
+	wake_up_process(nvmev_vdev->nvmev_dispatcher);
 }
 
 static void NVMEV_REG_PROC_FINAL(struct nvmev_dev *nvmev_vdev)
 {
-	if (!IS_ERR_OR_NULL(nvmev_vdev->nvmev_manager)) {
-		kthread_stop(nvmev_vdev->nvmev_manager);
-		nvmev_vdev->nvmev_manager = NULL;
+	if (!IS_ERR_OR_NULL(nvmev_vdev->nvmev_dispatcher)) {
+		kthread_stop(nvmev_vdev->nvmev_dispatcher);
+		nvmev_vdev->nvmev_dispatcher = NULL;
 	}
 }
 
@@ -410,8 +410,10 @@ static const struct file_operations proc_file_fops = {
 
 void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 {
-	NVMEV_INFO("Storage : %lx + %lx\n", nvmev_vdev->config.storage_start,
-		   nvmev_vdev->config.storage_size);
+	NVMEV_INFO("Storage: %#010lx-%#010lx (%lu MiB)\n",
+			nvmev_vdev->config.storage_start,
+			nvmev_vdev->config.storage_start + nvmev_vdev->config.storage_size,
+			BYTE_TO_MB(nvmev_vdev->config.storage_size));
 
 	nvmev_vdev->io_unit_stat = kzalloc(
 		sizeof(*nvmev_vdev->io_unit_stat) * nvmev_vdev->config.nr_io_units, GFP_KERNEL);
@@ -522,12 +524,11 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
 			kv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else
-			NVMEV_ASSERT(0);
+			BUG_ON(1);
 
 		remaining_capacity -= size;
 		ns_addr += size;
-		NVMEV_INFO("[%s] ns=%d ns_addr=%p ns_size=%lld(MiB) \n", __FUNCTION__, i,
-			   ns[i].mapped, BYTE_TO_MB(ns[i].size));
+		NVMEV_INFO("ns %d/%d: size %lld MiB\n", i, nr_ns, BYTE_TO_MB(ns[i].size));
 	}
 
 	nvmev_vdev->ns = ns;
@@ -551,16 +552,43 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
 			kv_remove_namespace(&ns[i]);
 		else
-			NVMEV_ASSERT(0);
+			BUG_ON(1);
 	}
 
 	kfree(ns);
 	nvmev_vdev->ns = NULL;
 }
 
+static void __print_base_config(void)
+{
+	const char *type = "unknown";
+	switch (BASE_SSD) {
+	case INTEL_OPTANE:
+		type = "NVM SSD";
+		break;
+	case SAMSUNG_970PRO:
+		type = "Samsung 970 Pro SSD";
+		break;
+	case ZNS_PROTOTYPE:
+		type = "ZNS SSD Prototype";
+		break;
+	case KV_PROTOTYPE:
+		type = "KVSSD Prototype";
+		break;
+	case WD_ZN540:
+		type = "WD ZN540 ZNS SSD";
+		break;
+	}
+
+	NVMEV_INFO("Version %x.%x for >> %s <<\n",
+			(NVMEV_VERSION & 0xff00) >> 8, (NVMEV_VERSION & 0x00ff), type);
+}
+
 static int NVMeV_init(void)
 {
 	int ret = 0;
+
+	__print_base_config();
 
 	nvmev_vdev = VDEV_INIT();
 	if (!nvmev_vdev)
@@ -592,7 +620,7 @@ static int NVMeV_init(void)
 
 	pci_bus_add_devices(nvmev_vdev->virt_bus);
 
-	NVMEV_INFO("Successfully created Virtual NVMe device\n");
+	NVMEV_INFO("Virtual NVMe device created\n");
 
 	return 0;
 

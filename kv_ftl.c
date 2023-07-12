@@ -974,7 +974,8 @@ bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct 
 			   __get_wallclock(), ret->nsecs_target);
 		break;
 	default:
-		NVMEV_ERROR("unimplemented command: %d\n", cmd->common.opcode);
+		NVMEV_ERROR("%s: command not implemented: %s (0x%x)\n", __func__,
+				nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
 		break;
 	}
 
@@ -1007,7 +1008,7 @@ void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *ma
 
 	kv_ftl = kmalloc(sizeof(struct kv_ftl), GFP_KERNEL);
 
-	NVMEV_INFO("KV Mapping Table: %lx + %x\n",
+	NVMEV_INFO("KV mapping table: %#010lx-%#010x\n",
 		   nvmev_vdev->config.storage_start + nvmev_vdev->config.storage_size,
 		   KV_MAPPING_TABLE_SIZE);
 

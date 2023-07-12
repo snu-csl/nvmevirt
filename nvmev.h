@@ -13,20 +13,33 @@
 #undef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 
 #undef CONFIG_NVMEV_VERBOSE
+#undef CONFIG_NVMEV_DEBUG
 #undef CONFIG_NVMEV_DEBUG_VERBOSE
 
 /*************************/
 #define NVMEV_DRV_NAME "NVMeVirt"
+#define NVMEV_VERSION 0x0110
+#define NVMEV_DEVICE_ID	NVMEV_VERSION
+#define NVMEV_VENDOR_ID 0x0c51
+#define NVMEV_SUBSYSTEM_ID	0x370d
+#define NVMEV_SUBSYSTEM_VENDOR_ID NVMEV_VENDOR_ID
 
 #define NVMEV_INFO(string, args...) printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
 #define NVMEV_ERROR(string, args...) printk(KERN_ERR "%s: " string, NVMEV_DRV_NAME, ##args)
 #define NVMEV_ASSERT(x) BUG_ON((!(x)))
 
+#ifdef CONFIG_NVMEV_DEBUG
+#define  NVMEV_DEBUG(string, args...) printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
 #ifdef CONFIG_NVMEV_DEBUG_VERBOSE
-#define NVMEV_DEBUG(string, args...) printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
+#define  NVMEV_DEBUG_VERBOSE(string, args...) printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
+#else
+#define  NVMEV_DEBUG_VERBOSE(string, args...)
+#endif
 #else
 #define NVMEV_DEBUG(string, args...)
+#define NVMEV_DEBUG_VERBOSE(string, args...)
 #endif
+
 
 #define NR_MAX_IO_QUEUE 72
 #define NR_MAX_PARALLEL_IO 16384
@@ -200,7 +213,7 @@ struct nvmev_dev {
 	struct pci_sysdata pci_sysdata;
 
 	struct nvmev_config config;
-	struct task_struct *nvmev_manager;
+	struct task_struct *nvmev_dispatcher;
 
 	void *storage_mapped;
 

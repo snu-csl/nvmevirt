@@ -41,8 +41,8 @@ static uint64_t ppa2pgidx(struct conv_ftl *conv_ftl, struct ppa *ppa)
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	uint64_t pgidx;
 
-	NVMEV_DEBUG("ppa2pgidx: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n", ppa->g.ch, ppa->g.lun,
-		    ppa->g.pl, ppa->g.blk, ppa->g.pg);
+	NVMEV_DEBUG_VERBOSE("%s: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n", __func__,
+			ppa->g.ch, ppa->g.lun, ppa->g.pl, ppa->g.blk, ppa->g.pg);
 
 	pgidx = ppa->g.ch * spp->pgs_per_ch + ppa->g.lun * spp->pgs_per_lun +
 		ppa->g.pl * spp->pgs_per_pl + ppa->g.blk * spp->pgs_per_blk + ppa->g.pg;
@@ -179,7 +179,7 @@ static struct line *get_next_free_line(struct conv_ftl *conv_ftl)
 
 	list_del_init(&curline->entry);
 	lm->free_line_cnt--;
-	NVMEV_DEBUG("[%s] free_line_cnt %d\n", __FUNCTION__, lm->free_line_cnt);
+	NVMEV_DEBUG("%s: free_line_cnt %d\n", __func__, lm->free_line_cnt);
 	return curline;
 }
 
@@ -220,8 +220,8 @@ static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 	struct line_mgmt *lm = &conv_ftl->lm;
 	struct write_pointer *wpp = __get_wp(conv_ftl, io_type);
 
-	NVMEV_DEBUG("current wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n", wpp->ch, wpp->lun,
-		    wpp->pl, wpp->blk, wpp->pg);
+	NVMEV_DEBUG_VERBOSE("current wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n",
+			wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg);
 
 	check_addr(wpp->pg, spp->pgs_per_blk);
 	wpp->pg++;
@@ -254,9 +254,9 @@ static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 		NVMEV_ASSERT(wpp->curline->ipc == 0);
 		list_add_tail(&wpp->curline->entry, &lm->full_line_list);
 		lm->full_line_cnt++;
-		NVMEV_DEBUG("wpp: move line to full_line_list\n");
+		NVMEV_DEBUG_VERBOSE("wpp: move line to full_line_list\n");
 	} else {
-		NVMEV_DEBUG("wpp: line is moved to victim list\n");
+		NVMEV_DEBUG_VERBOSE("wpp: line is moved to victim list\n");
 		NVMEV_ASSERT(wpp->curline->vpc >= 0 && wpp->curline->vpc < spp->pgs_per_line);
 		/* there must be some invalid pages in this line */
 		NVMEV_ASSERT(wpp->curline->ipc > 0);
@@ -266,7 +266,7 @@ static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 	/* current line is used up, pick another empty line */
 	check_addr(wpp->blk, spp->blks_per_pl);
 	wpp->curline = get_next_free_line(conv_ftl);
-	NVMEV_DEBUG("wpp: got new clean line %d\n", wpp->curline->id);
+	NVMEV_DEBUG_VERBOSE("wpp: got new clean line %d\n", wpp->curline->id);
 
 	wpp->blk = wpp->curline->id;
 	check_addr(wpp->blk, spp->blks_per_pl);
@@ -278,8 +278,8 @@ static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 	/* TODO: assume # of pl_per_lun is 1, fix later */
 	NVMEV_ASSERT(wpp->pl == 0);
 out:
-	NVMEV_DEBUG("advanced wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n", wpp->ch,
-		    wpp->lun, wpp->pl, wpp->blk, wpp->pg, wpp->curline->id);
+	NVMEV_DEBUG_VERBOSE("advanced wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n",
+			wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg, wpp->curline->id);
 }
 
 static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint32_t io_type)
@@ -339,25 +339,21 @@ static void conv_init_ftl(struct conv_ftl *conv_ftl, struct convparams *cpp, str
 	conv_ftl->ssd = ssd;
 
 	/* initialize maptbl */
-	NVMEV_INFO("initialize maptbl\n");
 	init_maptbl(conv_ftl); // mapping table
 
 	/* initialize rmap */
-	NVMEV_INFO("initialize rmap\n");
 	init_rmap(conv_ftl); // reverse mapping table (?)
 
 	/* initialize all the lines */
-	NVMEV_INFO("initialize lines\n");
 	init_lines(conv_ftl);
 
 	/* initialize write pointer, this is how we allocate new pages for writes */
-	NVMEV_INFO("initialize write pointer\n");
 	prepare_write_pointer(conv_ftl, USER_IO);
 	prepare_write_pointer(conv_ftl, GC_IO);
 
 	init_write_flow_control(conv_ftl);
 
-	NVMEV_INFO("Init FTL Instance with %d channels(%ld pages)\n", conv_ftl->ssd->sp.nchs,
+	NVMEV_INFO("Init FTL instance with %d channels (%ld pages)\n", conv_ftl->ssd->sp.nchs,
 		   conv_ftl->ssd->sp.tt_pgs);
 
 	return;
@@ -769,7 +765,7 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 	}
 
 	ppa.g.blk = victim_line->id;
-	NVMEV_DEBUG("GC-ing line:%d,ipc=%d(%d),victim=%d,full=%d,free=%d\n", ppa.g.blk,
+	NVMEV_DEBUG_VERBOSE("GC-ing line:%d,ipc=%d(%d),victim=%d,full=%d,free=%d\n", ppa.g.blk,
 		    victim_line->ipc, victim_line->vpc, conv_ftl->lm.victim_line_cnt,
 		    conv_ftl->lm.full_line_cnt, conv_ftl->lm.free_line_cnt);
 
@@ -821,7 +817,7 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 static void forground_gc(struct conv_ftl *conv_ftl)
 {
 	if (should_gc_high(conv_ftl)) {
-		NVMEV_DEBUG("should_gc_high passed");
+		NVMEV_DEBUG_VERBOSE("should_gc_high passed");
 		/* perform GC here until !should_gc(conv_ftl) */
 		do_gc(conv_ftl, true);
 	}
@@ -863,9 +859,9 @@ static bool conv_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvm
 	};
 
 	NVMEV_ASSERT(conv_ftls);
-	NVMEV_DEBUG("conv_read: start_lpn=%lld, len=%lld, end_lpn=%lld", start_lpn, nr_lba, end_lpn);
+	NVMEV_DEBUG_VERBOSE("%s: start_lpn=%lld, len=%lld, end_lpn=%lld", __func__, start_lpn, nr_lba, end_lpn);
 	if ((end_lpn / nr_parts) >= spp->tt_pgs) {
-		NVMEV_ERROR("conv_read: lpn passed FTL range(start_lpn=%lld,tt_pgs=%ld)\n",
+		NVMEV_ERROR("%s: lpn passed FTL range (start_lpn=%lld > tt_pgs=%ld)\n", __func__,
 			    start_lpn, spp->tt_pgs);
 		return false;
 	}
@@ -889,8 +885,8 @@ static bool conv_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvm
 			local_lpn = lpn / nr_parts;
 			cur_ppa = get_maptbl_ent(conv_ftl, local_lpn);
 			if (!mapped_ppa(&cur_ppa) || !valid_ppa(conv_ftl, &cur_ppa)) {
-				NVMEV_DEBUG("lpn 0x%llx not mapped to valid ppa\n", local_lpn);
-				NVMEV_DEBUG("Invalid ppa,ch:%d,lun:%d,blk:%d,pl:%d,pg:%d\n",
+				NVMEV_DEBUG_VERBOSE("lpn 0x%llx not mapped to valid ppa\n", local_lpn);
+				NVMEV_DEBUG_VERBOSE("Invalid ppa,ch:%d,lun:%d,blk:%d,pl:%d,pg:%d\n",
 					    cur_ppa.g.ch, cur_ppa.g.lun, cur_ppa.g.blk,
 					    cur_ppa.g.pl, cur_ppa.g.pg);
 				continue;
@@ -957,10 +953,10 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		.xfer_size = spp->pgsz * spp->pgs_per_oneshotpg,
 	};
 
-	NVMEV_DEBUG("conv_write: start_lpn=%lld, len=%lld, end_lpn=%lld", start_lpn, nr_lba, end_lpn);
+	NVMEV_DEBUG_VERBOSE("%s: start_lpn=%lld, len=%lld, end_lpn=%lld", __func__, start_lpn, nr_lba, end_lpn);
 	if ((end_lpn / nr_parts) >= spp->tt_pgs) {
-		NVMEV_ERROR("conv_write: lpn passed FTL range(start_lpn=%lld,tt_pgs=%ld)\n",
-			    start_lpn, spp->tt_pgs);
+		NVMEV_ERROR("%s: lpn passed FTL range (start_lpn=%lld > tt_pgs=%ld)\n",
+				__func__, start_lpn, spp->tt_pgs);
 		return false;
 	}
 
@@ -987,14 +983,14 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 			/* update old page information first */
 			mark_page_invalid(conv_ftl, &ppa);
 			set_rmap_ent(conv_ftl, INVALID_LPN, &ppa);
-			NVMEV_DEBUG("conv_write: %lld is invalid, ", ppa2pgidx(conv_ftl, &ppa));
+			NVMEV_DEBUG("%s: %lld is invalid, ", __func__, ppa2pgidx(conv_ftl, &ppa));
 		}
 
 		/* new write */
 		ppa = get_new_page(conv_ftl, USER_IO);
 		/* update maptbl */
 		set_maptbl_ent(conv_ftl, local_lpn, &ppa);
-		NVMEV_DEBUG("conv_write: got new ppa %lld, ", ppa2pgidx(conv_ftl, &ppa));
+		NVMEV_DEBUG("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));
 		/* update rmap */
 		set_rmap_ent(conv_ftl, local_lpn, &ppa);
 
@@ -1042,7 +1038,7 @@ static void conv_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		latest = max(latest, ssd_next_idle_time(conv_ftls[i].ssd));
 	}
 
-	NVMEV_DEBUG("%s latency=%llu\n", __FUNCTION__, latest - start);
+	NVMEV_DEBUG_VERBOSE("%s: latency=%llu\n", __func__, latest - start);
 
 	ret->status = NVME_SC_SUCCESS;
 	ret->nsecs_target = latest;
@@ -1068,8 +1064,8 @@ bool conv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struc
 		conv_flush(ns, req, ret);
 		break;
 	default:
-		NVMEV_ERROR("%s: unimplemented command: %s(%d)\n", __func__,
-			    nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
+		NVMEV_ERROR("%s: command not implemented: %s (0x%x)\n", __func__,
+				nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
 		break;
 	}
 

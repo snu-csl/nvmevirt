@@ -279,7 +279,7 @@ static void __enqueue_io_req(int sqid, int cqid, int sq_entry, unsigned long lon
 
 	pe = pi->proc_table + entry;
 
-	NVMEV_DEBUG("%s/%u[%d], sq %d cq %d, entry %d %llu + %llu\n", pi->thread_name, entry,
+	NVMEV_DEBUG_VERBOSE("%s/%u[%d], sq %d cq %d, entry %d, %llu + %llu\n", pi->thread_name, entry,
 		    sq_entry(sq_entry).rw.opcode, sqid, cqid, sq_entry, nsecs_start,
 		    ret->nsecs_target - nsecs_start);
 
@@ -316,7 +316,7 @@ void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
 
 	pe = pi->proc_table + entry;
 
-	NVMEV_DEBUG("%s/%u, internal sq %d %llu + %llu\n", pi->thread_name, entry, sqid,
+	NVMEV_DEBUG_VERBOSE("%s/%u, internal sq %d, %llu + %llu\n", pi->thread_name, entry, sqid,
 		    local_clock(), nsecs_target - local_clock());
 
 	/////////////////////////////////
@@ -381,8 +381,8 @@ static void __reclaim_completed_reqs(void)
 			pe->next = first_entry;
 
 			pi->free_seq_end = last_entry;
-			NVMEV_DEBUG("Reclaimed %u -- %u, %d\n", first_entry, last_entry,
-				    nr_reclaimed);
+			NVMEV_DEBUG_VERBOSE("%s: %u -- %u, %d\n", __func__,
+					first_entry, last_entry, nr_reclaimed);
 		}
 	}
 }
@@ -542,7 +542,7 @@ static void __fill_cq_result(struct nvmev_proc_table *proc_entry)
 	spin_unlock(&cq->entry_lock);
 }
 
-static int nvmev_kthread_io(void *data)
+static int nvmev_io_worker(void *data)
 {
 	struct nvmev_proc_info *pi = (struct nvmev_proc_info *)data;
 	struct nvmev_ns *ns;
@@ -603,7 +603,7 @@ static int nvmev_kthread_io(void *data)
 #endif
 				pe->is_copied = true;
 
-				NVMEV_DEBUG("%s: copied %u, %d %d %d\n", pi->thread_name, curr,
+				NVMEV_DEBUG_VERBOSE("%s: copied %u, %d %d %d\n", pi->thread_name, curr,
 					    pe->sqid, pe->cqid, pe->sq_entry);
 			}
 
@@ -617,7 +617,7 @@ static int nvmev_kthread_io(void *data)
 					__fill_cq_result(pe);
 				}
 
-				NVMEV_DEBUG("%s: completed %u, %d %d %d\n", pi->thread_name, curr,
+				NVMEV_DEBUG_VERBOSE("%s: completed %u, %d %d %d\n", pi->thread_name, curr,
 					    pe->sqid, pe->cqid, pe->sq_entry);
 
 #ifdef PERF_DEBUG
@@ -701,7 +701,7 @@ void NVMEV_IO_PROC_INIT(struct nvmev_dev *nvmev_vdev)
 
 		snprintf(pi->thread_name, sizeof(pi->thread_name), "nvmev_io_worker_%d", proc_idx);
 
-		pi->nvmev_io_worker = kthread_create(nvmev_kthread_io, pi, "%s", pi->thread_name);
+		pi->nvmev_io_worker = kthread_create(nvmev_io_worker, pi, "%s", pi->thread_name);
 
 		kthread_bind(pi->nvmev_io_worker, nvmev_vdev->config.cpu_nr_io_workers[proc_idx]);
 		wake_up_process(pi->nvmev_io_worker);

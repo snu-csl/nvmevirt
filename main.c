@@ -16,6 +16,7 @@
 #include <linux/sysfs.h>
 #include <linux/sched.h>
 #include <linux/list.h>
+#include <linux/string.h>
 
 #ifdef CONFIG_X86
 #include <asm/e820/types.h>
@@ -832,19 +833,11 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 	struct params *p;
 
-	size_t i = min(count, sizeof(input));
-
-	printk("File input: %s %ld %ld\n", buf, count, i);
-
 	if (!strcmp(filename, "config")) {
 	/* if config file then get parameter */		
-		nr_copied = copy_from_user(input, buf, i);
-		
-		printk("Command Start, Command is %s %ld\n", input, nr_copied);
+		strncpy(input, buf, min(len,sizeof(input)));
+		printk("Command Start, Command is %s\n", input);
 
-		for (i = 0; i < count; i++)
-			printk("%c", input[i]);
-		printk("\n");
 
 		cmd = parse_to_cmd(input);
 	

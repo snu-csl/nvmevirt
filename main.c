@@ -501,7 +501,7 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
 
-	if (nvmev_vdev->dev_name == NULL)
+	if (nvmev_vdev->dev_name[0] == '\0')
 		snprintf(name, sizeof(name), "nvmev_%d", dir_num++);
 
 	else
@@ -681,7 +681,6 @@ static void parse_command(char *cmd_line, struct params *p){
 		else
 			p->name = val;
 	}
-
 }
 
 static struct params *PARAM_INIT(void) {
@@ -727,7 +726,11 @@ static int create_device(struct params *p) {
 	nvmev_vdev->dev_id = nvmev->nr_dev++;
 
 	/* Load name. */
-	strncpy(nvmev_vdev->dev_name, p->name, sizeof(nvmev_vdev->dev_name));
+	if (p->name != NULL)
+		strncpy(nvmev_vdev->dev_name, p->name, sizeof(nvmev_vdev->dev_name));
+
+	else
+		nvmev_vdev->dev_name[0] = '\0';
 
 	printk("storage\n");
 	NVMEV_STORAGE_INIT(nvmev_vdev2);
@@ -849,7 +852,10 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 			printk("Memmap_start = %ld\n", p->memmap_start);
 			printk("Memmap_size = %ld\n", p->memmap_size);
 			printk("cpus = %s\n", p->cpus);
-			printk("name = %s\n", p->name);
+
+			if (p->name != NULL)
+				printk("name = %s\n", p->name);
+
 			printk("return = %d\n", create_device(p));
 		}
 		else if(strcmp(cmd, "delete") == 0){

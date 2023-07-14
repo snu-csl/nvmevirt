@@ -691,14 +691,13 @@ static struct params *PARAM_INIT(void) {
 }
 
 static int create_device(struct params *p) {
-	struct nvmev_dev *nvmev_vdev2;
+	struct nvmev_dev *nvmev_vdev;
 
-	nvmev_vdev2 = VDEV_INIT();
-	nvmev_vdev = nvmev_vdev2;
-	if (!nvmev_vdev2)
+	nvmev_vdev = VDEV_INIT();
+	if (!nvmev_vdev)
 		return -EINVAL;
 
-	if (!__load_configs(&nvmev_vdev2->config, p)) {
+	if (!__load_configs(&nvmev_vdev->config, p)) {
 			goto ret_err;
 	}
 
@@ -714,42 +713,45 @@ static int create_device(struct params *p) {
 	
 	printk("storage\n");
 	NVMEV_STORAGE_INIT(nvmev_vdev2);
-
-	/* 
-	printk("namespace\n");
-	NVMEV_NAMESPACE_INIT(nvmev_vdev2);
-	printk("io_using_dma\n");
+	
+	NVMEV_NAMESPACE_INIT(nvmev_vdev);
+	
 	if (io_using_dma) {
 		if (ioat_dma_chan_set("dma7chan0") != 0) {
 			io_using_dma = false;
 			NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
 		}
 	}
+
 	printk("pci\n");
-	if (!NVMEV_PCI_INIT(nvmev_vdev2)) {
+	if (!NVMEV_PCI_INIT(nvmev_vdev)) {
 		goto ret_err;
 	}
+	printk("success!\n");
+	
+
+	/*
 	printk("print config\n");
-	__print_perf_configs(nvmev_vdev2);
-		strncpy(input, buf, min(count, sizeof(input)));
+	__print_perf_configs(nvmev_vdev);
 	printk("proc\n");
-	NVMEV_IO_PROC_INIT(nvmev_vdev2);
+	NVMEV_IO_PROC_INIT(nvmev_vdev);
 	printk("dispathcer\n");
-	NVMEV_DISPATCHER_INIT(nvmev_vdev2);
+	NVMEV_DISPATCHER_INIT(nvmev_vdev);
 	printk("bus\n");
-	pci_bus_add_devices(nvmev_vdev2->virt_bus);
+	pci_bus_add_devices(nvmev_vdev->virt_bus);
 	*/
 	
 	NVMEV_INFO("Successfully created Virtual NVMe device\n");
 
 	/* Put the list of devices for managing. */
-	INIT_LIST_HEAD(&nvmev_vdev2->list_elem);
-	list_add(&nvmev_vdev2->list_elem, &nvmev->dev_list);
+	INIT_LIST_HEAD(&nvmev_vdev->list_elem);
+	list_add(&nvmev_vdev->list_elem, &nvmev->dev_list);
 	
 	return 0;
 
 ret_err:
-	VDEV_FINALIZE(nvmev_vdev2);
+	printk("error......\n");
+	VDEV_FINALIZE(nvmev_vdev);
 	return -EIO; 
 }
 

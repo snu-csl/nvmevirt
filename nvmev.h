@@ -236,6 +236,13 @@ struct nvmev_dev {
 	struct dentry *debug_io_units;
 	struct dentry *debug_stat;
 
+	struct kobject *sysfs_root;
+	struct kobj_attribute *sysfs_read_times;
+	struct kobj_attribute *sysfs_write_times;
+	struct kobj_attribute *sysfs_io_units;
+	struct kobj_attribute *sysfs_stat;
+	struct kobj_attribute *sysfs_debug;
+
 	unsigned long long *io_unit_stat;
 
 	struct list_head list_elem;
@@ -274,8 +281,17 @@ struct nvmev_ns {
 				       uint32_t *status);
 };
 
+struct nvmev {
+	struct list_head dev_list;
+	unsigned int nr_dev;
+
+	struct kobject *config_root;
+	struct kobj_attribute *config_attr;
+};
+
 // VDEV Init, Final Function
 extern struct nvmev_dev *nvmev_vdev;
+extern struct nvmev *nvmev;
 struct nvmev_dev *VDEV_INIT(void);
 void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev);
 

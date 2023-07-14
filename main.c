@@ -12,6 +12,8 @@
 #include <linux/version.h>
 
 #include <linux/debugfs.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
 #include <linux/sched.h>
 #include <linux/list.h>
 
@@ -66,9 +68,11 @@ struct dentry * config_path;
 LIST_HEAD(devices);
 static unsigned int nr_dev = 0;
 
+struct nvmev *nvmev = NULL;
+
 int io_using_dma = false;
 
-char input[128] ={0,};
+//char input[128] ={0,};
 char * cmd;
 DEFINE_SPINLOCK(config_file_lock);
 int dir_num = 0;
@@ -453,8 +457,37 @@ static const struct file_operations debug_file_fops = {
 	.release = single_release,
 };
 
+static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
+	/* TODO: Need a function that search "nvnev-vdev" from file name. */
+	/* TODO: Print to file from nvmev_config data. */
+	return 0;
+}
+
+static ssize_t __sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, 
+							const char *buf, size_t count)
+{
+	/* TODO: Need a function that search "nvnev-vdev" from file name. */
+	/* TODO: Scan from file to nvmev_config data. */
+	return 0;
+}
+
+
+static struct kobj_attribute read_times_attr = 
+		__ATTR(read_times, 0644, __sysfs_show, __sysfs_store);
+static struct kobj_attribute write_times_attr = 
+		__ATTR(write_times, 0644, __sysfs_show, __sysfs_store);
+static struct kobj_attribute io_units_attr = 
+		__ATTR(io_units, 0644, __sysfs_show, __sysfs_store);
+static struct kobj_attribute stat_attr = 
+		__ATTR(stat, 0644, __sysfs_show, __sysfs_store);
+static struct kobj_attribute debug_attr = 
+		__ATTR(debug, 0644, __sysfs_show, __sysfs_store);
+
 void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 {
+	int ret = 0;
+	char name[30];
+
 	NVMEV_INFO("Storage : %lx + %lx\n", nvmev_vdev->config.storage_start,
 		   nvmev_vdev->config.storage_size);
 
@@ -467,28 +500,48 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
 
-	char name[30];
 	snprintf(name, 30,"nvmev_%d\n",dir_num++);
-	nvmev_vdev->debug_root = debugfs_create_dir(name,debug_root);//proc_mkdir("nvmev", NULL);
-	nvmev_vdev->debug_read_times =
-		debugfs_create_file("read_times", 0664, nvmev_vdev->debug_root, NULL ,&debug_file_fops);
-	nvmev_vdev->debug_write_times =
-		debugfs_create_file("write_times", 0664, nvmev_vdev->debug_root, NULL, &debug_file_fops);
-	nvmev_vdev->debug_io_units =
-		debugfs_create_file("io_units", 0664, nvmev_vdev->debug_root, NULL , &debug_file_fops);
-	nvmev_vdev->debug_stat = debugfs_create_file("stat", 0444, nvmev_vdev->debug_root, NULL, &debug_file_fops);
-	nvmev_vdev->debug_stat = debugfs_create_file("debug", 0444, nvmev_vdev->debug_root, NULL ,&debug_file_fops);
+	//nvmev_vdev->debug_root = debugfs_create_dir(name,debug_root);//proc_mkdir("nvmev", NULL);
+	//nvmev_vdev->debug_read_times =
+	//	debugfs_create_file("read_times", 0664, nvmev_vdev->debug_root, NULL ,&debug_file_fops);
+	//nvmev_vdev->debug_write_times =
+	//	debugfs_create_file("write_times", 0664, nvmev_vdev->debug_root, NULL, &debug_file_fops);
+	//nvmev_vdev->debug_io_units =
+//		debugfs_create_file("io_units", 0664, nvmev_vdev->debug_root, NULL , &debug_file_fops);
+//	nvmev_vdev->debug_stat = debugfs_create_file("stat", 0444, nvmev_vdev->debug_root, NULL, &debug_file_fops);
+//	nvmev_vdev->debug_stat = debugfs_create_file("debug", 0444, nvmev_vdev->debug_root, NULL ,&debug_file_fops);
+
+	nvmev_vdev->sysfs_root = kobject_create_and_add(name, nvmev->config_root);
+	nvmev_vdev->sysfs_read_times = &read_times_attr;
+	nvmev_vdev->sysfs_write_times = &write_times_attr;
+	nvmev_vdev->sysfs_io_units = &io_units_attr;
+	nvmev_vdev->sysfs_stat = &stat_attr;
+	nvmev_vdev->sysfs_debug = &debug_attr;
+
+	ret = sysfs_create_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_read_times->attr);
+	ret = sysfs_create_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_write_times->attr);
+	ret = sysfs_create_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_io_units->attr);
+	ret = sysfs_create_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_stat->attr);
+	ret = sysfs_create_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_debug->attr);
 }
 
 void NVMEV_STORAGE_FINAL(struct nvmev_dev *nvmev_vdev)
 {
-	debugfs_remove(nvmev_vdev->debug_read_times);
-	debugfs_remove(nvmev_vdev->debug_write_times);
-	debugfs_remove(nvmev_vdev->debug_io_units);
-	debugfs_remove(nvmev_vdev->debug_stat);
-	debugfs_remove(nvmev_vdev->debug_stat);
+	//debugfs_remove(nvmev_vdev->debug_read_times);
+	//debugfs_remove(nvmev_vdev->debug_write_times);
+	//debugfs_remove(nvmev_vdev->debug_io_units);
+	//debugfs_remove(nvmev_vdev->debug_stat);
+	//debugfs_remove(nvmev_vdev->debug_stat);
 
-	debugfs_remove(nvmev_vdev->debug_root);
+	//debugfs_remove(nvmev_vdev->debug_root);
+
+	sysfs_remove_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_read_times->attr);
+	sysfs_remove_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_write_times->attr);
+	sysfs_remove_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_io_units->attr);
+	sysfs_remove_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_stat->attr);
+	sysfs_remove_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_debug->attr);
+
+	kobject_put(nvmev_vdev->sysfs_root);
 
 	if (nvmev_vdev->storage_mapped)
 		memunmap(nvmev_vdev->storage_mapped);
@@ -605,20 +658,24 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->ns = NULL;
 }
 static char *parse_to_cmd(char *cmd_line){
+	char *command;
+
 	if(cmd_line == NULL)
 		return NULL;
-	char * command = strsep(&cmd_line, " ");
+
+	command = strsep(&cmd_line, " ");
 
 	return command;
 }
 
 static void parse_command(char *cmd_line, struct params *p){
+	char *arg;
+	char *param, *val;
+
 	if(cmd_line == NULL){
 		NVMEV_ERROR("cmd_line is NULL");
 		return;
 	}
-	char *arg;
-	char *param, *val;
 
 	while ((arg = strsep(&cmd_line, " ")) != NULL){
 		
@@ -717,6 +774,7 @@ static ssize_t __config_file_write(struct file *file, const char __user *buf, si
 	ssize_t count = len;
 	const char *filename = file->f_path.dentry->d_name.name;
 	size_t nr_copied;
+	char input[128];
 
 	struct params *p;
 
@@ -724,7 +782,7 @@ static ssize_t __config_file_write(struct file *file, const char __user *buf, si
 	/* if config file then get parameter */		
 		nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
 		
-		printk("Command Start, Command is %s",input);
+		printk("Command Start, Command i/inps %s",input);
 		cmd = parse_to_cmd(input);
 	
 	/* And if command is create, then create file
@@ -759,14 +817,81 @@ static const struct file_operations config_file_fops = {
 	.release = single_release,
 };
 
+static ssize_t __config_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
+	printk("In Show\n");
+	return 0;
+}
+
+static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr, 
+							const char __user *buf, size_t count)
+{
+	ssize_t len = count;
+	const char *filename = attr->attr.name;
+	size_t nr_copied;
+	char input[128];
+
+	struct params *p;
+
+	size_t i = min(count, sizeof(input));
+
+	printk("File input: %s %ld %ld\n", buf, count, i);
+
+	if (!strcmp(filename, "config")) {
+	/* if config file then get parameter */		
+		nr_copied = copy_from_user(input, buf, i);
+		
+		printk("Command Start, Command is %s %ld\n", input, nr_copied);
+
+		for (i = 0; i < count; i++)
+			printk("%c", input[i]);
+		printk("\n");
+
+		cmd = parse_to_cmd(input);
+	
+	/* And if command is create, then create file
+  	 * if command is delete, then delete dir
+	 */
+		if(strcmp(cmd, "create") == 0){
+			p = PARAM_INIT();
+			parse_command(input+(sizeof(cmd)-1),p);
+			printk("Memmap_start = %ld\n",p->memmap_start);
+			printk("Memmap_size = %ld\n", p->memmap_size);
+			printk("cpus = %s\n",p->cpus);
+			printk("return = %d\n",create_device(p));
+
+		}
+		else if(strcmp(cmd, "delete") == 0){
+			printk("delete implementation please");
+		}
+		else{
+			NVMEV_ERROR("Doesn't not command.");
+			return len;
+		}
+	}
+
+	return len;
+}
+
+static struct kobj_attribute config_attr = __ATTR(config, 0664, __config_show, __config_store);
+
 static int NVMeV_init(void)
 {
 	int ret = 0;
+
+	nvmev = kzalloc(sizeof(struct nvmev), GFP_KERNEL);
+
+	INIT_LIST_HEAD(&nvmev->dev_list);
+	nvmev->nr_dev = 0;
+
+	nvmev->config_root = kobject_create_and_add("nvmevirt", NULL);
+	nvmev->config_attr = &config_attr;
 	
-	debug_root = debugfs_create_dir("nvmev",NULL);	
-	config_path = debugfs_create_file("config", 0444, debug_root, NULL ,&config_file_fops);
+	if(sysfs_create_file(nvmev->config_root, &nvmev->config_attr->attr)) {
+		printk("Cannot create sysfs file...\n");
+		return -EIO;
+	}
+	
 	NVMEV_INFO("Successfully load Virtual NVMe device module\n");
-	
 	return 0;
 
 //ret_err:

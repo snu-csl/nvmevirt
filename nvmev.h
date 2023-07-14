@@ -246,7 +246,9 @@ struct nvmev_dev {
 	unsigned long long *io_unit_stat;
 
 	struct list_head list_elem;
-	char *dev_name;
+	char dev_name[30];
+
+	unsigned int dev_id;
 };
 
 struct nvmev_request {

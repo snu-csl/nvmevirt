@@ -501,16 +501,11 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
 
-	snprintf(name, 30,"nvmev_%d\n",dir_num++);
-	//nvmev_vdev->debug_root = debugfs_create_dir(name,debug_root);//proc_mkdir("nvmev", NULL);
-	//nvmev_vdev->debug_read_times =
-	//	debugfs_create_file("read_times", 0664, nvmev_vdev->debug_root, NULL ,&debug_file_fops);
-	//nvmev_vdev->debug_write_times =
-	//	debugfs_create_file("write_times", 0664, nvmev_vdev->debug_root, NULL, &debug_file_fops);
-	//nvmev_vdev->debug_io_units =
-//		debugfs_create_file("io_units", 0664, nvmev_vdev->debug_root, NULL , &debug_file_fops);
-//	nvmev_vdev->debug_stat = debugfs_create_file("stat", 0444, nvmev_vdev->debug_root, NULL, &debug_file_fops);
-//	nvmev_vdev->debug_stat = debugfs_create_file("debug", 0444, nvmev_vdev->debug_root, NULL ,&debug_file_fops);
+	if (nvmev_vdev->dev_name == NULL)
+		snprintf(name, sizeof(name), "nvmev_%d", dir_num++);
+
+	else
+		strncpy(name, nvmev_vdev->dev_name, sizeof(name));
 
 	nvmev_vdev->sysfs_root = kobject_create_and_add(name, nvmev->config_root);
 	nvmev_vdev->sysfs_read_times = &read_times_attr;
@@ -528,14 +523,6 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 
 void NVMEV_STORAGE_FINAL(struct nvmev_dev *nvmev_vdev)
 {
-	//debugfs_remove(nvmev_vdev->debug_read_times);
-	//debugfs_remove(nvmev_vdev->debug_write_times);
-	//debugfs_remove(nvmev_vdev->debug_io_units);
-	//debugfs_remove(nvmev_vdev->debug_stat);
-	//debugfs_remove(nvmev_vdev->debug_stat);
-
-	//debugfs_remove(nvmev_vdev->debug_root);
-
 	sysfs_remove_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_read_times->attr);
 	sysfs_remove_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_write_times->attr);
 	sysfs_remove_file(nvmev_vdev->sysfs_root, &nvmev_vdev->sysfs_io_units->attr);
@@ -718,6 +705,9 @@ static struct params *PARAM_INIT(void) {
 
 	params->debug = 0;
 
+	params->name = NULL;
+	params->cpus = NULL;
+
 	return params;
 }
 
@@ -729,11 +719,20 @@ static int create_device(struct params *p) {
 	if (!nvmev_vdev2)
 		return -EINVAL;
 
-	if (!__load_configs(&nvmev_vdev2->config,p)) {
+	if (!__load_configs(&nvmev_vdev2->config, p)) {
 			goto ret_err;
 	}
+
+	/* Alloc dev ID from number of device. */	
+	nvmev_vdev->dev_id = nvmev->nr_dev++;
+
+	/* Load name. */
+	strncpy(nvmev_vdev->dev_name, p->name, sizeof(nvmev_vdev->dev_name));
+
 	printk("storage\n");
 	NVMEV_STORAGE_INIT(nvmev_vdev2);
+
+	/* 
 	printk("namespace\n");
 	NVMEV_NAMESPACE_INIT(nvmev_vdev2);
 	printk("io_using_dma\n");
@@ -755,12 +754,13 @@ static int create_device(struct params *p) {
 	NVMEV_DISPATCHER_INIT(nvmev_vdev2);
 	printk("bus\n");
 	pci_bus_add_devices(nvmev_vdev2->virt_bus);
+	*/
 	
 	NVMEV_INFO("Successfully created Virtual NVMe device\n");
 
 	/* Put the list of devices for managing. */
 	INIT_LIST_HEAD(&nvmev_vdev2->list_elem);
-	list_add(&nvmev_vdev2->list_elem, &devices);
+	list_add(&nvmev_vdev2->list_elem, &nvmev->dev_list);
 	
 	return 0;
 
@@ -783,7 +783,7 @@ static ssize_t __config_file_write(struct file *file, const char __user *buf, si
 	/* if config file then get parameter */		
 		nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
 		
-		printk("Command Start, Command i/inps %s",input);
+		printk("Command Start, Command is %s",input);
 		cmd = parse_to_cmd(input);
 	
 	/* And if command is create, then create file
@@ -819,7 +819,6 @@ static const struct file_operations config_file_fops = {
 };
 
 static ssize_t __config_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
-	printk("In Show\n");
 	return 0;
 }
 
@@ -834,10 +833,10 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 	struct params *p;
 
 	if (!strcmp(filename, "config")) {
-	/* if config file then get parameter */		
-		strncpy(input, buf, min(len,sizeof(input)));
+	/* if config file then get parameter */
+		printk("%p %p %ld", input, buf, count);
+		strncpy(input, buf, min(count, sizeof(input)));
 		printk("Command Start, Command is %s\n", input);
-
 
 		cmd = parse_to_cmd(input);
 	
@@ -846,12 +845,12 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 	 */
 		if(strcmp(cmd, "create") == 0){
 			p = PARAM_INIT();
-			parse_command(input+(sizeof(cmd)-1),p);
-			printk("Memmap_start = %ld\n",p->memmap_start);
+			parse_command(input+(sizeof(cmd)-1), p);
+			printk("Memmap_start = %ld\n", p->memmap_start);
 			printk("Memmap_size = %ld\n", p->memmap_size);
-			printk("cpus = %s\n",p->cpus);
-			printk("return = %d\n",create_device(p));
-
+			printk("cpus = %s\n", p->cpus);
+			printk("name = %s\n", p->name);
+			printk("return = %d\n", create_device(p));
 		}
 		else if(strcmp(cmd, "delete") == 0){
 			printk("delete implementation please");

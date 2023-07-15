@@ -715,7 +715,7 @@ static int create_device(struct params *p) {
 		snprintf(nvmev_vdev->dev_name, sizeof(nvmev_vdev->dev_name), "nvmev_%d", nvmev_vdev->dev_id);
 	
 	printk("storage\n");
-	NVMEV_STORAGE_INIT(nvmev_vdev2);
+	NVMEV_STORAGE_INIT(nvmev_vdev);
 
 	NVMEV_NAMESPACE_INIT(nvmev_vdev);
 	
@@ -799,8 +799,8 @@ static struct kobj_attribute config_attr = __ATTR(config, 0664, __config_show, _
 
 static int NVMeV_init(void)
 {
-	nvmev_vdev=NULL;
 	int ret = 0;
+	nvmev_vdev=NULL;
 
 	nvmev = kzalloc(sizeof(struct nvmev), GFP_KERNEL);
 

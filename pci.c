@@ -280,10 +280,12 @@ struct nvmev_dev *find_nvmev(struct pci_bus *bus){
 }
 int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)
 {
+	struct nvmev_dev *nvmev_vdev;
+
 	if (devfn != 0)
 		return 1;
 	
-	struct nvmev_dev *nvmev_vdev = find_nvmev(bus);
+	nvmev_vdev = find_nvmev(bus);
 
 	memcpy(val, nvmev_vdev->virtDev + where, size);
 	return 0;
@@ -365,9 +367,10 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 
 static struct pci_bus *__create_pci_bus(struct nvmev_dev * nvmev_vdev_in)
 {
-	nvmev_vdev = nvmev_vdev_in;
 	struct pci_bus *nvmev_pci_bus = NULL;
 	struct pci_dev *dev;
+
+	nvmev_vdev = nvmev_vdev_in;
 	nvmev_vdev_in->pci_ops = (struct pci_ops) {
 		.read = nvmev_pci_read,
 		.write = nvmev_pci_write,

@@ -70,7 +70,6 @@ LIST_HEAD(devices);
 static unsigned int nr_dev = 0;
 
 struct nvmev *nvmev = NULL;
-
 int io_using_dma = false;
 
 //char input[128] ={0,};
@@ -721,6 +720,10 @@ static int create_device(struct params *p) {
 			goto ret_err;
 	}
 
+	/* Put the list of devices for managing. */
+	INIT_LIST_HEAD(&nvmev_vdev->list_elem);
+	list_add(&nvmev_vdev->list_elem, &nvmev->dev_list);
+	
 	/* Alloc dev ID from number of device. */	
 	nvmev_vdev->dev_id = nvmev->nr_dev++;
 
@@ -743,12 +746,9 @@ static int create_device(struct params *p) {
 		}
 	}
 
-	printk("pci\n");
 	if (!NVMEV_PCI_INIT(nvmev_vdev)) {
 		goto ret_err;
 	}
-	printk("success!\n");
-	
 
 	/*
 	printk("print config\n");
@@ -762,15 +762,12 @@ static int create_device(struct params *p) {
 	*/
 	
 	NVMEV_INFO("Successfully created Virtual NVMe device\n");
-
-	/* Put the list of devices for managing. */
-	INIT_LIST_HEAD(&nvmev_vdev->list_elem);
-	list_add(&nvmev_vdev->list_elem, &nvmev->dev_list);
 	
 	return 0;
 
 ret_err:
 	printk("error......\n");
+	list_del(&nvmev_vdev->list_elem);
 	VDEV_FINALIZE(nvmev_vdev);
 	return -EIO; 
 }
@@ -877,6 +874,7 @@ static struct kobj_attribute config_attr = __ATTR(config, 0664, __config_show, _
 
 static int NVMeV_init(void)
 {
+	nvmev_vdev=NULL;
 	int ret = 0;
 
 	nvmev = kzalloc(sizeof(struct nvmev), GFP_KERNEL);

@@ -716,7 +716,7 @@ static int create_device(struct params *p) {
 	
 	printk("storage\n");
 	NVMEV_STORAGE_INIT(nvmev_vdev2);
-	
+
 	NVMEV_NAMESPACE_INIT(nvmev_vdev);
 	
 	if (io_using_dma) {

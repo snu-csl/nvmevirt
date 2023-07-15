@@ -264,11 +264,26 @@ void nvmev_proc_bars(struct nvmev_dev *nvmev_vdev)
 	if (modified)
 		smp_mb();
 }
-
+struct nvmev_dev *find_nvmev(struct pci_bus *bus){
+	struct nvmev_dev *data, *next;
+	struct nvmev_dev *first_NULL = NULL;
+	list_for_each_entry_safe(data,next,&nvmev->dev_list,list_elem){
+		if(first_NULL == NULL){
+			if(data->virt_bus == NULL){
+				first_NULL = data;
+			}
+		}
+		if(data->virt_bus == bus)
+			return data;
+	}
+	return first_NULL;
+}
 int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)
 {
 	if (devfn != 0)
 		return 1;
+	
+	struct nvmev_dev *nvmev_vdev = find_nvmev(bus);
 
 	memcpy(val, nvmev_vdev->virtDev + where, size);
 	return 0;
@@ -279,6 +294,9 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 	u32 mask = 0xFFFFFFFF;
 	u32 val;
 	int target = where;
+
+	struct nvmev_dev *nvmev_vdev = find_nvmev(bus);
+
 	memcpy(&val, nvmev_vdev->virtDev + where, size);
 	if (where < OFFS_PCI_PM_CAP) {
 		// PCI_HDR
@@ -358,10 +376,8 @@ static struct pci_bus *__create_pci_bus(struct nvmev_dev * nvmev_vdev_in)
 		.domain = NVMEV_PCI_DOMAIN_NUM,
 		.node = cpu_to_node(nvmev_vdev_in->config.cpu_nr_dispatcher),
 	};
-	printk("hi\n");
 	nvmev_pci_bus = pci_scan_bus(NVMEV_PCI_BUS_NUM + pci_id_make, &nvmev_vdev_in->pci_ops, &nvmev_vdev_in->pci_sd);
 	pci_id_make++;
-	printk("fuck..\n");
 	if (!nvmev_pci_bus) {
 		NVMEV_ERROR("Unable to create PCI bus\n");
 		return NULL;
@@ -578,23 +594,20 @@ void PCI_PCIE_EXTCAP_SETTINGS(struct pci_exp_hdr *exp_cap)
 	pcie_exp_cap->id.next = 0;
 }
 
-bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev)
+bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev2)
 {
-	PCI_HEADER_SETTINGS(nvmev_vdev->pcihdr, nvmev_vdev->config.memmap_start);
-	PCI_PMCAP_SETTINGS(nvmev_vdev->pmcap);
-	PCI_MSIXCAP_SETTINGS(nvmev_vdev->msixcap);
-	PCI_PCIECAP_SETTINGS(nvmev_vdev->pciecap);
-	PCI_AERCAP_SETTINGS(nvmev_vdev->aercap);
-	PCI_PCIE_EXTCAP_SETTINGS(nvmev_vdev->pcie_exp_cap);
+	nvmev_vdev =  nvmev_vdev2;
+	PCI_HEADER_SETTINGS(nvmev_vdev2->pcihdr, nvmev_vdev2->config.memmap_start);
+	PCI_PMCAP_SETTINGS(nvmev_vdev2->pmcap);
+	PCI_MSIXCAP_SETTINGS(nvmev_vdev2->msixcap);
+	PCI_PCIECAP_SETTINGS(nvmev_vdev2->pciecap);
+	PCI_AERCAP_SETTINGS(nvmev_vdev2->aercap);
+	PCI_PCIE_EXTCAP_SETTINGS(nvmev_vdev2->pcie_exp_cap);
 #ifdef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 	__init_apicid_to_cpuid();
 #endif
-	printk("init\n");
-	nvmev_vdev->virt_bus = __create_pci_bus(nvmev_vdev);
-	printk("create\n");
-	if (!nvmev_vdev->virt_bus)
+	nvmev_vdev2->virt_bus = __create_pci_bus(nvmev_vdev2);
+	if (!nvmev_vdev2->virt_bus)
 		return false;
-
-	printk("who?\n");
 	return true;
 }

@@ -328,137 +328,7 @@ static int __get_nr_entries(int dbs_idx, int queue_size)
 	return diff;
 }
 
-static int __proc_file_read(struct seq_file *m, void *data)
-{
-	struct nvmev_dev *nvmev_vdev = (struct nvmev_dev *)data;
-	const char *filename = m->private;
-	struct nvmev_config *cfg = &nvmev_vdev->config;
-
-	if (strcmp(filename, "read_times") == 0) {
-		seq_printf(m, "%u + %u x + %u", cfg->read_delay, cfg->read_time,
-			   cfg->read_trailing);
-	} else if (strcmp(filename, "write_times") == 0) {
-		seq_printf(m, "%u + %u x + %u", cfg->write_delay, cfg->write_time,
-			   cfg->write_trailing);
-	} else if (strcmp(filename, "io_units") == 0) {
-		seq_printf(m, "%u x %u", cfg->nr_io_units, cfg->io_unit_shift);
-	} else if (strcmp(filename, "stat") == 0) {
-		int i;
-		unsigned int nr_in_flight = 0;
-		unsigned int nr_dispatch = 0;
-		unsigned int nr_dispatched = 0;
-		unsigned long long total_io = 0;
-		for (i = 1; i <= nvmev_vdev->nr_sq; i++) {
-			struct nvmev_submission_queue *sq = nvmev_vdev->sqes[i];
-			if (!sq)
-				continue;
-
-			seq_printf(m, "%2d: %2u %4u %4u %4u %4u %llu\n", i,
-				   __get_nr_entries(i * 2, sq->queue_size), sq->stat.nr_in_flight,
-				   sq->stat.max_nr_in_flight, sq->stat.nr_dispatch,
-				   sq->stat.nr_dispatched, sq->stat.total_io);
-
-			nr_in_flight += sq->stat.nr_in_flight;
-			nr_dispatch += sq->stat.nr_dispatch;
-			nr_dispatched += sq->stat.nr_dispatched;
-			total_io += sq->stat.total_io;
-
-			barrier();
-			sq->stat.max_nr_in_flight = 0;
-		}
-		seq_printf(m, "total: %u %u %u %llu\n", nr_in_flight, nr_dispatch, nr_dispatched,
-			   total_io);
-	} else if (strcmp(filename, "debug") == 0) {
-		/* Left for later use */
-	}
-
-	return 0;
-}
-
-static ssize_t __proc_file_write(struct file *file, const char __user *buf, size_t len,
-				 loff_t *offp)
-{
-	ssize_t count = len;
-	const char *filename = file->f_path.dentry->d_name.name;
-	char input[128];
-	unsigned int ret;
-	unsigned long long *old_stat;
-	struct nvmev_config *cfg = &nvmev_vdev->config;
-	size_t nr_copied;
-
-	nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
-	
-	if (!strcmp(filename, "read_times")) {
-		ret = sscanf(input, "%u %u %u", &cfg->read_delay, &cfg->read_time, 
-				 &cfg->read_trailing);
-		//adjust_ftl_latency(0, cfg->read_time);
-	} else if (!strcmp(filename, "write_times")) {
-		ret = sscanf(input, "%u %u %u", &cfg->write_delay, &cfg->write_time,
-			     &cfg->write_trailing);
-		//adjust_ftl_latency(1, cfg->write_time);
-	} else if (!strcmp(filename, "io_units")) {
-		ret = sscanf(input, "%d %d", &cfg->nr_io_units, &cfg->io_unit_shift);
-		if (ret < 1)
-			goto out;
-
-		old_stat = nvmev_vdev->io_unit_stat;
-		nvmev_vdev->io_unit_stat =
-			kzalloc(sizeof(*nvmev_vdev->io_unit_stat) * cfg->nr_io_units, GFP_KERNEL);
-
-		mdelay(100); /* XXX: Delay the free of old stat so that outstanding
-						 * requests accessing the unit_stat are all returned
-						 */
-		kfree(old_stat);
-	} else if (!strcmp(filename, "stat")) {
-		int i;
-		for (i = 1; i <= nvmev_vdev->nr_sq; i++) {
-			struct nvmev_submission_queue *sq = nvmev_vdev->sqes[i];
-			if (!sq)
-				continue;
-
-			memset(&sq->stat, 0x00, sizeof(sq->stat));
-		}
-	} else if (!strcmp(filename, "debug")) {
-		/* Left for later use */
-	}
-
-out:
-	__print_perf_configs(nvmev_vdev);
-
-	return count;
-}
-
-static int __proc_file_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, __proc_file_read, (char *)file->f_path.dentry->d_name.name);
-}
-
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 0, 0)
-static const struct proc_ops proc_file_fops = {
-	.proc_open = __proc_file_open,
-	.proc_write = __proc_file_write,
-	.proc_read = seq_read,
-	.proc_lseek = seq_lseek,
-	.proc_release = single_release,
-};
-#else
-static const struct file_operations proc_file_fops = {
-	.open = __proc_file_open,
-	.write = __proc_file_write,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-#endif
-static const struct file_operations debug_file_fops = {
-	.open = __proc_file_open,
-	.write = __proc_file_write,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static struct nvmev_dev *get_nvmev(const char *dev_name) {
+static struct nvmev_dev *__get_nvmev(const char *dev_name) {
 	struct nvmev_dev *cursor, *next;
 	struct nvmev_dev *result = NULL;
 
@@ -480,7 +350,7 @@ static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, c
 	const char *dev_name = kobj->name;
 	const char *file_name = attr->attr.name;
 
-	struct nvmev_dev *nvmev_vdev = get_nvmev(dev_name);
+	struct nvmev_dev *nvmev_vdev = __get_nvmev(dev_name);
 	struct nvmev_config *cfg = NULL;
 
 	if (nvmev_vdev == NULL) {
@@ -541,7 +411,7 @@ static ssize_t __sysfs_store(struct kobject *kobj, struct kobj_attribute *attr,
 	const char *dev_name = kobj->name;
 	const char *file_name = attr->attr.name;
 
-	struct nvmev_dev *nvmev_vdev = get_nvmev(dev_name);
+	struct nvmev_dev *nvmev_vdev = __get_nvmev(dev_name);
 	struct nvmev_config *cfg = NULL;
 
 	if (nvmev_vdev == NULL)
@@ -604,7 +474,6 @@ static struct kobj_attribute debug_attr =
 void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 {
 	int ret = 0;
-	char name[30];
 
 	NVMEV_INFO("Storage : %lx + %lx\n", nvmev_vdev->config.storage_start,
 		   nvmev_vdev->config.storage_size);
@@ -618,13 +487,7 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
 
-	if (nvmev_vdev->dev_name[0] == '\0')
-		snprintf(name, sizeof(name), "nvmev_%d", dir_num++);
-
-	else
-		strncpy(name, nvmev_vdev->dev_name, sizeof(name));
-
-	nvmev_vdev->sysfs_root = kobject_create_and_add(name, nvmev->config_root);
+	nvmev_vdev->sysfs_root = kobject_create_and_add(nvmev_vdev->dev_name, nvmev->config_root);
 	nvmev_vdev->sysfs_read_times = &read_times_attr;
 	nvmev_vdev->sysfs_write_times = &write_times_attr;
 	nvmev_vdev->sysfs_io_units = &io_units_attr;
@@ -847,8 +710,8 @@ static int create_device(struct params *p) {
 		strncpy(nvmev_vdev->dev_name, p->name, sizeof(nvmev_vdev->dev_name));
 
 	else
-		nvmev_vdev->dev_name[0] = '\0';
-
+		snprintf(nvmev_vdev->dev_name, sizeof(nvmev_vdev->dev_name), "nvmev_%d", nvmev_vdev->dev_id);
+	
 	printk("storage\n");
 	NVMEV_STORAGE_INIT(nvmev_vdev2);
 
@@ -890,55 +753,6 @@ ret_err:
 	return -EIO; 
 }
 
-static ssize_t __config_file_write(struct file *file, const char __user *buf, size_t len,
-				 loff_t *offp)
-{
-	ssize_t count = len;
-	const char *filename = file->f_path.dentry->d_name.name;
-	size_t nr_copied;
-	char input[128];
-
-	struct params *p;
-
-	if (!strcmp(filename, "config")) {
-	/* if config file then get parameter */		
-		nr_copied = copy_from_user(input, buf, min(len, sizeof(input)));
-		
-		printk("Command Start, Command is %s",input);
-		cmd = parse_to_cmd(input);
-	
-	/* And if command is create, then create file
-  	 * if command is delete, then delete dir
-	 */
-		if(strcmp(cmd, "create") == 0){
-			p = PARAM_INIT();
-			parse_command(input+(sizeof(cmd)-1),p);
-			printk("Memmap_start = %ld\n",p->memmap_start);
-			printk("Memmap_size = %ld\n", p->memmap_size);
-			printk("cpus = %s\n",p->cpus);
-			printk("return = %d\n",create_device(p));
-
-		}
-		else if(strcmp(cmd, "delete") == 0){
-			printk("delete implementation please");
-		}
-		else{
-			NVMEV_ERROR("Doesn't not command.");
-			return 0;
-		}
-	}
-
-	return count;
-}
-
-static const struct file_operations config_file_fops = {
-	.open = __proc_file_open,
-	.write = __config_file_write,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
 static ssize_t __config_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
 	return 0;
 }
@@ -953,37 +767,32 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 	struct params *p;
 
-	if (!strcmp(filename, "config")) {
-	/* if config file then get parameter */
-		strncpy(input, buf, min(count, sizeof(input)));
-		printk("Command Start, Command is %s\n", input);
+	strncpy(input, buf, min(count, sizeof(input)));
+	printk("Command Start, Command is %s\n", input);
 
-		cmd = parse_to_cmd(input);
+	cmd = parse_to_cmd(input);
 	
-	/* And if command is create, then create file
-  	 * if command is delete, then delete dir
-	 */
-		if(strcmp(cmd, "create") == 0){
-			p = PARAM_INIT();
-			parse_command(input+(sizeof(cmd)-1), p);
-			printk("Memmap_start = %ld\n", p->memmap_start);
-			printk("Memmap_size = %ld\n", p->memmap_size);
-			printk("cpus = %s\n", p->cpus);
+	if(strcmp(cmd, "create") == 0) {
+		p = PARAM_INIT();
+		parse_command(input+(sizeof(cmd)-1), p);
+		printk("Memmap_start = %ld\n", p->memmap_start);
+		printk("Memmap_size = %ld\n", p->memmap_size);
+		printk("cpus = %s\n", p->cpus);
 
-			if (p->name != NULL)
-				printk("name = %s\n", p->name);
+		if (p->name != NULL) {
+			printk("name = %s\n", p->name);
+		}
 
-			printk("return = %d\n", create_device(p));
-		}
-		else if(strcmp(cmd, "delete") == 0){
-			printk("delete implementation please");
-		}
-		else{
-			NVMEV_ERROR("Doesn't not command.");
-			return len;
-		}
+		printk("return = %d\n", create_device(p));
 	}
 
+	else if(strcmp(cmd, "delete") == 0){
+		printk("delete implementation please");
+	}
+	else{
+		NVMEV_ERROR("Doesn't not command.");
+	}
+	
 	return len;
 }
 
@@ -1044,8 +853,6 @@ static void NVMeV_exit(void)
 
 	VDEV_FINALIZE(nvmev_vdev);*/
 
-	debugfs_remove(config_path);
-	debugfs_remove(debug_root);
 	NVMEV_INFO("Virtual NVMe device closed\n");
 }
 

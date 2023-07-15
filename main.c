@@ -458,10 +458,75 @@ static const struct file_operations debug_file_fops = {
 	.release = single_release,
 };
 
+static struct nvmev_dev *get_nvmev(const char *dev_name) {
+	struct nvmev_dev *cursor, *next;
+	struct nvmev_dev *result = NULL;
+
+	list_for_each_entry_safe(cursor, next, &nvmev->dev_list, list_elem) {
+		if (result == NULL && strcmp(dev_name, cursor->dev_name) == 0) {
+			result = cursor;
+			break;
+		}
+	}
+
+	return result;
+}
+
 static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
 	/* TODO: Need a function that search "nvnev-vdev" from file name. */
 	/* TODO: Print to file from nvmev_config data. */
-	return 0;
+	ssize_t len = 0;
+
+	const char *dev_name = kobj->name;
+	const char *file_name = attr->attr.name;
+
+	struct nvmev_dev *nvmev_vdev = get_nvmev(dev_name);
+	struct nvmev_config *cfg = NULL;
+
+	if (nvmev_vdev == NULL) {
+		printk("No dev");
+		return 0;
+	}
+
+	cfg = &nvmev_vdev->config;
+
+	if (strcmp(file_name, "read_times") == 0) {
+		len = sprintf(buf, "%u + %u x + %u", cfg->read_delay, cfg->read_time, cfg->read_trailing);
+	} else if (strcmp(file_name, "write_times") == 0) {
+		len = sprintf(buf, "%u + %u x + %u", cfg->write_delay, cfg->write_time, cfg->write_trailing);
+	} else if (strcmp(file_name, "io_units") == 0) {
+		len = sprintf(buf, "%u x %u", cfg->nr_io_units, cfg->io_unit_shift);
+	} else if (strcmp(file_name, "stat") == 0) {
+		int i;
+		unsigned int nr_in_flight = 0;
+		unsigned int nr_dispatch = 0;
+		unsigned int nr_dispatched = 0;
+		unsigned long long total_io = 0;
+		for (i = 1; i <= nvmev_vdev->nr_sq; i++) {
+			struct nvmev_submission_queue *sq = nvmev_vdev->sqes[i];
+			if (!sq)
+				continue;
+
+			len += sprintf(buf, "%2d: %2u %4u %4u %4u %4u %llu\n", i,
+				   		__get_nr_entries(i * 2, sq->queue_size), sq->stat.nr_in_flight,
+				   		sq->stat.max_nr_in_flight, sq->stat.nr_dispatch,
+				   		sq->stat.nr_dispatched, sq->stat.total_io);
+
+			nr_in_flight += sq->stat.nr_in_flight;
+			nr_dispatch += sq->stat.nr_dispatch;
+			nr_dispatched += sq->stat.nr_dispatched;
+			total_io += sq->stat.total_io;
+
+			barrier();
+			sq->stat.max_nr_in_flight = 0;
+		}
+		len += sprintf(buf, "total: %u %u %u %llu\n", nr_in_flight, nr_dispatch, nr_dispatched,
+			   total_io);
+	} else if (strcmp(file_name, "debug") == 0) {
+		/* Left for later use */
+	}
+
+	return len;
 }
 
 static ssize_t __sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, 
@@ -469,7 +534,59 @@ static ssize_t __sysfs_store(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	/* TODO: Need a function that search "nvnev-vdev" from file name. */
 	/* TODO: Scan from file to nvmev_config data. */
-	return 0;
+	ssize_t len = count;
+	unsigned int ret;
+	unsigned long long *old_stat;
+
+	const char *dev_name = kobj->name;
+	const char *file_name = attr->attr.name;
+
+	struct nvmev_dev *nvmev_vdev = get_nvmev(dev_name);
+	struct nvmev_config *cfg = NULL;
+
+	if (nvmev_vdev == NULL)
+		goto out;
+
+	cfg = &nvmev_vdev->config;
+
+	if (!strcmp(file_name, "read_times")) {
+		ret = sscanf(buf, "%u %u %u", &cfg->read_delay, &cfg->read_time, 
+				 &cfg->read_trailing);
+		//adjust_ftl_latency(0, cfg->read_time);
+	} else if (!strcmp(file_name, "write_times")) {
+		ret = sscanf(buf, "%u %u %u", &cfg->write_delay, &cfg->write_time,
+			     &cfg->write_trailing);
+		//adjust_ftl_latency(1, cfg->write_time);
+	} else if (!strcmp(file_name, "io_units")) {
+		ret = sscanf(buf, "%d %d", &cfg->nr_io_units, &cfg->io_unit_shift);
+		if (ret < 1)
+			goto out;
+
+		old_stat = nvmev_vdev->io_unit_stat;
+		nvmev_vdev->io_unit_stat =
+			kzalloc(sizeof(*nvmev_vdev->io_unit_stat) * cfg->nr_io_units, GFP_KERNEL);
+
+		mdelay(100); /* XXX: Delay the free of old stat so that outstanding
+						 * requests accessing the unit_stat are all returned
+						 */
+		kfree(old_stat);
+	} else if (!strcmp(file_name, "stat")) {
+		int i;
+		for (i = 1; i <= nvmev_vdev->nr_sq; i++) {
+			struct nvmev_submission_queue *sq = nvmev_vdev->sqes[i];
+			if (!sq)
+				continue;
+
+			memset(&sq->stat, 0x00, sizeof(sq->stat));
+		}
+	} else if (!strcmp(file_name, "debug")) {
+		/* Left for later use */
+	}
+
+out:
+	__print_perf_configs(nvmev_vdev);
+
+	return count;
 }
 
 
@@ -751,6 +868,7 @@ static int create_device(struct params *p) {
 	}
 	printk("print config\n");
 	__print_perf_configs(nvmev_vdev2);
+		strncpy(input, buf, min(count, sizeof(input)));
 	printk("proc\n");
 	NVMEV_IO_PROC_INIT(nvmev_vdev2);
 	printk("dispathcer\n");
@@ -837,7 +955,6 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 	if (!strcmp(filename, "config")) {
 	/* if config file then get parameter */
-		printk("%p %p %ld", input, buf, count);
 		strncpy(input, buf, min(count, sizeof(input)));
 		printk("Command Start, Command is %s\n", input);
 

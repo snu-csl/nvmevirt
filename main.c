@@ -483,8 +483,11 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->storage_mapped = memremap(nvmev_vdev->config.storage_start,
 					      nvmev_vdev->config.storage_size, MEMREMAP_WB);
 
+
 	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
+
+	printk("addr : %p\n",nvmev_vdev->storage_mapped);
 
 	nvmev_vdev->sysfs_root = kobject_create_and_add(nvmev_vdev->dev_name, nvmev->config_root);
 	nvmev_vdev->sysfs_read_times = &read_times_attr;
@@ -729,18 +732,15 @@ static int create_device(struct params *p) {
 	if (!NVMEV_PCI_INIT(nvmev_vdev)) {
 		goto ret_err;
 	}
-
-	/*
-	printk("print config\n");
+/*
 	__print_perf_configs(nvmev_vdev);
-	printk("proc\n");
+
 	NVMEV_IO_PROC_INIT(nvmev_vdev);
-	printk("dispathcer\n");
-	NVMEV_DISPATCHER_INIT(nvmev_vdev);
-	printk("bus\n");
-	pci_bus_add_devices(nvmev_vdev->virt_bus);
-	*/
 	
+	NVMEV_DISPATCHER_INIT(nvmev_vdev);
+	
+	pci_bus_add_devices(nvmev_vdev->virt_bus);
+*/	
 	NVMEV_INFO("Successfully created Virtual NVMe device\n");
 	
 	return 0;

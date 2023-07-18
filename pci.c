@@ -376,10 +376,10 @@ static struct pci_bus *__create_pci_bus(struct nvmev_dev * nvmev_vdev_in)
 		.write = nvmev_pci_write,
 	};
 	nvmev_vdev_in->pci_sd = (struct pci_sysdata) {
-		.domain = NVMEV_PCI_DOMAIN_NUM,
+		.domain = NVMEV_PCI_DOMAIN_NUM + pci_id_make,
 		.node = cpu_to_node(nvmev_vdev_in->config.cpu_nr_dispatcher),
 	};
-	nvmev_pci_bus = pci_scan_bus(NVMEV_PCI_BUS_NUM + pci_id_make, &nvmev_vdev_in->pci_ops, &nvmev_vdev_in->pci_sd);
+	nvmev_pci_bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_vdev_in->pci_ops, &nvmev_vdev_in->pci_sd);
 	pci_id_make++;
 	if (!nvmev_pci_bus) {
 		NVMEV_ERROR("Unable to create PCI bus\n");

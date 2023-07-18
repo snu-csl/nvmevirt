@@ -315,8 +315,10 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 		} else {
 			mask = 0x0;
 		}
-	} else {
+	} else if (where < OFFS_PCI_EXT_CAP) {
 		// PCIE_CAP
+	} else {
+		// PCI_EXT_CAP
 	}
 	NVMEV_DEBUG_VERBOSE("[W] 0x%x, mask: 0x%x, val: 0x%x -> 0x%x, size: %d, new: 0x%x\n", where, mask,
 		    val, _val, size, (val & (~mask)) | (_val & mask));
@@ -326,6 +328,17 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 
 	return 0;
 };
+
+static struct pci_ops nvmev_pci_ops = {
+	.read = nvmev_pci_read,
+	.write = nvmev_pci_write,
+};
+
+static struct pci_sysdata nvmev_pci_sysdata = {
+	.domain = NVMEV_PCI_DOMAIN_NUM,
+	.node = 0,
+};
+
 
 static void __dump_pci_dev(struct pci_dev *dev)
 {
@@ -372,17 +385,9 @@ static struct pci_bus *__create_pci_bus(void)
 	struct pci_bus *bus = NULL;
 	struct pci_dev *dev;
 
-	nvmev_vdev->pci_ops = (struct pci_ops){
-		.read = nvmev_pci_read,
-		.write = nvmev_pci_write,
-	};
+	nvmev_pci_sysdata.node = cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher);
 
-	nvmev_vdev->pci_sysdata = (struct pci_sysdata){
-		.domain = NVMEV_PCI_DOMAIN_NUM,
-		.node = cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher),
-	};
-
-	bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_vdev->pci_ops, &nvmev_vdev->pci_sysdata);
+	bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_pci_ops, &nvmev_pci_sysdata);
 
 	if (!bus) {
 		NVMEV_ERROR("Unable to create PCI bus\n");
@@ -414,7 +419,7 @@ static struct pci_bus *__create_pci_bus(void)
 		memset(nvmev_vdev->msix_table, 0x00, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE);
 	}
 
-	NVMEV_INFO("Virtual PCI bus created (node %d)\n", nvmev_vdev->pci_sysdata.node);
+	NVMEV_INFO("Virtual PCI bus created (node %d)\n", nvmev_pci_sysdata.node);
 
 	return bus;
 };
@@ -430,8 +435,7 @@ struct nvmev_dev *VDEV_INIT(void)
 	nvmev_vdev->pmcap = nvmev_vdev->virtDev + OFFS_PCI_PM_CAP;
 	nvmev_vdev->msixcap = nvmev_vdev->virtDev + OFFS_PCI_MSIX_CAP;
 	nvmev_vdev->pciecap = nvmev_vdev->virtDev + OFFS_PCIE_CAP;
-	nvmev_vdev->aercap = nvmev_vdev->virtDev + PCI_CFG_SPACE_SIZE;
-	nvmev_vdev->pcie_exp_cap = nvmev_vdev->virtDev + PCI_CFG_SPACE_SIZE;
+	nvmev_vdev->extcap = nvmev_vdev->virtDev + OFFS_PCI_EXT_CAP;
 
 	nvmev_vdev->admin_q = NULL;
 
@@ -469,7 +473,7 @@ void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev)
 		kfree(nvmev_vdev);
 }
 
-void PCI_HEADER_SETTINGS(struct pci_header *pcihdr, unsigned long base_pa)
+static void PCI_HEADER_SETTINGS(struct pci_header *pcihdr, unsigned long base_pa)
 {
 	pcihdr->id.did = NVMEV_DEVICE_ID;
 	pcihdr->id.vid = NVMEV_VENDOR_ID;
@@ -505,7 +509,7 @@ void PCI_HEADER_SETTINGS(struct pci_header *pcihdr, unsigned long base_pa)
 	pcihdr->intr.iline = NVMEV_INTX_IRQ;
 }
 
-void PCI_PMCAP_SETTINGS(struct pci_pm_cap *pmcap)
+static void PCI_PMCAP_SETTINGS(struct pci_pm_cap *pmcap)
 {
 	pmcap->pid.cid = PCI_CAP_ID_PM;
 	pmcap->pid.next = OFFS_PCI_MSIX_CAP;
@@ -515,7 +519,7 @@ void PCI_PMCAP_SETTINGS(struct pci_pm_cap *pmcap)
 	pmcap->pmcs.ps = PCI_PM_CAP_PME_D0 >> 16;
 }
 
-void PCI_MSIXCAP_SETTINGS(struct pci_msix_cap *msixcap)
+static void PCI_MSIXCAP_SETTINGS(struct pci_msix_cap *msixcap)
 {
 	msixcap->mxid.cid = PCI_CAP_ID_MSIX;
 	msixcap->mxid.next = OFFS_PCIE_CAP;
@@ -530,7 +534,7 @@ void PCI_MSIXCAP_SETTINGS(struct pci_msix_cap *msixcap)
 	msixcap->mpba.pbir = 0;
 }
 
-void PCI_PCIECAP_SETTINGS(struct pcie_cap *pciecap)
+static void PCI_PCIECAP_SETTINGS(struct pcie_cap *pciecap)
 {
 	pciecap->pxid.cid = PCI_CAP_ID_EXP;
 	pciecap->pxid.next = 0x0;
@@ -550,41 +554,57 @@ void PCI_PCIECAP_SETTINGS(struct pcie_cap *pciecap)
 	pciecap->pxdcap.flrc = 1;
 }
 
-void PCI_AERCAP_SETTINGS(struct aer_cap *aercap)
+static void PCI_EXTCAP_SETTINGS(struct pci_ext_cap *ext_cap)
 {
-	aercap->aerid.cid = PCI_EXT_CAP_ID_ERR;
-	aercap->aerid.cver = 1;
-	aercap->aerid.next = PCI_CFG_SPACE_SIZE + 0x50;
-}
+	off_t offset = 0;
+	void *ext_cap_base = ext_cap;
 
-void PCI_PCIE_EXTCAP_SETTINGS(struct pci_exp_hdr *exp_cap)
-{
-	struct pci_exp_hdr *pcie_exp_cap;
+	/* AER */
+	ext_cap->cid = PCI_EXT_CAP_ID_ERR;
+	ext_cap->cver = 1;
+	ext_cap->next = PCI_CFG_SPACE_SIZE + 0x50;
 
-	pcie_exp_cap = exp_cap + 0x50;
-	pcie_exp_cap->id.cid = PCI_EXT_CAP_ID_VC;
-	pcie_exp_cap->id.cver = 1;
-	pcie_exp_cap->id.next = PCI_CFG_SPACE_SIZE + 0x80;
+	ext_cap = ext_cap_base + 0x50;
+	ext_cap->cid = PCI_EXT_CAP_ID_VC;
+	ext_cap->cver = 1;
+	ext_cap->next = PCI_CFG_SPACE_SIZE + 0x80;
 
-	pcie_exp_cap = exp_cap + 0x80;
-	pcie_exp_cap->id.cid = PCI_EXT_CAP_ID_PWR;
-	pcie_exp_cap->id.cver = 1;
-	pcie_exp_cap->id.next = PCI_CFG_SPACE_SIZE + 0x90;
+	ext_cap = ext_cap_base + 0x80;
+	ext_cap->cid = PCI_EXT_CAP_ID_PWR;
+	ext_cap->cver = 1;
+	ext_cap->next = PCI_CFG_SPACE_SIZE + 0x90;
 
-	pcie_exp_cap = exp_cap + 0x90;
-	pcie_exp_cap->id.cid = PCI_EXT_CAP_ID_ARI;
-	pcie_exp_cap->id.cver = 1;
-	pcie_exp_cap->id.next = PCI_CFG_SPACE_SIZE + 0x170;
+	ext_cap = ext_cap_base + 0x90;
+	ext_cap->cid = PCI_EXT_CAP_ID_ARI;
+	ext_cap->cver = 1;
+	ext_cap->next = PCI_CFG_SPACE_SIZE + 0x170;
 
-	pcie_exp_cap = exp_cap + 0x170;
-	pcie_exp_cap->id.cid = PCI_EXT_CAP_ID_DSN;
-	pcie_exp_cap->id.cver = 1;
-	pcie_exp_cap->id.next = PCI_CFG_SPACE_SIZE + 0x1a0;
+	ext_cap = ext_cap_base + 0x170;
+	ext_cap->cid = PCI_EXT_CAP_ID_DSN;
+	ext_cap->cver = 1;
+	ext_cap->next = PCI_CFG_SPACE_SIZE + 0x1a0;
 
-	pcie_exp_cap = exp_cap + 0x1a0;
-	pcie_exp_cap->id.cid = PCI_EXT_CAP_ID_SECPCI;
-	pcie_exp_cap->id.cver = 1;
-	pcie_exp_cap->id.next = 0;
+	ext_cap = ext_cap_base + 0x1a0;
+	ext_cap->cid = PCI_EXT_CAP_ID_SECPCI;
+	ext_cap->cver = 1;
+	ext_cap->next = 0; 
+
+	/*
+	*(ext_cap + 1) = (struct pci_ext_cap) {
+		.id = {
+			.cid = 0xdead,
+			.cver = 0xc,
+			.next = 0xafe,
+		},
+	};
+
+	PCI_CFG_SPACE_SIZE + ...;
+
+	ext_cap = ext_cap + ...;
+	ext_cap->id.cid = PCI_EXT_CAP_ID_DVSEC;
+	ext_cap->id.cver = 1;
+	ext_cap->id.next = 0;
+	*/
 }
 
 bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev)
@@ -593,8 +613,7 @@ bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev)
 	PCI_PMCAP_SETTINGS(nvmev_vdev->pmcap);
 	PCI_MSIXCAP_SETTINGS(nvmev_vdev->msixcap);
 	PCI_PCIECAP_SETTINGS(nvmev_vdev->pciecap);
-	PCI_AERCAP_SETTINGS(nvmev_vdev->aercap);
-	PCI_PCIE_EXTCAP_SETTINGS(nvmev_vdev->pcie_exp_cap);
+	PCI_EXTCAP_SETTINGS(nvmev_vdev->extcap);
 
 #ifdef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 	__init_apicid_to_cpuid();

@@ -205,12 +205,9 @@ struct nvmev_dev {
 	struct pci_pm_cap *pmcap;
 	struct pci_msix_cap *msixcap;
 	struct pcie_cap *pciecap;
-	struct aer_cap *aercap;
-	struct pci_exp_hdr *pcie_exp_cap;
+	struct pci_ext_cap *extcap;
 
 	struct pci_dev *pdev;
-	struct pci_ops pci_ops;
-	struct pci_sysdata pci_sysdata;
 
 	struct nvmev_config config;
 	struct task_struct *nvmev_dispatcher;

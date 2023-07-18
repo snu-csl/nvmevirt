@@ -1,12 +1,14 @@
 KERNELDIR := /lib/modules/$(shell uname -r)/build
-PWD     := $(shell pwd)
+PWD       := $(shell pwd)
+INSTALL_MOD_PATH :=
+
+include Makefile.local
 
 default:
 		$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
-		cp nvmev.ko ~/share/modules/nvmev.ko
 
 install:
-	   $(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
+		$(MAKE) INSTALL_MOD_PATH="$(INSTALL_MOD_PATH)" -C $(KERNELDIR) modules_install
 
 .PHONY: clean
 clean:

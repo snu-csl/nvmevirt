@@ -481,7 +481,7 @@ static bool __load_configs(struct nvmev_config *config)
 	config->nr_io_units = nr_io_units;
 	config->io_unit_shift = io_unit_shift;
 
-	config->nr_io_cpu = 0;
+	config->nr_io_workers = 0;
 	config->cpu_nr_dispatcher = -1;
 
 	while ((cpu = strsep(&cpus, ",")) != NULL) {
@@ -489,8 +489,8 @@ static bool __load_configs(struct nvmev_config *config)
 		if (first) {
 			config->cpu_nr_dispatcher = cpu_nr;
 		} else {
-			config->cpu_nr_io_workers[config->nr_io_cpu] = cpu_nr;
-			config->nr_io_cpu++;
+			config->cpu_nr_io_workers[config->nr_io_workers] = cpu_nr;
+			config->nr_io_workers++;
 		}
 		first = false;
 	}

@@ -24,7 +24,7 @@ extern bool io_using_dma;
 static inline unsigned int __get_io_worker(int sqid)
 {
 #ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
-	return (sqid - 1) % nvmev_vdev->config.nr_io_cpu;
+	return (sqid - 1) % nvmev_vdev->config.nr_io_workers;
 #else
 	return nvmev_vdev->io_worker_turn;
 #endif
@@ -256,7 +256,7 @@ static struct nvmev_io_worker *__allocate_work_queue_entry(int sqid, unsigned in
 		return NULL;
 	}
 
-	if (++io_worker_turn == nvmev_vdev->config.nr_io_cpu)
+	if (++io_worker_turn == nvmev_vdev->config.nr_io_workers)
 		io_worker_turn = 0;
 	nvmev_vdev->io_worker_turn = io_worker_turn;
 
@@ -342,7 +342,7 @@ static void __reclaim_completed_reqs(void)
 {
 	unsigned int turn;
 
-	for (turn = 0; turn < nvmev_vdev->config.nr_io_cpu; turn++) {
+	for (turn = 0; turn < nvmev_vdev->config.nr_io_workers; turn++) {
 		struct nvmev_io_worker *worker;
 		struct nvmev_io_work *w;
 
@@ -683,10 +683,10 @@ void NVMEV_IO_WORKER_INIT(struct nvmev_dev *nvmev_vdev)
 	unsigned int i, worker_id;
 
 	nvmev_vdev->io_workers =
-		kcalloc(sizeof(struct nvmev_io_worker), nvmev_vdev->config.nr_io_cpu, GFP_KERNEL);
+		kcalloc(sizeof(struct nvmev_io_worker), nvmev_vdev->config.nr_io_workers, GFP_KERNEL);
 	nvmev_vdev->io_worker_turn = 0;
 
-	for (worker_id = 0; worker_id < nvmev_vdev->config.nr_io_cpu; worker_id++) {
+	for (worker_id = 0; worker_id < nvmev_vdev->config.nr_io_workers; worker_id++) {
 		struct nvmev_io_worker *worker = &nvmev_vdev->io_workers[worker_id];
 
 		worker->work_queue =
@@ -715,7 +715,7 @@ void NVMEV_IO_WORKER_FINAL(struct nvmev_dev *nvmev_vdev)
 {
 	unsigned int i;
 
-	for (i = 0; i < nvmev_vdev->config.nr_io_cpu; i++) {
+	for (i = 0; i < nvmev_vdev->config.nr_io_workers; i++) {
 		struct nvmev_io_worker *worker = &nvmev_vdev->io_workers[i];
 
 		if (!IS_ERR_OR_NULL(worker->task_struct)) {

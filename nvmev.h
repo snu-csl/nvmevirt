@@ -138,14 +138,14 @@ struct nvmev_config {
 	unsigned long storage_start; //byte
 	unsigned long storage_size; // byte
 
-	unsigned int nr_io_units;
-	unsigned int io_unit_shift; // 2^
-
 	unsigned int cpu_nr_dispatcher;
-	unsigned int nr_io_cpu;
+	unsigned int nr_io_workers;
 	unsigned int cpu_nr_io_workers[32];
 
 	/* TODO Refactoring storage configurations */
+	unsigned int nr_io_units;
+	unsigned int io_unit_shift; // 2^
+
 	unsigned int read_delay; // ns
 	unsigned int read_time; // ns
 	unsigned int read_trailing; // ns

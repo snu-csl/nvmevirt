@@ -125,7 +125,7 @@ static size_t allocate_mem_offset(struct kv_ftl *kv_ftl, struct nvme_kv_command 
 			NVMEV_ERROR("mem alloc failed");
 			return 0;
 		} else {
-			NVMEV_DEBUG("allocate memory offset %llu for %u %u\n", offset,
+			NVMEV_DEBUG("allocate memory offset %lu for %u %u\n", offset,
 				    cmd_key_length(cmd), cmd_value_length(cmd));
 			return offset;
 		}
@@ -146,7 +146,7 @@ static size_t allocate_mem_offset_by_length(struct kv_ftl *kv_ftl, int val_len)
 		NVMEV_ERROR("mem alloc failed");
 		return 0;
 	} else {
-		NVMEV_DEBUG("allocate memory offset %llu for %u\n", offset, val_len);
+		NVMEV_DEBUG("allocate memory offset %lu for %u\n", offset, val_len);
 		return offset;
 	}
 }
@@ -212,7 +212,7 @@ static unsigned int new_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_comm
 		chain_mapping(kv_ftl, prev_slot, slot);
 	}
 
-	NVMEV_DEBUG("New mapping entry key %s offset %llu length %u slot %u\n", cmd.kv_store.key,
+	NVMEV_DEBUG("New mapping entry key %s offset %lu length %u slot %u\n", cmd.kv_store.key,
 		    val_offset, cmd_value_length(cmd), slot);
 
 	return 0;
@@ -246,7 +246,7 @@ static unsigned int new_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsigned cha
 		chain_mapping(kv_ftl, prev_slot, slot);
 	}
 
-	NVMEV_DEBUG("New mapping entry key %s offset %llu length %u slot %u\n", key, val_offset,
+	NVMEV_DEBUG("New mapping entry key %s offset %lu length %u slot %u\n", key, val_offset,
 		    val_len, slot);
 
 	return 0;
@@ -290,7 +290,7 @@ static unsigned int update_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_c
 	}
 
 	if (found) {
-		NVMEV_DEBUG("Updating mapping length %llu to %u for key %s\n",
+		NVMEV_DEBUG("Updating mapping length %lu to %u for key %s\n",
 			    kv_ftl->kv_mapping_table[slot].length, cmd_value_length(cmd),
 			    cmd.kv_store.key);
 		kv_ftl->kv_mapping_table[slot].length = cmd_value_length(cmd);
@@ -357,7 +357,7 @@ static struct mapping_entry get_mapping_entry(struct kv_ftl *kv_ftl, struct nvme
 	if (!found)
 		NVMEV_DEBUG("No mapping found for key %s\n", cmd.kv_store.key);
 	else
-		NVMEV_DEBUG("Returning mapping %llu length %llu for key %s\n", mapping.mem_offset,
+		NVMEV_DEBUG("Returning mapping %lu length %lu for key %s\n", mapping.mem_offset,
 			    mapping.length, cmd.kv_store.key);
 
 	return mapping;
@@ -416,7 +416,7 @@ static struct mapping_entry get_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsi
 	if (!found)
 		NVMEV_DEBUG("No mapping found for key %s\n", key);
 	else
-		NVMEV_DEBUG("Returning mapping %llu length %llu for key %s\n", mapping.mem_offset,
+		NVMEV_DEBUG("Returning mapping %lu length %lu for key %s\n", mapping.mem_offset,
 			    mapping.length, key);
 
 	return mapping;
@@ -472,7 +472,7 @@ static struct mapping_entry delete_mapping_entry(struct kv_ftl *kv_ftl, struct n
 	if (!found)
 		NVMEV_DEBUG("No mapping found for key %s\n", cmd.kv_store.key);
 	else
-		NVMEV_DEBUG("Deleting mapping %llu length %llu for key %s\n", mapping.mem_offset,
+		NVMEV_DEBUG("Deleting mapping %lu length %lu for key %s\n", mapping.mem_offset,
 			    mapping.length, cmd.kv_store.key);
 
 	return mapping;
@@ -513,9 +513,9 @@ static unsigned int __do_perform_kv_io(struct kv_ftl *kv_ftl, struct nvme_kv_com
 			offset = new_offset;
 			is_insert = 1; // is insert
 
-			NVMEV_DEBUG("kv_store insert %s %llu\n", cmd.kv_store.key, offset);
+			NVMEV_DEBUG("kv_store insert %s %lu\n", cmd.kv_store.key, offset);
 		} else {
-			NVMEV_DEBUG("kv_store update %s %llu\n", cmd.kv_store.key, offset);
+			NVMEV_DEBUG("kv_store update %s %lu\n", cmd.kv_store.key, offset);
 
 			if (length != entry.length) {
 				if (length <= SMALL_LENGTH && entry.length <= SMALL_LENGTH) {
@@ -534,7 +534,7 @@ static unsigned int __do_perform_kv_io(struct kv_ftl *kv_ftl, struct nvme_kv_com
 		} else {
 			length = min(entry.length, length);
 
-			NVMEV_DEBUG("kv_retrieve %s exist - length %ld, offset %llu\n",
+			NVMEV_DEBUG("kv_retrieve %s exist - length %ld, offset %lu\n",
 				    cmd.kv_store.key, length, offset);
 		}
 	} else if (cmd.common.opcode == nvme_cmd_kv_exist) {
@@ -555,7 +555,7 @@ static unsigned int __do_perform_kv_io(struct kv_ftl *kv_ftl, struct nvme_kv_com
 			*status = KV_ERR_KEY_NOT_EXIST;
 			return 0; // dev_status_code for KVS_ERR_KEY_NOT_EXIST
 		} else {
-			NVMEV_DEBUG("kv_delete %s exist - length %ld, offset %llu\n",
+			NVMEV_DEBUG("kv_delete %s exist - length %ld, offset %lu\n",
 				    cmd.kv_store.key, length, offset);
 
 			delete_mapping_entry(kv_ftl, cmd);
@@ -645,7 +645,7 @@ static unsigned int __do_perform_kv_batched_io(struct kv_ftl *kv_ftl, int opcode
 			offset = new_offset;
 			is_insert = 1; // is insert
 		} else {
-			NVMEV_DEBUG("kv_store update %s %llu\n", key, offset);
+			NVMEV_DEBUG("kv_store update %s %lu\n", key, offset);
 
 			if (val_len != entry.length) {
 				if (val_len <= SMALL_LENGTH && entry.length <= SMALL_LENGTH) {
@@ -662,7 +662,7 @@ static unsigned int __do_perform_kv_batched_io(struct kv_ftl *kv_ftl, int opcode
 		return 0;
 	}
 
-	NVMEV_DEBUG("Value write length %lu to position %lu %s\n", val_len, offset, value);
+	NVMEV_DEBUG("Value write length %d to position %lu %s\n", val_len, offset, value);
 	memcpy(nvmev_vdev->storage_mapped + offset, value, val_len);
 
 	if (is_insert == 1) { // need to make new mapping
@@ -783,8 +783,7 @@ static unsigned int __do_perform_kv_batch(struct kv_ftl *kv_ftl, struct nvme_kv_
 	return 0;
 }
 
-unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
-				 unsigned int *status)
+unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd, unsigned int *status)
 {
 	int iter = 0;
 	bool flag = false;
@@ -812,8 +811,7 @@ unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
 	return iter;
 }
 
-unsigned int kv_iter_close(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
-				  unsigned int *status)
+unsigned int kv_iter_close(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd, unsigned int *status)
 {
 	int iter = cmd.kv_iter_req.iter_handle;
 
@@ -976,8 +974,8 @@ bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct 
 			   __get_wallclock(), ret->nsecs_target);
 		break;
 	default:
-		NVMEV_ERROR("%s: unimplemented command: %s(%d)\n", __func__,
-			   nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
+		NVMEV_ERROR("%s: command not implemented: %s (0x%x)\n", __func__,
+				nvme_opcode_string(cmd->common.opcode), cmd->common.opcode);
 		break;
 	}
 
@@ -989,8 +987,7 @@ bool kv_identify_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command cmd)
 	return is_kv_cmd(cmd.common.opcode);
 }
 
-unsigned int kv_perform_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command *cmd,
-					   uint32_t *status)
+unsigned int kv_perform_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command *cmd, uint32_t *status)
 {
 	struct kv_ftl *kv_ftl = (struct kv_ftl *)ns->ftls;
 	struct nvme_kv_command *kv_cmd = (struct nvme_kv_command *)cmd;
@@ -1011,7 +1008,7 @@ void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *ma
 
 	kv_ftl = kmalloc(sizeof(struct kv_ftl), GFP_KERNEL);
 
-	NVMEV_INFO("KV Mapping Table: %lx + %x\n",
+	NVMEV_INFO("KV mapping table: %#010lx-%#010x\n",
 		   nvmev_vdev->config.storage_start + nvmev_vdev->config.storage_size,
 		   KV_MAPPING_TABLE_SIZE);
 

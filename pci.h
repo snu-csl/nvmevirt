@@ -282,12 +282,14 @@ struct pcie_cap {
 	} pxdc2;
 };
 
-struct aer_cap {
-	struct {
-		u16 cid;
-		u16 cver : 4;
-		u16 next : 12;
-	} aerid;
+struct pci_ext_cap {
+	u16 cid;
+	u16 cver : 4;
+	u16 next : 12;
+};
+
+struct pci_ext_cap_aer {
+	struct pci_ext_cap id;
 	struct {
 		u32 rsvd : 4;
 		u32 dlpes : 1;
@@ -423,12 +425,9 @@ struct aer_cap {
 	} aertlp;
 };
 
-struct pci_exp_hdr {
-	struct {
-		u16 cid;
-		u16 cver : 4;
-		u16 next : 12;
-	} id;
+struct pci_ext_cap_dsn {
+	struct pci_ext_cap id;
+	u64 serial;
 };
 
 struct nvme_ctrl_regs {
@@ -541,18 +540,11 @@ struct nvme_ctrl_regs {
 	//uint32_t			cmbsz;  /* Controller Memory Buffer Size */
 };
 
-// HEADER Initialize
-void PCI_HEADER_SETTINGS(struct pci_header *pcihdr, unsigned long base_pa);
-void PCI_PMCAP_SETTINGS(struct pci_pm_cap *pmcap);
-void PCI_MSIXCAP_SETTINGS(struct pci_msix_cap *msixcap);
-void PCI_PCIECAP_SETTINGS(struct pcie_cap *pciecap);
-void PCI_AERCAP_SETTINGS(struct aer_cap *aercap);
-void PCI_PCIE_EXTCAP_SETTINGS(struct pci_exp_hdr *exp_cap);
 
 #define NVMEV_PCI_DOMAIN_NUM 0x0001
 #define NVMEV_PCI_BUS_NUM 0x10
 
-//[PCI_HEADER][PM_CAP][MSIX_CAP][PCIE_CAP]
+//[PCI_HEADER][PM_CAP][MSIX_CAP][PCIE_CAP] | [AER_CAP][EXT_CAP]
 #define SZ_PCI_HDR sizeof(struct pci_header) // 0
 #define SZ_PCI_PM_CAP sizeof(struct pci_pm_cap) // 0x40
 #define SZ_PCI_MSIX_CAP sizeof(struct pci_msix_cap) // 0x50
@@ -563,10 +555,13 @@ void PCI_PCIE_EXTCAP_SETTINGS(struct pci_exp_hdr *exp_cap);
 #define OFFS_PCI_MSIX_CAP 0x50
 #define OFFS_PCIE_CAP 0x60
 
-#define SZ_HEADER (0x60 + SZ_PCIE_CAP)
+#define SZ_HEADER (OFFS_PCIE_CAP + SZ_PCIE_CAP)
 
-#define PCI_CFG_SPACE_SIZE 256
-#define PCIE_EXPCAP_START 0x50
+//#define PCI_CFG_SPACE_SIZE 0x100
+#define PCI_EXT_CAP_START 0x50
+
+#define OFFS_PCI_EXT_CAP (PCI_CFG_SPACE_SIZE)
+
 
 enum {
 	CAP_CSS_BIT_NVM = (1 << 0),

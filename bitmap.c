@@ -78,7 +78,7 @@ size_t bitmap_allocate(u64 length, void *args)
 
 		calculated_offset = dev_size / 2 + off * LARGE_LENGTH;
 
-		NVMEV_DEBUG("large_allocate(%llu): returning offset %llu, %luth bitmap index",
+		NVMEV_DEBUG("large_allocate(%llu): returning offset %lu, %luth bitmap index",
 			    length, calculated_offset, off);
 
 		large_capacity++;
@@ -96,7 +96,7 @@ size_t bitmap_allocate(u64 length, void *args)
 
 		calculated_offset = off * SMALL_LENGTH;
 
-		NVMEV_DEBUG("small_allocate(%llu): returning offset %llu, %luth bitmap index",
+		NVMEV_DEBUG("small_allocate(%llu): returning offset %lu, %luth bitmap index",
 			    length, calculated_offset, off);
 
 		small_capacity++;

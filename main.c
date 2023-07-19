@@ -61,10 +61,10 @@
  * 2. Memmap size
  ****************************************************************/
 
-struct nvmev_dev *nvmev_vdev=NULL;
+struct nvmev_dev *nvmev_vdev = NULL;
 
-struct dentry * debug_root;
-struct dentry * config_path;
+struct dentry *debug_root;
+struct dentry *config_path;
 
 LIST_HEAD(devices);
 static unsigned int nr_dev = 0;
@@ -73,7 +73,7 @@ struct nvmev *nvmev = NULL;
 int io_using_dma = false;
 
 //char input[128] ={0,};
-char * cmd;
+char *cmd;
 DEFINE_SPINLOCK(config_file_lock);
 int dir_num = 0;
 
@@ -113,7 +113,6 @@ static unsigned int io_unit_shift = 12;
 
 static char *cpus;
 static unsigned int debug = 0;
-
 
 static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
 {
@@ -178,7 +177,8 @@ static void nvmev_proc_dbs(struct nvmev_dev *nvmev_vdev)
 		new_db = nvmev_vdev->dbs[dbs_idx];
 		old_db = nvmev_vdev->old_dbs[dbs_idx];
 		if (new_db != old_db) {
-			nvmev_vdev->old_dbs[dbs_idx] = nvmev_proc_io_sq(qid, new_db, old_db,nvmev_vdev);
+			nvmev_vdev->old_dbs[dbs_idx] =
+				nvmev_proc_io_sq(qid, new_db, old_db, nvmev_vdev);
 		}
 	}
 
@@ -190,7 +190,7 @@ static void nvmev_proc_dbs(struct nvmev_dev *nvmev_vdev)
 		new_db = nvmev_vdev->dbs[dbs_idx];
 		old_db = nvmev_vdev->old_dbs[dbs_idx];
 		if (new_db != old_db) {
-			nvmev_proc_io_cq(qid, new_db, old_db,nvmev_vdev);
+			nvmev_proc_io_cq(qid, new_db, old_db, nvmev_vdev);
 			nvmev_vdev->old_dbs[dbs_idx] = new_db;
 		}
 	}
@@ -215,17 +215,18 @@ static int nvmev_dispatcher(void *data)
 
 static void NVMEV_DISPATCHER_INIT(struct nvmev_dev *nvmev_vdev)
 {
-	nvmev_vdev->nvmev_manager = kthread_create(nvmev_dispatcher, nvmev_vdev, "nvmev_dispatcher");
+	nvmev_vdev->nvmev_dispatcher =
+		kthread_create(nvmev_dispatcher, nvmev_vdev, "nvmev_dispatcher");
 	if (nvmev_vdev->config.cpu_nr_dispatcher != -1)
-		kthread_bind(nvmev_vdev->nvmev_manager, nvmev_vdev->config.cpu_nr_dispatcher);
-	wake_up_process(nvmev_vdev->nvmev_manager);
+		kthread_bind(nvmev_vdev->nvmev_dispatcher, nvmev_vdev->config.cpu_nr_dispatcher);
+	wake_up_process(nvmev_vdev->nvmev_dispatcher);
 }
 
-static void NVMEV_REG_PROC_FINAL(struct nvmev_dev *nvmev_vdev)
+static void NVMEV_DISPATCHER_FINAL(struct nvmev_dev *nvmev_vdev)
 {
-	if (!IS_ERR_OR_NULL(nvmev_vdev->nvmev_manager)) {
-		kthread_stop(nvmev_vdev->nvmev_manager);
-		nvmev_vdev->nvmev_manager = NULL;
+	if (!IS_ERR_OR_NULL(nvmev_vdev->nvmev_dispatcher)) {
+		kthread_stop(nvmev_vdev->nvmev_dispatcher);
+		nvmev_vdev->nvmev_dispatcher = NULL;
 	}
 }
 
@@ -327,7 +328,8 @@ static int __get_nr_entries(int dbs_idx, int queue_size)
 	return diff;
 }
 
-static struct nvmev_dev *__get_nvmev(const char *dev_name) {
+static struct nvmev_dev *__get_nvmev(const char *dev_name)
+{
 	struct nvmev_dev *cursor, *next;
 	struct nvmev_dev *result = NULL;
 
@@ -341,7 +343,8 @@ static struct nvmev_dev *__get_nvmev(const char *dev_name) {
 	return result;
 }
 
-static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
+static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
 	/* TODO: Need a function that search "nvnev-vdev" from file name. */
 	/* TODO: Print to file from nvmev_config data. */
 	ssize_t len = 0;
@@ -377,9 +380,10 @@ static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, c
 				continue;
 
 			len += sprintf(buf, "%2d: %2u %4u %4u %4u %4u %llu\n", i,
-				   		__get_nr_entries(i * 2, sq->queue_size), sq->stat.nr_in_flight,
-				   		sq->stat.max_nr_in_flight, sq->stat.nr_dispatch,
-				   		sq->stat.nr_dispatched, sq->stat.total_io);
+				       __get_nr_entries(i * 2, sq->queue_size),
+				       sq->stat.nr_in_flight, sq->stat.max_nr_in_flight,
+				       sq->stat.nr_dispatch, sq->stat.nr_dispatched,
+				       sq->stat.total_io);
 
 			nr_in_flight += sq->stat.nr_in_flight;
 			nr_dispatch += sq->stat.nr_dispatch;
@@ -389,8 +393,8 @@ static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, c
 			barrier();
 			sq->stat.max_nr_in_flight = 0;
 		}
-		len += sprintf(buf, "total: %u %u %u %llu\n", nr_in_flight, nr_dispatch, nr_dispatched,
-			   total_io);
+		len += sprintf(buf, "total: %u %u %u %llu\n", nr_in_flight, nr_dispatch,
+			       nr_dispatched, total_io);
 	} else if (strcmp(file_name, "debug") == 0) {
 		/* Left for later use */
 	}
@@ -398,8 +402,8 @@ static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, c
 	return len;
 }
 
-static ssize_t __sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, 
-							const char *buf, size_t count)
+static ssize_t __sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf,
+			     size_t count)
 {
 	/* TODO: Need a function that search "nvnev-vdev" from file name. */
 	/* TODO: Scan from file to nvmev_config data. */
@@ -419,8 +423,8 @@ static ssize_t __sysfs_store(struct kobject *kobj, struct kobj_attribute *attr,
 	cfg = &nvmev_vdev->config;
 
 	if (!strcmp(file_name, "read_times")) {
-		ret = sscanf(buf, "%u %u %u", &cfg->read_delay, &cfg->read_time, 
-				 &cfg->read_trailing);
+		ret = sscanf(buf, "%u %u %u", &cfg->read_delay, &cfg->read_time,
+			     &cfg->read_trailing);
 		//adjust_ftl_latency(0, cfg->read_time);
 	} else if (!strcmp(file_name, "write_times")) {
 		ret = sscanf(buf, "%u %u %u", &cfg->write_delay, &cfg->write_time,
@@ -458,24 +462,22 @@ out:
 	return count;
 }
 
-
-static struct kobj_attribute read_times_attr = 
-		__ATTR(read_times, 0644, __sysfs_show, __sysfs_store);
-static struct kobj_attribute write_times_attr = 
-		__ATTR(write_times, 0644, __sysfs_show, __sysfs_store);
-static struct kobj_attribute io_units_attr = 
-		__ATTR(io_units, 0644, __sysfs_show, __sysfs_store);
-static struct kobj_attribute stat_attr = 
-		__ATTR(stat, 0644, __sysfs_show, __sysfs_store);
-static struct kobj_attribute debug_attr = 
-		__ATTR(debug, 0644, __sysfs_show, __sysfs_store);
+static struct kobj_attribute read_times_attr =
+	__ATTR(read_times, 0644, __sysfs_show, __sysfs_store);
+static struct kobj_attribute write_times_attr =
+	__ATTR(write_times, 0644, __sysfs_show, __sysfs_store);
+static struct kobj_attribute io_units_attr = __ATTR(io_units, 0644, __sysfs_show, __sysfs_store);
+static struct kobj_attribute stat_attr = __ATTR(stat, 0644, __sysfs_show, __sysfs_store);
+static struct kobj_attribute debug_attr = __ATTR(debug, 0644, __sysfs_show, __sysfs_store);
 
 void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 {
 	int ret = 0;
 
-	NVMEV_INFO("Storage : %lx + %lx\n", nvmev_vdev->config.storage_start,
-		   nvmev_vdev->config.storage_size);
+	NVMEV_INFO("Storage: %#010lx-%#010lx (%lu MiB)\n",
+			nvmev_vdev->config.storage_start,
+			nvmev_vdev->config.storage_start + nvmev_vdev->config.storage_size,
+			BYTE_TO_MB(nvmev_vdev->config.storage_size));
 
 	nvmev_vdev->io_unit_stat = kzalloc(
 		sizeof(*nvmev_vdev->io_unit_stat) * nvmev_vdev->config.nr_io_units, GFP_KERNEL);
@@ -483,11 +485,10 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->storage_mapped = memremap(nvmev_vdev->config.storage_start,
 					      nvmev_vdev->config.storage_size, MEMREMAP_WB);
 
-
 	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
 
-	printk("addr : %p\n",nvmev_vdev->storage_mapped);
+	printk("addr : %p\n", nvmev_vdev->storage_mapped);
 
 	nvmev_vdev->sysfs_root = kobject_create_and_add(nvmev_vdev->dev_name, nvmev->config_root);
 	nvmev_vdev->sysfs_read_times = &read_times_attr;
@@ -520,7 +521,7 @@ void NVMEV_STORAGE_FINAL(struct nvmev_dev *nvmev_vdev)
 		kfree(nvmev_vdev->io_unit_stat);
 }
 
-static bool __load_configs(struct nvmev_config *config,struct params *p)
+static bool __load_configs(struct nvmev_config *config, struct params *p)
 {
 	bool first = true;
 	unsigned int cpu_nr;
@@ -549,7 +550,7 @@ static bool __load_configs(struct nvmev_config *config,struct params *p)
 	config->nr_io_units = p->nr_io_units;
 	config->io_unit_shift = p->io_unit_shift;
 
-	config->nr_io_cpu = 0;
+	config->nr_io_workers = 0;
 	config->cpu_nr_dispatcher = -1;
 
 	while ((cpu = strsep(&cpus, ",")) != NULL) {
@@ -557,8 +558,8 @@ static bool __load_configs(struct nvmev_config *config,struct params *p)
 		if (first) {
 			config->cpu_nr_dispatcher = cpu_nr;
 		} else {
-			config->cpu_nr_io_workers[config->nr_io_cpu] = cpu_nr;
-			config->nr_io_cpu++;
+			config->cpu_nr_io_workers[config->nr_io_workers] = cpu_nr;
+			config->nr_io_workers++;
 		}
 		first = false;
 	}
@@ -592,12 +593,11 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
 			kv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else
-			NVMEV_ASSERT(0);
+			BUG_ON(1);
 
 		remaining_capacity -= size;
 		ns_addr += size;
-		NVMEV_INFO("[%s] ns=%d ns_addr=%p ns_size=%lld(MiB) \n", __FUNCTION__, i,
-			   ns[i].mapped, BYTE_TO_MB(ns[i].size));
+		NVMEV_INFO("ns %d/%d: size %lld MiB\n", i, nr_ns, BYTE_TO_MB(ns[i].size));
 	}
 
 	nvmev_vdev->ns = ns;
@@ -621,16 +621,17 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
 			kv_remove_namespace(&ns[i]);
 		else
-			NVMEV_ASSERT(0);
+			BUG_ON(1);
 	}
 
 	kfree(ns);
 	nvmev_vdev->ns = NULL;
 }
-static char *parse_to_cmd(char *cmd_line){
+static char *parse_to_cmd(char *cmd_line)
+{
 	char *command;
 
-	if(cmd_line == NULL)
+	if (cmd_line == NULL)
 		return NULL;
 
 	command = strsep(&cmd_line, " ");
@@ -638,18 +639,18 @@ static char *parse_to_cmd(char *cmd_line){
 	return command;
 }
 
-static void parse_command(char *cmd_line, struct params *p){
+static void parse_command(char *cmd_line, struct params *p)
+{
 	char *arg;
 	char *param, *val;
 
-	if(cmd_line == NULL){
+	if (cmd_line == NULL) {
 		NVMEV_ERROR("cmd_line is NULL");
 		return;
 	}
 
-	while ((arg = strsep(&cmd_line, " ")) != NULL){
-		
-		next_arg(arg,&param, &val);
+	while ((arg = strsep(&cmd_line, " ")) != NULL) {
+		next_arg(arg, &param, &val);
 
 		if (strcmp(param, "memmap_start") == 0)
 			p->memmap_start = memparse(val, NULL);
@@ -665,7 +666,8 @@ static void parse_command(char *cmd_line, struct params *p){
 	}
 }
 
-static struct params *PARAM_INIT(void) {
+static struct params *PARAM_INIT(void)
+{
 	struct params *params;
 
 	params = kzalloc(sizeof(struct params), GFP_KERNEL);
@@ -692,22 +694,47 @@ static struct params *PARAM_INIT(void) {
 	return params;
 }
 
-static int create_device(struct params *p) {
-	struct nvmev_dev *nvmev_vdev;
+static void __print_base_config(void)
+{
+	const char *type = "unknown";
+	switch (BASE_SSD) {
+	case INTEL_OPTANE:
+		type = "NVM SSD";
+		break;
+	case SAMSUNG_970PRO:
+		type = "Samsung 970 Pro SSD";
+		break;
+	case ZNS_PROTOTYPE:
+		type = "ZNS SSD Prototype";
+		break;
+	case KV_PROTOTYPE:
+		type = "KVSSD Prototype";
+		break;
+	case WD_ZN540:
+		type = "WD ZN540 ZNS SSD";
+		break;
+	}
 
+	NVMEV_INFO("Version %x.%x for >> %s <<\n",
+			(NVMEV_VERSION & 0xff00) >> 8, (NVMEV_VERSION & 0x00ff), type);
+}
+
+static int create_device(struct params *p)
+{
+	struct nvmev_dev *nvmev_vdev;
 	nvmev_vdev = VDEV_INIT();
 	if (!nvmev_vdev)
 		return -EINVAL;
 
 	if (!__load_configs(&nvmev_vdev->config, p)) {
-			goto ret_err;
+		goto ret_err;
 	}
 
 	/* Put the list of devices for managing. */
 	INIT_LIST_HEAD(&nvmev_vdev->list_elem);
 	list_add(&nvmev_vdev->list_elem, &nvmev->dev_list);
-	
-	/* Alloc dev ID from number of device. */	
+
+	/* Alloc dev ID from number of device. */
 	nvmev_vdev->dev_id = nvmev->nr_dev++;
 
 	/* Load name. */
@@ -721,7 +748,7 @@ static int create_device(struct params *p) {
 	NVMEV_STORAGE_INIT(nvmev_vdev);
 
 	NVMEV_NAMESPACE_INIT(nvmev_vdev);
-	
+
 	if (io_using_dma) {
 		if (ioat_dma_chan_set("dma7chan0") != 0) {
 			io_using_dma = false;
@@ -735,29 +762,30 @@ static int create_device(struct params *p) {
 /*
 	__print_perf_configs(nvmev_vdev);
 
-	NVMEV_IO_PROC_INIT(nvmev_vdev);
-	
+	NVMEV_IO_WORKER_INIT(nvmev_vdev);
 	NVMEV_DISPATCHER_INIT(nvmev_vdev);
 	
 	pci_bus_add_devices(nvmev_vdev->virt_bus);
 */	
-	NVMEV_INFO("Successfully created Virtual NVMe device\n");
-	
+
+	NVMEV_INFO("Virtual NVMe device created\n");
+
 	return 0;
 
 ret_err:
 	printk("error......\n");
 	list_del(&nvmev_vdev->list_elem);
 	VDEV_FINALIZE(nvmev_vdev);
-	return -EIO; 
+	return -EIO;
 }
 
-static ssize_t __config_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
+static ssize_t __config_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
 	return 0;
 }
 
-static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr, 
-							const char __user *buf, size_t count)
+static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
+			      const char __user *buf, size_t count)
 {
 	ssize_t len = count;
 	const char *filename = attr->attr.name;
@@ -770,10 +798,10 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 	printk("Command Start, Command is %s\n", input);
 
 	cmd = parse_to_cmd(input);
-	
-	if(strcmp(cmd, "create") == 0) {
+
+	if (strcmp(cmd, "create") == 0) {
 		p = PARAM_INIT();
-		parse_command(input+(sizeof(cmd)-1), p);
+		parse_command(input + (sizeof(cmd) - 1), p);
 		printk("Memmap_start = %ld\n", p->memmap_start);
 		printk("Memmap_size = %ld\n", p->memmap_size);
 		printk("cpus = %s\n", p->cpus);
@@ -785,13 +813,12 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 		printk("return = %d\n", create_device(p));
 	}
 
-	else if(strcmp(cmd, "delete") == 0){
+	else if (strcmp(cmd, "delete") == 0) {
 		printk("delete implementation please");
-	}
-	else{
+	} else {
 		NVMEV_ERROR("Doesn't not command.");
 	}
-	
+
 	return len;
 }
 
@@ -800,7 +827,7 @@ static struct kobj_attribute config_attr = __ATTR(config, 0664, __config_show, _
 static int NVMeV_init(void)
 {
 	int ret = 0;
-	nvmev_vdev=NULL;
+	nvmev_vdev = NULL;
 
 	nvmev = kzalloc(sizeof(struct nvmev), GFP_KERNEL);
 
@@ -809,32 +836,31 @@ static int NVMeV_init(void)
 
 	nvmev->config_root = kobject_create_and_add("nvmevirt", NULL);
 	nvmev->config_attr = &config_attr;
-	
-	if(sysfs_create_file(nvmev->config_root, &nvmev->config_attr->attr)) {
+
+	if (sysfs_create_file(nvmev->config_root, &nvmev->config_attr->attr)) {
 		printk("Cannot create sysfs file...\n");
 		return -EIO;
 	}
-	
+
 	NVMEV_INFO("Successfully load Virtual NVMe device module\n");
 	return 0;
 
-//ret_err:
-//	VDEV_FINALIZE(nvmev_vdev);
-//	return -EIO;
-
+	//ret_err:
+	//	VDEV_FINALIZE(nvmev_vdev);
+	//	return -EIO;
 }
 
 static void NVMeV_exit(void)
 {
-/*	int i;
+	/*	int i;
 
 	if (nvmev_vdev->virt_bus != NULL) {
 		pci_stop_root_bus(nvmev_vdev->virt_bus);
 		pci_remove_root_bus(nvmev_vdev->virt_bus);
 	}
 
-	NVMEV_REG_PROC_FINAL(nvmev_vdev);
-	NVMEV_IO_PROC_FINAL(nvmev_vdev);
+	NVMEV_DISPATCHER_FINAL(nvmev_vdev);
+	NVMEV_IO_WORKER_FINAL(nvmev_vdev);
 
 	NVMEV_NAMESPACE_FINAL(nvmev_vdev);
 	NVMEV_STORAGE_FINAL(nvmev_vdev);

@@ -90,7 +90,6 @@ static char test_channel[CHANNEL_NAME_LEN];
 /* Maximum amount of mismatched bytes in buffer to print */
 #define MAX_ERROR_COUNT 32
 
-
 static struct ioat_dma_thread dma_thread;
 
 static bool ioat_dma_match_channel(struct ioat_dma_params *params, struct dma_chan *chan)
@@ -111,7 +110,7 @@ static void result(const char *err, unsigned int n, dma_addr_t src_addr, dma_add
 		   unsigned int len, unsigned long data)
 {
 	pr_debug("%s: result #%u: '%s' with src_addr=0x%llx dst_addr=0x%llx len=0x%x (%ld)\n",
-			current->comm, n, err, src_addr, dst_addr, len, data);
+		 current->comm, n, err, src_addr, dst_addr, len, data);
 }
 
 int ioat_dma_submit(dma_addr_t src_addr, dma_addr_t dst_addr, unsigned int size)
@@ -122,7 +121,7 @@ int ioat_dma_submit(dma_addr_t src_addr, dma_addr_t dst_addr, unsigned int size)
 	struct dma_device *dev;
 	dma_cookie_t cookie;
 	enum dma_status status;
-	enum dma_ctrl_flags flags = DMA_CTRL_ACK;	/* Always use polled mode */
+	enum dma_ctrl_flags flags = DMA_CTRL_ACK; /* Always use polled mode */
 	int ret;
 	int i;
 	struct dma_async_tx_descriptor *tx = NULL;

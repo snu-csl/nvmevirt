@@ -5,7 +5,7 @@
 #include "zns_ftl.h"
 
 void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
-			      struct buffer *write_buffer, size_t buffs_to_release);
+				 struct buffer *write_buffer, size_t buffs_to_release);
 
 static inline uint32_t __nr_lbas_from_rw_cmd(struct nvme_rw_command *cmd)
 {
@@ -37,7 +37,7 @@ static void __increase_write_ptr(struct zns_ftl *zns_ftl, uint32_t zid, uint32_t
 
 		change_zone_state(zns_ftl, zid, ZONE_STATE_FULL);
 	} else if (cur_write_ptr > (zone_to_slba(zns_ftl, zid) + zone_capacity)) {
-		NVMEV_ERROR("[%s] Write Boundary error!!\n", __FUNCTION__);
+		NVMEV_ERROR("[%s] Write Boundary error!!\n", __func__);
 	}
 }
 
@@ -96,7 +96,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	elpn = lba_to_lpn(zns_ftl, slba + nr_lba - 1);
 	zone_elpn = zone_to_elpn(zns_ftl, zid);
 
-	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n", __FUNCTION__, slba,
+	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n", __func__, slba,
 			nr_lba, zid, state);
 
 	if (zns_ftl->zp.zone_wb_size)
@@ -121,7 +121,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	// check if slba == current write pointer
 	if (slba != zone_descs[zid].wp) {
 		NVMEV_ERROR("%s WP error slba 0x%llx nr_lba 0x%llx zone_id %d wp %llx state %d\n",
-			    __FUNCTION__, slba, nr_lba, zid, zns_ftl->zone_descs[zid].wp, state);
+			    __func__, slba, nr_lba, zid, zns_ftl->zone_descs[zid].wp, state);
 		status = NVME_SC_ZNS_INVALID_WRITE;
 		goto out;
 	}
@@ -194,19 +194,21 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 				.ppa = &ppa,
 			};
 			size_t bufs_to_release;
-			uint32_t unaligned_space = zns_ftl->zp.zone_size % (spp->pgs_per_oneshotpg * spp->pgsz);
+			uint32_t unaligned_space =
+				zns_ftl->zp.zone_size % (spp->pgs_per_oneshotpg * spp->pgsz);
 			uint64_t nsecs_completed = ssd_advance_nand(zns_ftl->ssd, &swr);
 
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
 			NVMEV_ZNS_DEBUG("%s Flush slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n",
-					__FUNCTION__, slba, nr_lba, zid, state);
+					__func__, slba, nr_lba, zid, state);
 
 			if (((lpn + pgs - 1) == zone_elpn) && (unaligned_space > 0))
 				bufs_to_release = unaligned_space;
 			else
 				bufs_to_release = spp->pgs_per_oneshotpg * spp->pgsz;
 
-			schedule_internal_operation(req->sq_id, nsecs_completed, write_buffer, bufs_to_release);
+			schedule_internal_operation(req->sq_id, nsecs_completed, write_buffer,
+						    bufs_to_release);
 		}
 	}
 
@@ -255,7 +257,7 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 
 	NVMEV_DEBUG(
 		"%s slba 0x%llx nr_lba 0x%llx zone_id %d state %d wp 0x%llx zrwa_impl_start 0x%llx zrwa_impl_end 0x%llx  buffer %lu\n",
-		__FUNCTION__, slba, nr_lba, zid, state, prev_wp, zrwa_impl_start, zrwa_impl_end,
+		__func__, slba, nr_lba, zid, state, prev_wp, zrwa_impl_start, zrwa_impl_end,
 		zns_ftl->zwra_buffer[zid].remaining);
 
 	if ((LBA_TO_BYTE(nr_lba) % spp->write_unit_size) != 0) {
@@ -272,7 +274,7 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	// valid range : wp <=  <= wp + 2*(size of zwra) -1
 	if (slba < zone_descs[zid].wp || elba > zrwa_impl_end) {
 		NVMEV_ERROR("%s slba 0x%llx nr_lba 0x%llx zone_id %d wp 0x%llx state %d\n",
-			    __FUNCTION__, slba, nr_lba, zid, zone_descs[zid].wp, state);
+			    __func__, slba, nr_lba, zid, zone_descs[zid].wp, state);
 		status = NVME_SC_ZNS_INVALID_WRITE;
 		goto out;
 	}
@@ -316,14 +318,14 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 				lbas_per_zrwafg;
 
 		NVMEV_DEBUG("%s implicitly flush zid %d wp before 0x%llx after 0x%llx buffer %lu",
-			    __FUNCTION__, zid, prev_wp, zone_descs[zid].wp + nr_lbas_flush,
+			    __func__, zid, prev_wp, zone_descs[zid].wp + nr_lbas_flush,
 			    zns_ftl->zwra_buffer[zid].remaining);
 	} else if (elba == zone_to_elba(zns_ftl, zid)) {
 		// Workaround. move wp to end of the zone and make state full implicitly
 		nr_lbas_flush = elba - prev_wp + 1;
 
 		NVMEV_DEBUG("%s end of zone zid %d wp before 0x%llx after 0x%llx buffer %lu",
-			    __FUNCTION__, zid, prev_wp, zone_descs[zid].wp + nr_lbas_flush,
+			    __func__, zid, prev_wp, zone_descs[zid].wp + nr_lbas_flush,
 			    zns_ftl->zwra_buffer[zid].remaining);
 	}
 
@@ -358,8 +360,8 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
 
 			schedule_internal_operation(req->sq_id, nsecs_completed,
-						 &zns_ftl->zwra_buffer[zid],
-						 spp->pgs_per_oneshotpg * spp->pgsz);
+						    &zns_ftl->zwra_buffer[zid],
+						    spp->pgs_per_oneshotpg * spp->pgsz);
 		}
 
 		lpn += pgs;
@@ -388,7 +390,7 @@ bool zns_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resu
 	// get zone from start_lba
 	uint32_t zid = lpn_to_zone(zns_ftl, slpn);
 
-	NVMEV_DEBUG("%s slba 0x%llx zone_id %d \n", __FUNCTION__, cmd->slba, zid);
+	NVMEV_DEBUG("%s slba 0x%llx zone_id %d \n", __func__, cmd->slba, zid);
 
 	if (zone_descs[zid].zrwav == 0)
 		return __zns_write(zns_ftl, req, ret);
@@ -421,7 +423,7 @@ bool zns_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resul
 
 	NVMEV_ZNS_DEBUG(
 		"%s slba 0x%llx nr_lba 0x%lx zone_id %d state %d wp 0x%llx last lba 0x%llx\n",
-		__FUNCTION__, slba, nr_lba, zid, zone_descs[zid].state, zone_descs[zid].wp,
+		__func__, slba, nr_lba, zid, zone_descs[zid].state, zone_descs[zid].wp,
 		(slba + nr_lba - 1));
 
 	if (zone_descs[zid].state == ZONE_STATE_OFFLINE) {

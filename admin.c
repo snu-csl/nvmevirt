@@ -9,10 +9,42 @@
 #define cq_entry(entry_id) \
 	queue->nvme_cq[CQ_ENTRY_TO_PAGE_NUM(entry_id)][CQ_ENTRY_TO_PAGE_OFFSET(entry_id)]
 
-#define prp_address_offset(prp, offset) (page_address(pfn_to_page(prp >> PAGE_SHIFT) + offset) + (prp & ~PAGE_MASK))
+#define prp_address_offset(prp, offset) \
+	(page_address(pfn_to_page(prp >> PAGE_SHIFT) + offset) + (prp & ~PAGE_MASK))
 #define prp_address(prp) prp_address_offset(prp, 0)
 
-static void __nvmev_admin_create_cq(int eid, int cq_head)
+static void __make_cq_entry_results(int eid, u16 ret, u32 result0, u32 result1)
+{
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
+	struct nvme_common_command *cmd = &sq_entry(eid).common;
+	int cq_head = queue->cq_head;
+
+	cq_entry(cq_head) = (struct nvme_completion) {
+		.command_id = cmd->command_id,
+		.sq_id = 0,
+		.sq_head = eid,
+		.result0 = result0,
+		.result1 = result1,
+		.status = queue->phase | (ret << 1),
+	};
+
+	if (++cq_head == queue->cq_depth) {
+		cq_head = 0;
+		queue->phase = !queue->phase;
+	}
+	queue->cq_head = cq_head;
+}
+
+static void __make_cq_entry(int eid, u16 ret)
+{
+	__make_cq_entry_results(eid, ret, 0, 0);
+}
+
+
+/***
+ * Queue managements
+ */
+static void __nvmev_admin_create_cq(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvmev_completion_queue *cq;
@@ -54,13 +86,10 @@ static void __nvmev_admin_create_cq(int eid, int cq_head)
 	dbs_idx = cq->qid * 2 + 1;
 	nvmev_vdev->dbs[dbs_idx] = nvmev_vdev->old_dbs[dbs_idx] = 0;
 
-	cq_entry(cq_head).command_id = cmd->command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
-static void __nvmev_admin_delete_cq(int eid, int cq_head)
+static void __nvmev_admin_delete_cq(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvmev_completion_queue *cq;
@@ -76,17 +105,14 @@ static void __nvmev_admin_delete_cq(int eid, int cq_head)
 		kfree(cq);
 	}
 
-	cq_entry(cq_head).command_id = sq_entry(eid).delete_queue.command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
-static void __nvmev_admin_create_sq(int eid, int cq_head)
+static void __nvmev_admin_create_sq(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
-	struct nvmev_submission_queue *sq;
 	struct nvme_create_sq *cmd = &sq_entry(eid).create_sq;
+	struct nvmev_submission_queue *sq;
 	unsigned int num_pages, i;
 	int dbs_idx;
 
@@ -95,7 +121,7 @@ static void __nvmev_admin_create_sq(int eid, int cq_head)
 	sq->qid = cmd->sqid;
 	sq->cqid = cmd->cqid;
 
-	sq->sq_priority = cmd->sq_flags & 0xFFFE;
+	sq->priority = cmd->sq_flags & 0xFFFE;
 	sq->queue_size = cmd->qsize + 1;
 
 	/* TODO Physically non-contiguous prp list */
@@ -114,21 +140,17 @@ static void __nvmev_admin_create_sq(int eid, int cq_head)
 	nvmev_vdev->dbs[dbs_idx] = 0;
 	nvmev_vdev->old_dbs[dbs_idx] = 0;
 
-	NVMEV_DEBUG("%s: %d\n", __func__, sq->qid);
-
-	cq_entry(cq_head).command_id = cmd->command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
-static void __nvmev_admin_delete_sq(int eid, int cq_head)
+static void __nvmev_admin_delete_sq(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
+	struct nvme_delete_queue *cmd = &sq_entry(eid).delete_queue;
 	struct nvmev_submission_queue *sq;
 	unsigned int qid;
 
-	qid = sq_entry(eid).delete_queue.qid;
+	qid = cmd->qid;
 
 	sq = nvmev_vdev->sqes[qid];
 	nvmev_vdev->sqes[qid] = NULL;
@@ -138,38 +160,14 @@ static void __nvmev_admin_delete_sq(int eid, int cq_head)
 		kfree(sq);
 	}
 
-	cq_entry(cq_head).command_id = sq_entry(eid).delete_queue.command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
-static void __nvmev_admin_identify_ctrl(int eid, int cq_head)
-{
-	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
-	struct nvme_id_ctrl *ctrl;
 
-	ctrl = prp_address(sq_entry(eid).identify.prp1);
-	memset(ctrl, 0x00, sizeof(*ctrl));
-
-	ctrl->nn = nvmev_vdev->nr_ns;
-	ctrl->oncs = 0; //optional command
-	ctrl->acl = 3; //minimum 4 required, 0's based value
-	ctrl->vwc = 0;
-	snprintf(ctrl->sn, sizeof(ctrl->sn), "CSL_Virt_SN_%02d", 1);
-	snprintf(ctrl->mn, sizeof(ctrl->mn), "CSL_Virt_MN_%02d", 1);
-	snprintf(ctrl->fr, sizeof(ctrl->fr), "CSL_%03d", 2);
-	ctrl->mdts = nvmev_vdev->mdts;
-	ctrl->sqes = 0x66;
-	ctrl->cqes = 0x44;
-
-	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
-}
-
-static void __nvmev_admin_get_log_page(int eid, int cq_head)
+/***
+ * Log pages
+ */
+static void __nvmev_admin_get_log_page(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_get_log_page_command *cmd = &sq_entry(eid).get_log_page;
@@ -189,8 +187,6 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 			.temperature[0] = 0 & 0xff,
 			.temperature[1] = (0 >> 8) & 0xff,
 		};
-
-		NVMEV_INFO("Handling NVME_LOG_SMART\n");
 
 		__memcpy(page, &smart_log, len);
 		break;
@@ -222,8 +218,6 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 			.resv = { 0, },
 		};
 
-		NVMEV_INFO("Handling NVME_LOG_CMD_EFFECTS\n");
-
 		__memcpy(page, &effects_log, len);
 		break;
 	}
@@ -239,25 +233,24 @@ static void __nvmev_admin_get_log_page(int eid, int cq_head)
 		 * Warn the users and make it perfectly clear that this needs to be implemented.
 		 */
 		NVMEV_ERROR("Unimplemented log page identifier: 0x%hhx,"
-			    "the system will be unstable!\n",
-			    cmd->lid);
+			    "the system will be unstable!\n", cmd->lid);
 		__memset(page, 0, len);
 		break;
 	}
 
-	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
-static void __nvmev_admin_identify_namespace(int eid, int cq_head)
+
+/***
+ * Identify functions
+ */
+static void __nvmev_admin_identify_namespace(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_id_ns *ns;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	size_t nsid = cmd->nsid - 1;
-	NVMEV_DEBUG("[%s] \n", __FUNCTION__);
 
 	ns = prp_address(cmd->prp1);
 	memset(ns, 0x0, PAGE_SIZE);
@@ -298,46 +291,35 @@ static void __nvmev_admin_identify_namespace(int eid, int cq_head)
 	ns->flbas = 0;
 	ns->dps = 0;
 
-	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
-static void __nvmev_admin_identify_namespaces(int eid, int cq_head)
+static void __nvmev_admin_identify_namespaces(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	unsigned int *ns;
 	int i;
 
-	NVMEV_DEBUG("[%s] ns %d\n", __FUNCTION__, cmd->nsid);
-
 	ns = prp_address(cmd->prp1);
 	memset(ns, 0x00, PAGE_SIZE * 2);
 
 	for (i = 1; i <= nvmev_vdev->nr_ns; i++) {
 		if (i > cmd->nsid) {
-			NVMEV_DEBUG("[%s] ns %d %px\n", __FUNCTION__, i, ns);
 			*ns = i;
 			ns++;
 		}
 	}
 
-	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
-static void __nvmev_admin_identify_namespace_desc(int eid, int cq_head)
+static void __nvmev_admin_identify_namespace_desc(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_ns_desc *ns_desc;
 	int nsid = cmd->nsid - 1;
-
-	NVMEV_DEBUG("[%s] ns %d\n", __FUNCTION__, cmd->nsid);
 
 	ns_desc = prp_address(cmd->prp1);
 	memset(ns_desc, 0x00, sizeof(*ns_desc));
@@ -347,13 +329,10 @@ static void __nvmev_admin_identify_namespace_desc(int eid, int cq_head)
 
 	ns_desc->nid[0] = nvmev_vdev->ns[nsid].csi; // Zoned Name Space Command Set
 
-	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
-static void __nvmev_admin_identify_zns_namespace(int eid, int cq_head)
+static void __nvmev_admin_identify_zns_namespace(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
@@ -362,8 +341,7 @@ static void __nvmev_admin_identify_zns_namespace(int eid, int cq_head)
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)nvmev_vdev->ns[nsid].ftls;
 	struct znsparams *zpp = &zns_ftl->zp;
 
-	NVMEV_ASSERT(nvmev_vdev->ns[nsid].csi == NVME_CSI_ZNS);
-	NVMEV_DEBUG("%s\n", __func__);
+	BUG_ON(nvmev_vdev->ns[nsid].csi != NVME_CSI_ZNS);
 
 	ns = prp_address(cmd->prp1);
 	memset(ns, 0x00, sizeof(*ns));
@@ -393,37 +371,87 @@ static void __nvmev_admin_identify_zns_namespace(int eid, int cq_head)
 	// Zone Descriptor Extension Size
 	ns->lbaf[0].zdes = 0; // currently not support
 
-	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
-static void __nvmev_admin_identify_zns_ctrl(int eid, int cq_head)
+static void __nvmev_admin_identify_zns_ctrl(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_zns_ctrl *res;
 
-	NVMEV_DEBUG("%s\n", __func__);
-
 	res = prp_address(cmd->prp1);
 
 	res->zasl = 0; // currently not support zone append command
 
-	cq_entry(cq_head).command_id = cmd->command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
-static void __nvmev_admin_set_features(int eid, int cq_head)
+static void __nvmev_admin_identify_ctrl(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
+	struct nvme_identify *cmd = &sq_entry(eid).identify;
+	struct nvme_id_ctrl *ctrl;
 
-	NVMEV_DEBUG("%s: %x\n", __func__, sq_entry(eid).features.fid);
+	ctrl = prp_address(cmd->prp1);
+	memset(ctrl, 0x00, sizeof(*ctrl));
 
-	switch (sq_entry(eid).features.fid) {
+	ctrl->nn = nvmev_vdev->nr_ns;
+	ctrl->oncs = 0; //optional command
+	ctrl->acl = 3; //minimum 4 required, 0's based value
+	ctrl->vwc = 0;
+	snprintf(ctrl->sn, sizeof(ctrl->sn), "CSL_Virt_SN_%02d", 1);
+	snprintf(ctrl->mn, sizeof(ctrl->mn), "CSL_Virt_MN_%02d", 1);
+	snprintf(ctrl->fr, sizeof(ctrl->fr), "CSL_%03d", 2);
+	ctrl->mdts = nvmev_vdev->mdts;
+	ctrl->sqes = 0x66;
+	ctrl->cqes = 0x44;
+
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
+}
+
+static void __nvmev_admin_identify(int eid)
+{
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
+	int cns = sq_entry(eid).identify.cns;
+
+	switch (cns) {
+	case 0x00:
+		__nvmev_admin_identify_namespace(eid);
+		break;
+	case 0x01:
+		__nvmev_admin_identify_ctrl(eid);
+		break;
+	case 0x02:
+		__nvmev_admin_identify_namespaces(eid);
+		break;
+	case 0x03:
+		__nvmev_admin_identify_namespace_desc(eid);
+		break;
+	case 0x05:
+		__nvmev_admin_identify_zns_namespace(eid);
+		break;
+	case 0x06:
+		__nvmev_admin_identify_zns_ctrl(eid);
+		break;
+	default:
+		__make_cq_entry(eid, NVME_SC_INVALID_OPCODE);
+		NVMEV_ERROR("I don't know %d\n", cns);
+	}
+}
+
+
+/***
+ * Set/get features
+ */
+static void __nvmev_admin_set_features(int eid)
+{
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
+	struct nvme_features *cmd = &sq_entry(eid).features;
+	__le32 result0 = 0;
+	__le32 result1 = 0;
+
+	switch (cmd->fid) {
 	case NVME_FEAT_ARBITRATION:
 	case NVME_FEAT_POWER_MGMT:
 	case NVME_FEAT_LBA_RANGE:
@@ -442,8 +470,7 @@ static void __nvmev_admin_set_features(int eid, int cq_head)
 		num_queue = ((sq_entry(eid).features.dword11 >> 16) & 0xFFFF) + 1;
 		nvmev_vdev->nr_cq = min(num_queue, NR_MAX_IO_QUEUE);
 
-		cq_entry(cq_head).result0 =
-			((nvmev_vdev->nr_cq - 1) << 16 | (nvmev_vdev->nr_sq - 1));
+		result0 = ((nvmev_vdev->nr_cq - 1) << 16 | (nvmev_vdev->nr_sq - 1));
 		break;
 	}
 	case NVME_FEAT_IRQ_COALESCE:
@@ -459,81 +486,90 @@ static void __nvmev_admin_set_features(int eid, int cq_head)
 		break;
 	}
 
-	cq_entry(cq_head).command_id = sq_entry(eid).features.command_id;
-	cq_entry(cq_head).sq_id = 0;
-	cq_entry(cq_head).sq_head = eid;
-	cq_entry(cq_head).status = queue->phase | NVME_SC_SUCCESS << 1;
+	__make_cq_entry_results(eid, NVME_SC_SUCCESS, result0, result1);
 }
 
-static void __nvmev_admin_get_features(int eid, int cq_head)
+static void __nvmev_admin_get_features(int eid)
 {
+	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
+	struct nvme_features *cmd = &sq_entry(eid).features;
+	__le32 result0 = 0;
+	__le32 result1 = 0;
+
+	switch (cmd->fid) {
+	case NVME_FEAT_ARBITRATION:
+	case NVME_FEAT_POWER_MGMT:
+	case NVME_FEAT_LBA_RANGE:
+	case NVME_FEAT_TEMP_THRESH:
+	case NVME_FEAT_ERR_RECOVERY:
+	case NVME_FEAT_VOLATILE_WC:
+		break;
+	case NVME_FEAT_NUM_QUEUES:
+		result0 = ((nvmev_vdev->nr_cq - 1) << 16 | (nvmev_vdev->nr_sq - 1));
+		break;
+	case NVME_FEAT_IRQ_COALESCE:
+	case NVME_FEAT_IRQ_CONFIG:
+	case NVME_FEAT_WRITE_ATOMIC:
+	case NVME_FEAT_ASYNC_EVENT:
+	case NVME_FEAT_AUTO_PST:
+	case NVME_FEAT_SW_PROGRESS:
+	case NVME_FEAT_HOST_ID:
+	case NVME_FEAT_RESV_MASK:
+	case NVME_FEAT_RESV_PERSIST:
+	default:
+		break;
+	}
+
+	__make_cq_entry_results(eid, NVME_SC_SUCCESS, result0, result1);
 }
+
+
+/***
+ * Misc
+ */
+static void __nvmev_admin_async_event(int eid)
+{
+	__make_cq_entry(eid, NVME_SC_SUCCESS);
+	// __make_cq_entry(eid, NVME_SC_ASYNC_LIMIT);
+}
+
 
 static void __nvmev_proc_admin_req(int entry_id)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
-	int cq_head = queue->cq_head;
-	int cns;
+	struct nvme_command *sqe = &sq_entry(entry_id);
 
-	NVMEV_DEBUG("%s: %x %d %d %d\n", __func__, sq_entry(entry_id).identify.opcode, entry_id,
-		    sq_entry(entry_id).common.command_id, cq_head);
+	NVMEV_DEBUG("%s: %d 0x%x 0x%x\n", __func__, entry_id,
+			sqe->common.opcode, sqe->common.command_id);
 
-	switch (sq_entry(entry_id).common.opcode) {
+	switch (sqe->common.opcode) {
 	case nvme_admin_delete_sq:
-		__nvmev_admin_delete_sq(entry_id, cq_head);
+		__nvmev_admin_delete_sq(entry_id);
 		break;
 	case nvme_admin_create_sq:
-		__nvmev_admin_create_sq(entry_id, cq_head);
+		__nvmev_admin_create_sq(entry_id);
 		break;
 	case nvme_admin_get_log_page:
-		__nvmev_admin_get_log_page(entry_id, cq_head);
+		__nvmev_admin_get_log_page(entry_id);
 		break;
 	case nvme_admin_delete_cq:
-		__nvmev_admin_delete_cq(entry_id, cq_head);
+		__nvmev_admin_delete_cq(entry_id);
 		break;
 	case nvme_admin_create_cq:
-		__nvmev_admin_create_cq(entry_id, cq_head);
+		__nvmev_admin_create_cq(entry_id);
 		break;
 	case nvme_admin_identify:
-		cns = sq_entry(entry_id).identify.cns;
-		switch (cns) {
-		case 0x00:
-			__nvmev_admin_identify_namespace(entry_id, cq_head);
-			break;
-		case 0x01:
-			__nvmev_admin_identify_ctrl(entry_id, cq_head);
-			break;
-		case 0x02:
-			__nvmev_admin_identify_namespaces(entry_id, cq_head);
-			break;
-		case 0x03:
-			__nvmev_admin_identify_namespace_desc(entry_id, cq_head);
-			break;
-		case 0x05:
-			__nvmev_admin_identify_zns_namespace(entry_id, cq_head);
-			break;
-		case 0x06:
-			__nvmev_admin_identify_zns_ctrl(entry_id, cq_head);
-			break;
-		default:
-			NVMEV_ERROR("I don't know %d\n", cns);
-		}
-		break;
+		__nvmev_admin_identify(entry_id);
 	case nvme_admin_abort_cmd:
 		break;
 	case nvme_admin_set_features:
-		__nvmev_admin_set_features(entry_id, cq_head);
+		__nvmev_admin_set_features(entry_id);
 		break;
 	case nvme_admin_get_features:
-		__nvmev_admin_get_features(entry_id, cq_head);
-		break;
+		__nvmev_admin_get_features(entry_id);
 		break;
 	case nvme_admin_async_event:
-		cq_entry(cq_head).command_id = sq_entry(entry_id).features.command_id;
-		cq_entry(cq_head).sq_id = 0;
-		cq_entry(cq_head).sq_head = entry_id;
-		cq_entry(cq_head).result0 = 0;
-		cq_entry(cq_head).status = queue->phase | NVME_SC_ASYNC_LIMIT << 1;
+		__nvmev_admin_async_event(entry_id);
 		break;
 	case nvme_admin_activate_fw:
 	case nvme_admin_download_fw:
@@ -541,16 +577,10 @@ static void __nvmev_proc_admin_req(int entry_id)
 	case nvme_admin_security_send:
 	case nvme_admin_security_recv:
 	default:
-		NVMEV_ERROR("Unhandled admin requests: %d", sq_entry(entry_id).common.opcode);
+		__make_cq_entry(entry_id, NVME_SC_INVALID_OPCODE);
+		NVMEV_ERROR("Unhandled admin requests: %d", sqe->common.opcode);
 		break;
 	}
-
-	if (++cq_head == queue->cq_depth) {
-		cq_head = 0;
-		queue->phase = !queue->phase;
-	}
-
-	queue->cq_head = cq_head;
 }
 
 void nvmev_proc_admin_sq(int new_db, int old_db)
@@ -571,7 +601,7 @@ void nvmev_proc_admin_sq(int new_db, int old_db)
 		}
 	}
 
-	nvmev_signal_irq(0);
+	nvmev_signal_irq(0); /* ACQ is always associated with interrupt vector 0 */
 }
 
 void nvmev_proc_admin_cq(int new_db, int old_db)

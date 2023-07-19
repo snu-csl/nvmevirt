@@ -99,7 +99,6 @@ static_assert((ONESHOT_PAGE_SIZE % FLASH_PAGE_SIZE) == 0);
 #define GLOBAL_WB_SIZE (NAND_CHANNELS * LUNS_PER_NAND_CH * ONESHOT_PAGE_SIZE * 2)
 #define WRITE_EARLY_COMPLETION 1
 
-
 #elif (BASE_SSD == ZNS_PROTOTYPE)
 #define NR_NAMESPACES 1
 
@@ -120,7 +119,7 @@ static_assert((ONESHOT_PAGE_SIZE % FLASH_PAGE_SIZE) == 0);
 #if 0
 /* Real device configuration. Need to modify kernel to support zone size which is not power of 2*/
 #define ONESHOT_PAGE_SIZE (FLASH_PAGE_SIZE * 3)
-#define ZONE_SIZE MB(96)  /* kernal only support zone size which is power of 2 */
+#define ZONE_SIZE MB(96) /* kernal only support zone size which is power of 2 */
 #else /* If kernel is not modified, use this config for just testing ZNS*/
 #define ONESHOT_PAGE_SIZE (FLASH_PAGE_SIZE * 2)
 #define ZONE_SIZE MB(32)
@@ -225,7 +224,7 @@ static_assert((ZONE_SIZE % DIES_PER_ZONE) == 0);
 #define ZRWAFG_SIZE (0)
 #define ZRWA_SIZE (0)
 #define ZRWA_BUFFER_SIZE (0)
-#endif 
+#endif
 ///////////////////////////////////////////////////////////////////////////
 
 static const uint32_t ns_ssd_type[] = { NS_SSD_TYPE_0, NS_SSD_TYPE_1 };
@@ -237,6 +236,7 @@ static const uint64_t ns_capacity[] = { NS_CAPACITY_0, NS_CAPACITY_1 };
 /* Still only support NR_NAMESPACES <= 2 */
 static_assert(NR_NAMESPACES <= 2);
 
-#define SUPPORTED_SSD_TYPE(type) (NS_SSD_TYPE_0 == SSD_TYPE_##type || NS_SSD_TYPE_1 == SSD_TYPE_##type) 
+#define SUPPORTED_SSD_TYPE(type) \
+	(NS_SSD_TYPE_0 == SSD_TYPE_##type || NS_SSD_TYPE_1 == SSD_TYPE_##type)
 
 #endif

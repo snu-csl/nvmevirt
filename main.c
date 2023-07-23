@@ -553,7 +553,7 @@ static bool __load_configs(struct nvmev_config *config, struct params *p)
 	config->nr_io_workers = 0;
 	config->cpu_nr_dispatcher = -1;
 
-	while ((cpu = strsep(&cpus, ",")) != NULL) {
+	while ((cpu = strsep(&p->cpus, ",")) != NULL) {
 		cpu_nr = (unsigned int)simple_strtol(cpu, NULL, 10);
 		if (first) {
 			config->cpu_nr_dispatcher = cpu_nr;
@@ -759,15 +759,15 @@ static int create_device(struct params *p)
 	if (!NVMEV_PCI_INIT(nvmev_vdev)) {
 		goto ret_err;
 	}
-/*
+
 	__print_perf_configs(nvmev_vdev);
 
 	NVMEV_IO_WORKER_INIT(nvmev_vdev);
+/*	
 	NVMEV_DISPATCHER_INIT(nvmev_vdev);
 	
-	pci_bus_add_devices(nvmev_vdev->virt_bus);
-*/	
-
+	pci_bus_add_devices(nvmev_vdev->virt_bus);	
+*/
 	NVMEV_INFO("Virtual NVMe device created\n");
 
 	return 0;

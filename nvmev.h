@@ -184,6 +184,7 @@ struct nvmev_io_work {
 };
 
 struct nvmev_io_worker {
+	struct nvmev_dev *parent_dev;
 	struct nvmev_io_work *work_queue;
 
 	unsigned int free_seq; /* free io req head index */

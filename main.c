@@ -215,8 +215,12 @@ static int nvmev_dispatcher(void *data)
 
 static void NVMEV_DISPATCHER_INIT(struct nvmev_dev *nvmev_vdev)
 {
+	char thread_name[32];
+
+	snprintf(thread_name, sizeof(thread_name), "nvmev_%d_disp", nvmev_vdev->dev_id);
+
 	nvmev_vdev->nvmev_dispatcher =
-		kthread_create(nvmev_dispatcher, nvmev_vdev, "nvmev_dispatcher");
+		kthread_create(nvmev_dispatcher, nvmev_vdev, thread_name);
 	if (nvmev_vdev->config.cpu_nr_dispatcher != -1)
 		kthread_bind(nvmev_vdev->nvmev_dispatcher, nvmev_vdev->config.cpu_nr_dispatcher);
 	wake_up_process(nvmev_vdev->nvmev_dispatcher);
@@ -763,11 +767,11 @@ static int create_device(struct params *p)
 	__print_perf_configs(nvmev_vdev);
 
 	NVMEV_IO_WORKER_INIT(nvmev_vdev);
-/*	
+
 	NVMEV_DISPATCHER_INIT(nvmev_vdev);
 	
 	pci_bus_add_devices(nvmev_vdev->virt_bus);	
-*/
+
 	NVMEV_INFO("Virtual NVMe device created\n");
 
 	return 0;

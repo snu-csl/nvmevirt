@@ -35,7 +35,7 @@ static inline unsigned long long __get_wallclock(void)
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
 
-static unsigned int __do_perform_io(int sqid, int sq_entry)
+static unsigned int __do_perform_io(int sqid, int sq_entry, struct nvmev_dev *nvmev_vdev)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 	struct nvme_rw_command *cmd = &sq_entry(sq_entry).rw;
@@ -102,7 +102,8 @@ static unsigned int __do_perform_io(int sqid, int sq_entry)
 static u64 paddr_list[513] = {
 	0,
 }; // Not using index 0 to make max index == num_prp
-static unsigned int __do_perform_io_using_dma(int sqid, int sq_entry)
+static unsigned int __do_perform_io_using_dma(int sqid, int sq_entry, 
+			struct nvmev_dev *nvmev_vdev)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 	struct nvme_rw_command *cmd = &sq_entry(sq_entry).rw;
@@ -540,6 +541,7 @@ static void __fill_cq_result(struct nvmev_io_work *w)
 		cq->phase = !cq->phase;
 	}
 
+
 	cq->cq_head = cq_head;
 	cq->interrupt_ready = true;
 	spin_unlock(&cq->entry_lock);
@@ -548,6 +550,7 @@ static void __fill_cq_result(struct nvmev_io_work *w)
 static int nvmev_io_worker(void *data)
 {
 	struct nvmev_io_worker *worker = (struct nvmev_io_worker *)data;
+	struct nvmev_dev *nvmev_vdev = worker->parent_dev;
 	struct nvmev_ns *ns;
 
 #ifdef PERF_DEBUG
@@ -566,6 +569,7 @@ static int nvmev_io_worker(void *data)
 		long long delta = curr_nsecs_wall - curr_nsecs_local;
 
 		volatile unsigned int curr = worker->io_seq;
+
 		int qidx;
 
 		while (curr != -1) {
@@ -585,7 +589,7 @@ static int nvmev_io_worker(void *data)
 				if (w->is_internal) {
 					;
 				} else if (io_using_dma) {
-					__do_perform_io_using_dma(w->sqid, w->sq_entry);
+					__do_perform_io_using_dma(w->sqid, w->sq_entry, nvmev_vdev);
 				} else {
 #if (BASE_SSD == KV_PROTOTYPE)
 					struct nvmev_submission_queue *sq =
@@ -595,10 +599,10 @@ static int nvmev_io_worker(void *data)
 						w->result0 = ns->perform_io_cmd(
 							ns, &sq_entry(w->sq_entry), &(w->status));
 					} else {
-						__do_perform_io(w->sqid, w->sq_entry);
+						__do_perform_io(w->sqid, w->sq_entry, nvmev_vdev);
 					}
 #endif
-					__do_perform_io(w->sqid, w->sq_entry);
+					__do_perform_io(w->sqid, w->sq_entry, nvmev_vdev);
 				}
 
 #ifdef PERF_DEBUG
@@ -701,6 +705,7 @@ void NVMEV_IO_WORKER_INIT(struct nvmev_dev *nvmev_vdev)
 		worker->free_seq_end = NR_MAX_PARALLEL_IO - 1;
 		worker->io_seq = -1;
 		worker->io_seq_end = -1;
+		worker->parent_dev = nvmev_vdev;
 
 		snprintf(worker->thread_name, sizeof(worker->thread_name),
 					"nvmev_io/%d:%d", nvmev_vdev->dev_id, worker_id);

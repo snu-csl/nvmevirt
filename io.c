@@ -21,7 +21,7 @@ struct buffer;
 
 extern bool io_using_dma;
 
-static inline unsigned int __get_io_worker(int sqid)
+static inline unsigned int __get_io_worker(int sqid,struct nvmev_dev *nvmev_vdev)
 {
 #ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
 	return (sqid - 1) % nvmev_vdev->config.nr_io_workers;
@@ -30,7 +30,7 @@ static inline unsigned int __get_io_worker(int sqid)
 #endif
 }
 
-static inline unsigned long long __get_wallclock(void)
+static inline unsigned long long __get_wallclock(struct nvmev_dev *nvmev_vdev)
 {
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
@@ -245,9 +245,10 @@ static void __insert_req_sorted(unsigned int entry, struct nvmev_io_worker *work
 	}
 }
 
-static struct nvmev_io_worker *__allocate_work_queue_entry(int sqid, unsigned int *entry)
+static struct nvmev_io_worker *__allocate_work_queue_entry(int sqid, unsigned int *entry,struct nvmev_dev 
+		*nvmev_vdev)
 {
-	unsigned int io_worker_turn = __get_io_worker(sqid);
+	unsigned int io_worker_turn = __get_io_worker(sqid,nvmev_vdev);
 	struct nvmev_io_worker *worker = &nvmev_vdev->io_workers[io_worker_turn];
 	unsigned int e = worker->free_seq;
 	struct nvmev_io_work *w = worker->work_queue + e;
@@ -269,14 +270,14 @@ static struct nvmev_io_worker *__allocate_work_queue_entry(int sqid, unsigned in
 }
 
 static void __enqueue_io_req(int sqid, int cqid, int sq_entry, unsigned long long nsecs_start,
-			     struct nvmev_result *ret)
+			     struct nvmev_result *ret,struct nvmev_dev *nvmev_vdev)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 	struct nvmev_io_worker *worker;
 	struct nvmev_io_work *w;
 	unsigned int entry;
 
-	worker = __allocate_work_queue_entry(sqid, &entry);
+	worker = __allocate_work_queue_entry(sqid, &entry,nvmev_vdev);
 	if (!worker)
 		return;
 
@@ -307,13 +308,13 @@ static void __enqueue_io_req(int sqid, int cqid, int sq_entry, unsigned long lon
 }
 
 void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
-				 struct buffer *write_buffer, size_t buffs_to_release)
+				 struct buffer *write_buffer, size_t buffs_to_release,struct nvmev_dev *nvmev_vdev)
 {
 	struct nvmev_io_worker *worker;
 	struct nvmev_io_work *w;
 	unsigned int entry;
 
-	worker = __allocate_work_queue_entry(sqid, &entry);
+	worker = __allocate_work_queue_entry(sqid, &entry,nvmev_vdev);
 	if (!worker)
 		return;
 
@@ -339,7 +340,7 @@ void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
 	__insert_req_sorted(entry, worker, nsecs_target);
 }
 
-static void __reclaim_completed_reqs(void)
+static void __reclaim_completed_reqs(struct nvmev_dev *nvmev_vdev)
 {
 	unsigned int turn;
 
@@ -390,10 +391,10 @@ static void __reclaim_completed_reqs(void)
 	}
 }
 
-static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size)
+static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size,struct nvmev_dev *nvmev_vdev)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
-	unsigned long long nsecs_start = __get_wallclock();
+	unsigned long long nsecs_start = __get_wallclock(nvmev_vdev);
 	struct nvme_command *cmd = &sq_entry(sq_entry);
 #if (BASE_SSD == KV_PROTOTYPE)
 	uint32_t nsid = 0; // Some KVSSD programs give 0 as nsid for KV IO
@@ -423,7 +424,7 @@ static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size)
 	static unsigned long long counter = 0;
 #endif
 
-	if (!ns->proc_io_cmd(ns, &req, &ret))
+	if (!ns->proc_io_cmd(ns, &req, &ret,nvmev_vdev))
 		return false;
 	*io_size = (cmd->rw.length + 1) << 9;
 
@@ -431,13 +432,13 @@ static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size)
 	prev_clock2 = local_clock();
 #endif
 
-	__enqueue_io_req(sqid, sq->cqid, sq_entry, nsecs_start, &ret);
+	__enqueue_io_req(sqid, sq->cqid, sq_entry, nsecs_start, &ret,nvmev_vdev);
 
 #ifdef PERF_DEBUG
 	prev_clock3 = local_clock();
 #endif
 
-	__reclaim_completed_reqs();
+	__reclaim_completed_reqs(nvmev_vdev);
 
 #ifdef PERF_DEBUG
 	prev_clock4 = local_clock();
@@ -474,7 +475,7 @@ int nvmev_proc_io_sq(int sqid, int new_db, int old_db,struct nvmev_dev *nvmev_vd
 
 	for (seq = 0; seq < num_proc; seq++) {
 		size_t io_size;
-		if (!__nvmev_proc_io(sqid, sq_entry, &io_size))
+		if (!__nvmev_proc_io(sqid, sq_entry, &io_size,nvmev_vdev))
 			break;
 
 		if (++sq_entry == sq->queue_size) {
@@ -514,7 +515,7 @@ void nvmev_proc_io_cq(int cqid, int new_db, int old_db,struct nvmev_dev *nvmev_v
 		cq->cq_tail = cq->queue_size - 1;
 }
 
-static void __fill_cq_result(struct nvmev_io_work *w)
+static void __fill_cq_result(struct nvmev_io_work *w,struct nvmev_dev *nvmev_vdev)
 {
 	int sqid = w->sqid;
 	int cqid = w->cqid;
@@ -562,9 +563,8 @@ static int nvmev_io_worker(void *data)
 
 	NVMEV_INFO("%s started on cpu %d (node %d)\n", worker->thread_name, smp_processor_id(),
 		   cpu_to_node(smp_processor_id()));
-
 	while (!kthread_should_stop()) {
-		unsigned long long curr_nsecs_wall = __get_wallclock();
+		unsigned long long curr_nsecs_wall = __get_wallclock(nvmev_vdev);
 		unsigned long long curr_nsecs_local = local_clock();
 		long long delta = curr_nsecs_wall - curr_nsecs_local;
 
@@ -621,7 +621,7 @@ static int nvmev_io_worker(void *data)
 						       w->buffs_to_release);
 #endif
 				} else {
-					__fill_cq_result(w);
+					__fill_cq_result(w,nvmev_vdev);
 				}
 
 				NVMEV_DEBUG_VERBOSE("%s: completed %u, %d %d %d\n", worker->thread_name, curr,
@@ -647,7 +647,7 @@ static int nvmev_io_worker(void *data)
 			struct nvmev_completion_queue *cq = nvmev_vdev->cqes[qidx];
 
 #ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
-			if ((worker->id) != __get_io_worker(qidx))
+			if ((worker->id) != __get_io_worker(qidx,nvmev_vdev))
 				continue;
 #endif
 			if (cq == NULL || !cq->irq_enabled)

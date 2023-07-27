@@ -284,7 +284,7 @@ struct nvmev_ns {
 
 	/*io command handler*/
 	bool (*proc_io_cmd)(struct nvmev_ns *ns, struct nvmev_request *req,
-			    struct nvmev_result *ret);
+			    struct nvmev_result *ret,struct nvmev_dev *nvmev_vdev);
 
 	/*specific CSS io command identifier*/
 	bool (*identify_io_cmd)(struct nvmev_ns *ns, struct nvme_command cmd);
@@ -302,7 +302,7 @@ struct nvmev {
 };
 
 // VDEV Init, Final Function
-extern struct nvmev_dev *nvmev_vdev;
+//extern struct nvmev_dev *nvmev_vdev;
 extern struct nvmev *nvmev;
 struct nvmev_dev *VDEV_INIT(void);
 void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev);
@@ -313,7 +313,7 @@ bool NVMEV_PCI_INIT(struct nvmev_dev *dev);
 void nvmev_signal_irq(struct nvmev_dev *nvmev_vdev,int msi_index);
 
 // OPS ADMIN QUEUE
-void nvmev_proc_admin_sq(int new_db, int old_db);
+void nvmev_proc_admin_sq(int new_db, int old_db,struct nvmev_dev *nvmev_vdev);
 void nvmev_proc_admin_cq(int new_db, int old_db);
 
 // OPS I/O QUEUE

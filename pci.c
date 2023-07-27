@@ -274,14 +274,11 @@ struct nvmev_dev *find_nvmev(struct pci_bus *bus){
 int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)
 {
 	struct nvmev_dev *nvmev_vdev;
-
 	if (devfn != 0)
 		return 1;
 	
 	nvmev_vdev = find_nvmev(bus);
-
 	memcpy(val, nvmev_vdev->virtDev + where, size);
-
 	NVMEV_DEBUG_VERBOSE("[R] 0x%x, size: %d, val: 0x%x\n", where, size, *val);
 
 	return 0;
@@ -295,7 +292,6 @@ int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size
 
 	struct nvmev_dev *nvmev_vdev = find_nvmev(bus);
 	WARN_ON(size > sizeof(_val));
-
 	memcpy(&val, nvmev_vdev->virtDev + where, size);
 	if (where < OFFS_PCI_PM_CAP) {
 		// PCI_HDR
@@ -398,10 +394,10 @@ static struct pci_bus *__create_pci_bus(struct nvmev_dev * nvmev_vdev)
 
 
 	nvmev_vdev->pci_sysdata = (struct pci_sysdata) {
-		.domain = NVMEV_PCI_DOMAIN_NUM + pci_id_make,
+		.domain = NVMEV_PCI_DOMAIN_NUM +pci_id_make,
 		.node = cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher),
 	};
-	bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_pci_ops, &nvmev_vdev->pci_sysdata);
+	bus = pci_scan_bus(NVMEV_PCI_BUS_NUM+pci_id_make, &nvmev_pci_ops, &nvmev_vdev->pci_sysdata);
 	pci_id_make++;
 	if (!bus) {
 		NVMEV_ERROR("Unable to create PCI bus\n");

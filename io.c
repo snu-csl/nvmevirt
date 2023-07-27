@@ -659,7 +659,7 @@ static int nvmev_io_worker(void *data)
 					prev_clock = local_clock();
 #endif
 					cq->interrupt_ready = false;
-					nvmev_signal_irq(cq->irq_vector);
+					nvmev_signal_irq(nvmev_vdev,cq->irq_vector);
 
 #ifdef PERF_DEBUG
 					intr_clock[qidx] += (local_clock() - prev_clock);

@@ -14,9 +14,6 @@ int pci_id_make = 0;
 #ifdef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 static int apicid_to_cpuid[256];
 
-struct nvmev_dev * nvmev_vdev = NULL;
-
-
 static void __init_apicid_to_cpuid(void)
 {
 	int i;
@@ -53,15 +50,15 @@ static void __signal_irq(const char *type, unsigned int irq)
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
-static void __process_msi_irq(int msi_index)
+static void __process_msi_irq(struct nvmev_dev *nvmev_vdev,int msi_index)
 {
 	unsigned int virq = msi_get_virq(&nvmev_vdev->pdev->dev, msi_index);
-
+struct nvmev_dev
 	BUG_ON(virq == 0);
 	__signal_irq("msi", virq);
 }
 #else
-static void __process_msi_irq(int msi_index)
+static void __process_msi_irq(struct nvmev_dev * nvmev_vdev,int msi_index)
 {
 	struct msi_desc *msi_desc, *tmp;
 
@@ -76,10 +73,10 @@ static void __process_msi_irq(int msi_index)
 }
 #endif
 
-void nvmev_signal_irq(int msi_index)
+void nvmev_signal_irq(struct nvmev_dev * nvmev_vdev,int msi_index)
 {
 	if (nvmev_vdev->pdev->msix_enabled) {
-		__process_msi_irq(msi_index);
+		__process_msi_irq(nvmev_vdev,msi_index);
 	} else {
 		nvmev_vdev->pcihdr->sts.is = 1;
 
@@ -394,18 +391,17 @@ static void __init_nvme_ctrl_regs(struct nvmev_dev *ndev, struct pci_dev *dev)
 	};
 }
 
-static struct pci_bus *__create_pci_bus(struct nvmev_dev * nvmev_vdev_in)
+static struct pci_bus *__create_pci_bus(struct nvmev_dev * nvmev_vdev)
 {
 	struct pci_bus *bus = NULL;
 	struct pci_dev *dev;
 
-	nvmev_vdev = nvmev_vdev_in;
 
-	nvmev_vdev_in->pci_sysdata = (struct pci_sysdata) {
+	nvmev_vdev->pci_sysdata = (struct pci_sysdata) {
 		.domain = NVMEV_PCI_DOMAIN_NUM + pci_id_make,
-		.node = cpu_to_node(nvmev_vdev_in->config.cpu_nr_dispatcher),
+		.node = cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher),
 	};
-	bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_pci_ops, &nvmev_vdev_in->pci_sysdata);
+	bus = pci_scan_bus(NVMEV_PCI_BUS_NUM, &nvmev_pci_ops, &nvmev_vdev->pci_sysdata);
 	pci_id_make++;
 	if (!bus) {
 		NVMEV_ERROR("Unable to create PCI bus\n");
@@ -417,27 +413,27 @@ static struct pci_bus *__create_pci_bus(struct nvmev_dev * nvmev_vdev_in)
 		struct resource *res = &dev->resource[0];
 		res->parent = &iomem_resource;
 
-		nvmev_vdev_in->pdev = dev;
-		dev->irq = nvmev_vdev_in->pcihdr->intr.iline;
+		nvmev_vdev->pdev = dev;
+		dev->irq = nvmev_vdev->pcihdr->intr.iline;
 		__dump_pci_dev(dev);
 
-		__init_nvme_ctrl_regs(nvmev_vdev_in, dev);
+		__init_nvme_ctrl_regs(nvmev_vdev, dev);
 
-		nvmev_vdev_in->old_dbs = kzalloc(PAGE_SIZE, GFP_KERNEL);
-		BUG_ON(!nvmev_vdev_in->old_dbs && "allocating old DBs memory");
-		memcpy(nvmev_vdev_in->old_dbs, nvmev_vdev_in->dbs, sizeof(*nvmev_vdev_in->old_dbs));
+		nvmev_vdev->old_dbs = kzalloc(PAGE_SIZE, GFP_KERNEL);
+		BUG_ON(!nvmev_vdev->old_dbs && "allocating old DBs memory");
+		memcpy(nvmev_vdev->old_dbs, nvmev_vdev->dbs, sizeof(*nvmev_vdev->old_dbs));
 
-		nvmev_vdev_in->old_bar = kzalloc(PAGE_SIZE, GFP_KERNEL);
-		BUG_ON(!nvmev_vdev_in->old_bar && "allocating old BAR memory");
-		memcpy(nvmev_vdev_in->old_bar, nvmev_vdev_in->bar, sizeof(*nvmev_vdev_in->old_bar));
+		nvmev_vdev->old_bar = kzalloc(PAGE_SIZE, GFP_KERNEL);
+		BUG_ON(!nvmev_vdev->old_bar && "allocating old BAR memory");
+		memcpy(nvmev_vdev->old_bar, nvmev_vdev->bar, sizeof(*nvmev_vdev->old_bar));
 
-		nvmev_vdev_in->msix_table =
-			memremap(pci_resource_start(nvmev_vdev_in->pdev, 0) + PAGE_SIZE * 2,
+		nvmev_vdev->msix_table =
+			memremap(pci_resource_start(nvmev_vdev->pdev, 0) + PAGE_SIZE * 2,
 				 NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE, MEMREMAP_WT);
-		memset(nvmev_vdev_in->msix_table, 0x00, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE);
+		memset(nvmev_vdev->msix_table, 0x00, NR_MAX_IO_QUEUE * PCI_MSIX_ENTRY_SIZE);
 	}
 
-	NVMEV_INFO("Virtual PCI bus created (node %d)\n", nvmev_vdev_in->pci_sysdata.node);
+	NVMEV_INFO("Virtual PCI bus created (node %d)\n", nvmev_vdev->pci_sysdata.node);
 
 	return bus;
 };
@@ -625,22 +621,21 @@ static void PCI_EXTCAP_SETTINGS(struct pci_ext_cap *ext_cap)
 	*/
 }
 
-bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev2)
+bool NVMEV_PCI_INIT(struct nvmev_dev *nvmev_vdev)
 {
-	nvmev_vdev =  nvmev_vdev2;
-	PCI_HEADER_SETTINGS(nvmev_vdev2->pcihdr, nvmev_vdev2->config.memmap_start);
-	PCI_PMCAP_SETTINGS(nvmev_vdev2->pmcap);
-	PCI_MSIXCAP_SETTINGS(nvmev_vdev2->msixcap);
-	PCI_PCIECAP_SETTINGS(nvmev_vdev2->pciecap);
-	PCI_EXTCAP_SETTINGS(nvmev_vdev2->extcap);
+	PCI_HEADER_SETTINGS(nvmev_vdev->pcihdr, nvmev_vdev->config.memmap_start);
+	PCI_PMCAP_SETTINGS(nvmev_vdev->pmcap);
+	PCI_MSIXCAP_SETTINGS(nvmev_vdev->msixcap);
+	PCI_PCIECAP_SETTINGS(nvmev_vdev->pciecap);
+	PCI_EXTCAP_SETTINGS(nvmev_vdev->extcap);
 
 #ifdef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 	__init_apicid_to_cpuid();
 #endif
-	nvmev_vdev2->intx_disabled = false;
+	nvmev_vdev->intx_disabled = false;
 
-	nvmev_vdev2->virt_bus = __create_pci_bus(nvmev_vdev2);
-	if (!nvmev_vdev2->virt_bus)
+	nvmev_vdev->virt_bus = __create_pci_bus(nvmev_vdev);
+	if (!nvmev_vdev->virt_bus)
 		return false;
 	return true;
 }

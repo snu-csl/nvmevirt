@@ -1,2 +1,2 @@
 # Define local configurations. DO NOT push the local configuration
-#KERNELDIR := /path/to/other/kernel/source
+KERNELDIR := ../

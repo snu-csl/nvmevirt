@@ -310,7 +310,7 @@ void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev);
 // OPS_PCI
 void nvmev_proc_bars(struct nvmev_dev *nvmev_vdev);
 bool NVMEV_PCI_INIT(struct nvmev_dev *dev);
-void nvmev_signal_irq(int msi_index);
+void nvmev_signal_irq(struct nvmev_dev *nvmev_vdev,int msi_index);
 
 // OPS ADMIN QUEUE
 void nvmev_proc_admin_sq(int new_db, int old_db);

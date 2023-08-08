@@ -665,7 +665,7 @@ static void parse_command(char *cmd_line, struct params *p)
 		else if (strcmp(param, "cpus") == 0)
 			p->cpus = val;
 
-		else
+		else if (strcmp(param, "name") == 0)
 			p->name = val;
 	}
 }
@@ -824,6 +824,16 @@ static int delete_device(struct nvmev_dev *nvmev_vdev)
 	return 0;
 }
 
+static int delete_all(void)
+{
+	struct nvmev_dev *cursor, *next;
+
+	list_for_each_entry_safe(cursor, next, &nvmev->dev_list, list_elem)
+		delete_device(cursor);
+
+	return 0;
+}
+
 static ssize_t __config_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	return 0;
@@ -899,32 +909,12 @@ static int NVMeV_init(void)
 
 static void NVMeV_exit(void)
 {
-	/*	int i;
+	delete_all();
 
-	if (nvmev_vdev->virt_bus != NULL) {
-		pci_stop_root_bus(nvmev_vdev->virt_bus);
-		pci_remove_root_bus(nvmev_vdev->virt_bus);
-	}
+	sysfs_remove_file(nvmev->config_root, &nvmev->config_attr->attr);
+	kobject_put(nvmev->config_root);
 
-	NVMEV_DISPATCHER_FINAL(nvmev_vdev);
-	NVMEV_IO_WORKER_FINAL(nvmev_vdev);
-
-	NVMEV_NAMESPACE_FINAL(nvmev_vdev);
-	NVMEV_STORAGE_FINAL(nvmev_vdev);
-
-	if (io_using_dma) {
-		ioat_dma_cleanup();
-	}
-
-	for (i = 0; i < nvmev_vdev->nr_sq; i++) {
-		kfree(nvmev_vdev->sqes[i]);
-	}
-
-	for (i = 0; i < nvmev_vdev->nr_cq; i++) {
-		kfree(nvmev_vdev->cqes[i]);
-	}
-
-	VDEV_FINALIZE(nvmev_vdev);*/
+	kfree(nvmev);
 
 	NVMEV_INFO("Virtual NVMe device closed\n");
 }

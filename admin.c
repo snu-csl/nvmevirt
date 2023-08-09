@@ -387,6 +387,8 @@ static void __nvmev_admin_identify_zns_ctrl(int eid)
 	__make_cq_entry(eid, NVME_SC_SUCCESS);
 }
 
+static int __cntlid = 0;
+
 static void __nvmev_admin_identify_ctrl(int eid)
 {
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
@@ -400,6 +402,8 @@ static void __nvmev_admin_identify_ctrl(int eid)
 	ctrl->oncs = 0; //optional command
 	ctrl->acl = 3; //minimum 4 required, 0's based value
 	ctrl->vwc = 0;
+	ctrl->cntlid = __cntlid++;
+	ctrl->mic = 1 << 1;
 	snprintf(ctrl->sn, sizeof(ctrl->sn), "CSL_Virt_SN_%02d", 1);
 	snprintf(ctrl->mn, sizeof(ctrl->mn), "CSL_Virt_MN_%02d", 1);
 	snprintf(ctrl->fr, sizeof(ctrl->fr), "CSL_%03d", 2);

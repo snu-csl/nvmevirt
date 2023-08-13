@@ -160,7 +160,7 @@ static void nvmev_proc_dbs(struct nvmev_dev *nvmev_vdev)
 	// Admin queue
 	new_db = nvmev_vdev->dbs[0];
 	if (new_db != nvmev_vdev->old_dbs[0]) {
-		nvmev_proc_admin_sq(new_db, nvmev_vdev->old_dbs[0]);
+		nvmev_proc_admin_sq(new_db, nvmev_vdev->old_dbs[0],nvmev_vdev);
 		nvmev_vdev->old_dbs[0] = new_db;
 	}
 	new_db = nvmev_vdev->dbs[1];
@@ -206,7 +206,6 @@ static int nvmev_dispatcher(void *data)
 	while (!kthread_should_stop()) {
 		nvmev_proc_bars(nvmev_vdev);
 		nvmev_proc_dbs(nvmev_vdev);
-
 		cond_resched();
 	}
 

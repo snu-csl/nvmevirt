@@ -5,7 +5,7 @@
 
 #include "nvmev.h"
 
-static inline unsigned long long __get_wallclock(void)
+static inline unsigned long long __get_wallclock(struct nvmev_dev *nvmev_vdev)
 {
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
@@ -21,7 +21,7 @@ static size_t __cmd_io_size(struct nvme_rw_command *cmd)
 
 /* Return the time to complete */
 static unsigned long long __schedule_io_units(int opcode, unsigned long lba, unsigned int length,
-					      unsigned long long nsecs_start)
+					      unsigned long long nsecs_start,struct nvmev_dev *nvmev_vdev)
 {
 	unsigned int io_unit_size = 1 << nvmev_vdev->config.io_unit_shift;
 	unsigned int io_unit =
@@ -61,7 +61,7 @@ static unsigned long long __schedule_io_units(int opcode, unsigned long lba, uns
 	return latest;
 }
 
-static unsigned long long __schedule_flush(struct nvmev_request *req)
+static unsigned long long __schedule_flush(struct nvmev_request *req,struct nvmev_dev *nvmev_vdev)
 {
 	unsigned long long latest = 0;
 	int i;
@@ -74,7 +74,7 @@ static unsigned long long __schedule_flush(struct nvmev_request *req)
 }
 
 bool simple_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req,
-			     struct nvmev_result *ret)
+			     struct nvmev_result *ret,struct nvmev_dev *nvmev_vdev)
 {
 	struct nvme_command *cmd = req->cmd;
 
@@ -86,10 +86,10 @@ bool simple_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req,
 	case nvme_cmd_read:
 		ret->nsecs_target = __schedule_io_units(
 			cmd->common.opcode, cmd->rw.slba,
-			__cmd_io_size((struct nvme_rw_command *)cmd), __get_wallclock());
+			__cmd_io_size((struct nvme_rw_command *)cmd), __get_wallclock(nvmev_vdev),nvmev_vdev);
 		break;
 	case nvme_cmd_flush:
-		ret->nsecs_target = __schedule_flush(req);
+		ret->nsecs_target = __schedule_flush(req,nvmev_vdev);
 		break;
 	default:
 		NVMEV_ERROR("%s: command not implemented: %s (0x%x)\n", __func__,

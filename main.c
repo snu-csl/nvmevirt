@@ -664,7 +664,7 @@ static void parse_command(char *cmd_line, struct params *p)
 		else if (strcmp(param, "cpus") == 0)
 			p->cpus = val;
 
-		else
+		else if (strcmp(param, "name") == 0)
 			p->name = val;
 	}
 }
@@ -703,6 +703,7 @@ static void __print_base_config(void)
 	switch (BASE_SSD) {
 	case INTEL_OPTANE:
 		type = "NVM SSD";
+		printk("delete implementation please");
 		break;
 	case SAMSUNG_970PRO:
 		type = "Samsung 970 Pro SSD";
@@ -777,9 +778,59 @@ static int create_device(struct params *p)
 
 ret_err:
 	printk("error......\n");
+	
+	nvmev->nr_dev--;
 	list_del(&nvmev_vdev->list_elem);
 	VDEV_FINALIZE(nvmev_vdev);
 	return -EIO;
+}
+
+static int delete_device(struct nvmev_dev *nvmev_vdev)
+{
+	int i;
+
+	nvmev->nr_dev--;
+
+	if (nvmev_vdev->virt_bus != NULL) {
+		pci_stop_root_bus(nvmev_vdev->virt_bus);
+		pci_remove_root_bus(nvmev_vdev->virt_bus);
+	}
+
+	NVMEV_DISPATCHER_FINAL(nvmev_vdev);
+	NVMEV_IO_WORKER_FINAL(nvmev_vdev);
+
+	NVMEV_NAMESPACE_FINAL(nvmev_vdev);
+	NVMEV_STORAGE_FINAL(nvmev_vdev);
+
+	if (io_using_dma) {
+		ioat_dma_cleanup();
+	}
+
+	for (i = 0; i < nvmev_vdev->nr_sq; i++) {
+		kfree(nvmev_vdev->sqes[i]);
+	}
+
+	for (i = 0; i < nvmev_vdev->nr_cq; i++) {
+		kfree(nvmev_vdev->cqes[i]);
+	}
+
+	list_del(&nvmev_vdev->list_elem);
+
+	VDEV_FINALIZE(nvmev_vdev);
+
+	printk("Virtual NVMe device deleted\n");
+
+	return 0;
+}
+
+static int delete_all(void)
+{
+	struct nvmev_dev *cursor, *next;
+
+	list_for_each_entry_safe(cursor, next, &nvmev->dev_list, list_elem)
+		delete_device(cursor);
+
+	return 0;
 }
 
 static ssize_t __config_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
@@ -795,16 +846,17 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 	size_t nr_copied;
 	char input[128];
 
+	struct nvmev_dev *nvmev_vdev;
 	struct params *p;
 
 	strncpy(input, buf, min(count, sizeof(input)));
 	printk("Command Start, Command is %s\n", input);
 
+	p = PARAM_INIT();
 	cmd = parse_to_cmd(input);
+	parse_command(input + (sizeof(cmd) - 1), p);
 
 	if (strcmp(cmd, "create") == 0) {
-		p = PARAM_INIT();
-		parse_command(input + (sizeof(cmd) - 1), p);
 		printk("Memmap_start = %ld\n", p->memmap_start);
 		printk("Memmap_size = %ld\n", p->memmap_size);
 		printk("cpus = %s\n", p->cpus);
@@ -817,8 +869,13 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 	}
 
 	else if (strcmp(cmd, "delete") == 0) {
-		printk("delete implementation please");
-	} else {
+		printk("target device: %s\n", p->name);
+
+		nvmev_vdev = __get_nvmev(p->name);
+		delete_device(nvmev_vdev);
+	} 
+
+	else {
 		NVMEV_ERROR("Doesn't not command.");
 	}
 
@@ -847,40 +904,16 @@ static int NVMeV_init(void)
 
 	NVMEV_INFO("Successfully load Virtual NVMe device module\n");
 	return 0;
-
-	//ret_err:
-	//	VDEV_FINALIZE(nvmev_vdev);
-	//	return -EIO;
 }
 
 static void NVMeV_exit(void)
 {
-	/*	int i;
+	delete_all();
 
-	if (nvmev_vdev->virt_bus != NULL) {
-		pci_stop_root_bus(nvmev_vdev->virt_bus);
-		pci_remove_root_bus(nvmev_vdev->virt_bus);
-	}
+	sysfs_remove_file(nvmev->config_root, &nvmev->config_attr->attr);
+	kobject_put(nvmev->config_root);
 
-	NVMEV_DISPATCHER_FINAL(nvmev_vdev);
-	NVMEV_IO_WORKER_FINAL(nvmev_vdev);
-
-	NVMEV_NAMESPACE_FINAL(nvmev_vdev);
-	NVMEV_STORAGE_FINAL(nvmev_vdev);
-
-	if (io_using_dma) {
-		ioat_dma_cleanup();
-	}
-
-	for (i = 0; i < nvmev_vdev->nr_sq; i++) {
-		kfree(nvmev_vdev->sqes[i]);
-	}
-
-	for (i = 0; i < nvmev_vdev->nr_cq; i++) {
-		kfree(nvmev_vdev->cqes[i]);
-	}
-
-	VDEV_FINALIZE(nvmev_vdev);*/
+	kfree(nvmev);
 
 	NVMEV_INFO("Virtual NVMe device closed\n");
 }

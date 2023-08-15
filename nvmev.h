@@ -259,6 +259,8 @@ struct nvmev_dev {
 	char dev_name[30];
 
 	unsigned int dev_id;
+	
+	unsigned int ftl;
 };
 
 struct nvmev_request {

@@ -95,6 +95,8 @@ struct params {
 	char *cpus;
 	char *name;
 	unsigned int debug;
+
+	unsigned int ftl;
 };
 
 static unsigned long memmap_start = 0;
@@ -587,13 +589,17 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 		else
 			size = min(NS_CAPACITY(i), remaining_capacity);
 
-		if (NS_SSD_TYPE(i) == SSD_TYPE_NVM)
+		//if (NS_SSD_TYPE(i) == SSD_TYPE_NVM)
+		if (nvmev_vdev->ftl == SSD_TYPE_NVM)
 			simple_init_namespace(&ns[i], i, size, ns_addr, disp_no);
-		else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
+		//else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
+		else if (nvmev_vdev->ftl == SSD_TYPE_CONV)
 			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
+		//else if (nvmev_vdev->ftl == SSD_TYPE_ZNS)
 			zns_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
+		//else if (nvmev_vdev->ftl == SSD_TYPE_KV)
 			kv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else
 			BUG_ON(1);
@@ -666,6 +672,18 @@ static void parse_command(char *cmd_line, struct params *p)
 
 		else if (strcmp(param, "name") == 0)
 			p->name = val;
+
+		else if (strcmp(param, "ftl") == 0) {
+			if (strcmp(val, "simple") == 0)
+				p->ftl = SSD_TYPE_NVM;
+			else if (strcmp(val, "conv"))
+				p->ftl = SSD_TYPE_CONV;
+			else if (strcmp(val, "kv"))
+				p->ftl = SSD_TYPE_KV;
+			else if (strcmp(val, "zns"))
+				p->ftl = SSD_TYPE_ZNS;
+		}
+			
 	}
 }
 
@@ -693,6 +711,8 @@ static struct params *PARAM_INIT(void)
 
 	params->name = NULL;
 	params->cpus = NULL;
+
+	params->ftl = SSD_TYPE_NVM;
 
 	return params;
 }
@@ -740,6 +760,9 @@ static int create_device(struct params *p)
 
 	/* Alloc dev ID from number of device. */
 	nvmev_vdev->dev_id = nvmev->nr_dev++;
+
+	/* Load ftl. */
+	nvmev_vdev->ftl = p->ftl;
 
 	/* Load name. */
 	if (p->name != NULL)

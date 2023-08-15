@@ -1,8 +1,9 @@
 # Select one of the targets to build
-CONFIG_NVMEVIRT_NVM := y
+#CONFIG_NVMEVIRT_NVM := y
 #CONFIG_NVMEVIRT_SSD := y
 #CONFIG_NVMEVIRT_ZNS := y
 #CONFIG_NVMEVIRT_KV := y
+CONFIG_NVMEVIRT_MI := y
 
 obj-m   := nvmev.o
 nvmev-objs := main.o pci.o admin.o io.o dma.o
@@ -21,3 +22,6 @@ nvmev-$(CONFIG_NVMEVIRT_ZNS) += ssd.o zns_ftl.o zns_read_write.o zns_mgmt_send.o
 
 ccflags-$(CONFIG_NVMEVIRT_KV) += -DBASE_SSD=KV_PROTOTYPE
 nvmev-$(CONFIG_NVMEVIRT_KV) += kv_ftl.o append_only.o bitmap.o
+
+ccflags-$(CONFIG_NVMEVIRT_MI) += -DBASE_SSD=INTEL_OPTANE
+nvmev-$(CONFIG_NVMEVIRT_MI) += simple_ftl.o ssd.o conv_ftl.o pqueue/pqueue.o channel_model.o

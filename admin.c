@@ -394,7 +394,6 @@ static void __nvmev_admin_identify_ctrl(int eid,struct nvmev_dev *nvmev_vdev)
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_ctrl *ctrl;
-
 	ctrl = prp_address(cmd->prp1);
 	memset(ctrl, 0x00, sizeof(*ctrl));
 

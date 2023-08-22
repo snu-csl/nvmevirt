@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/list.h>
 #include <linux/string.h>
+#include <linux/fs.h>
 
 #ifdef CONFIG_X86
 #include <asm/e820/types.h>
@@ -199,6 +200,7 @@ static void nvmev_proc_dbs(struct nvmev_dev *nvmev_vdev)
 static int nvmev_dispatcher(void *data)
 {
 	struct nvmev_dev *nvmev_vdev = (struct nvmev_dev *)data;
+	printk("dispatcher's nvmev :%p\n",nvmev_vdev);
 	NVMEV_INFO("nvmev_dispatcher started on cpu %d (node %d)\n",
 		   nvmev_vdev->config.cpu_nr_dispatcher,
 		   cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher));
@@ -215,7 +217,7 @@ static int nvmev_dispatcher(void *data)
 static void NVMEV_DISPATCHER_INIT(struct nvmev_dev *nvmev_vdev)
 {
 	char thread_name[32];
-
+	printk("nvmev_vdev : %p\n",nvmev_vdev);
 	snprintf(thread_name, sizeof(thread_name), "nvmev_%d_disp", nvmev_vdev->dev_id);
 
 	nvmev_vdev->nvmev_dispatcher =
@@ -351,7 +353,7 @@ static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, c
 	/* TODO: Need a function that search "nvnev-vdev" from file name. */
 	/* TODO: Print to file from nvmev_config data. */
 	ssize_t len = 0;
-
+	printk("??\n");
 	const char *dev_name = kobj->name;
 	const char *file_name = attr->attr.name;
 
@@ -371,6 +373,7 @@ static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, c
 		len = sprintf(buf, "%u + %u x + %u", cfg->write_delay, cfg->write_time, cfg->write_trailing);
 	} else if (strcmp(file_name, "io_units") == 0) {
 		len = sprintf(buf, "%u x %u", cfg->nr_io_units, cfg->io_unit_shift);
+	} else if (strcmp(file_name, "stat") == 0) {
 	} else if (strcmp(file_name, "stat") == 0) {
 		int i;
 		unsigned int nr_in_flight = 0;
@@ -410,6 +413,7 @@ static ssize_t __sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, 
 {
 	/* TODO: Need a function that search "nvnev-vdev" from file name. */
 	/* TODO: Scan from file to nvmev_config data. */
+	printk("store\n");
 	ssize_t len = count;
 	unsigned int ret;
 	unsigned long long *old_stat;
@@ -722,11 +726,21 @@ static void __print_base_config(void)
 	NVMEV_INFO("Version %x.%x for >> %s <<\n",
 			(NVMEV_VERSION & 0xff00) >> 8, (NVMEV_VERSION & 0x00ff), type);
 }
+int dev_open(struct inode *inode,struct file *filp){
+	printk("open dev\n");
+	return 0;
+}
+
+struct file_operations dev_fops =
+{
+	.open = dev_open,
+};
 
 static int create_device(struct params *p)
 {
 	struct nvmev_dev *nvmev_vdev;
 	nvmev_vdev = VDEV_INIT();
+
 	if (!nvmev_vdev)
 		return -EINVAL;
 
@@ -748,6 +762,12 @@ static int create_device(struct params *p)
 	else
 		snprintf(nvmev_vdev->dev_name, sizeof(nvmev_vdev->dev_name), "nvmev_%d", nvmev_vdev->dev_id);
 	
+	nvmev_vdev->major = register_chrdev(0,nvmev_vdev->dev_name,&dev_fops);
+	if(nvmev_vdev->major < 0)
+		printk("fault major\n");
+	else
+		printk("success major\n");
+
 	printk("storage\n");
 	NVMEV_STORAGE_INIT(nvmev_vdev);
 
@@ -790,6 +810,8 @@ static int delete_device(struct nvmev_dev *nvmev_vdev)
 	int i;
 
 	nvmev->nr_dev--;
+
+	unregister_chrdev(nvmev_vdev->major,nvmev_vdev->dev_name);
 
 	if (nvmev_vdev->virt_bus != NULL) {
 		pci_stop_root_bus(nvmev_vdev->virt_bus);

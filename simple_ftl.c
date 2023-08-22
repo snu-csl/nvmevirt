@@ -79,7 +79,7 @@ bool simple_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req,
 	struct nvme_command *cmd = req->cmd;
 
 	BUG_ON(ns->csi != NVME_CSI_NVM);
-	BUG_ON(BASE_SSD != INTEL_OPTANE);
+	BUG_ON(BASE_SSD != INTEL_OPTANE && BASE_SSD != MI);
 
 	switch (cmd->common.opcode) {
 	case nvme_cmd_write:
@@ -89,7 +89,7 @@ bool simple_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req,
 			__cmd_io_size((struct nvme_rw_command *)cmd), __get_wallclock(nvmev_vdev),nvmev_vdev);
 		break;
 	case nvme_cmd_flush:
-		ret->nsecs_target = __schedule_flush(req,nvmev_vdev);
+		ret->nsecs_target = __schedule_flush(req, nvmev_vdev);
 		break;
 	default:
 		NVMEV_ERROR("%s: command not implemented: %s (0x%x)\n", __func__,

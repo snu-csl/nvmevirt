@@ -280,13 +280,15 @@ struct nvmev_ns {
 	uint64_t size;
 	void *mapped;
 
+	struct nvmev_dev *p_dev;
+
 	/*conv ftl or zns or kv*/
 	uint32_t nr_parts; // partitions
 	void *ftls; // ftl instances. one ftl per partition
 
 	/*io command handler*/
 	bool (*proc_io_cmd)(struct nvmev_ns *ns, struct nvmev_request *req,
-			    struct nvmev_result *ret,struct nvmev_dev *nvmev_vdev);
+			    struct nvmev_result *ret, struct nvmev_dev *nvmev_vdev);
 
 	/*specific CSS io command identifier*/
 	bool (*identify_io_cmd)(struct nvmev_ns *ns, struct nvme_command cmd);

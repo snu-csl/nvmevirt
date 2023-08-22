@@ -8,7 +8,7 @@
 #include "nvmev.h"
 #include "channel_model.h"
 
-static inline unsigned long long __get_wallclock(void)
+static inline unsigned long long __get_wallclock(struct nvmev_dev *nvmev_vdev)
 {
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
@@ -28,9 +28,9 @@ void chmodel_init(struct channel_model *ch, uint64_t bandwidth /*MB/s*/)
 		   ch->max_credits, ch->xfer_lat);
 }
 
-uint64_t chmodel_request(struct channel_model *ch, uint64_t request_time, uint64_t length)
+uint64_t chmodel_request(struct channel_model *ch, uint64_t request_time, uint64_t length, struct nvmev_dev *nvmev_vdev)
 {
-	uint64_t cur_time = __get_wallclock();
+	uint64_t cur_time = __get_wallclock(nvmev_vdev);
 	uint32_t pos, next_pos;
 	uint32_t remaining_credits, consumed_credits;
 	uint32_t default_delay, delay = 0;

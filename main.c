@@ -590,11 +590,15 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 			size = min(NS_CAPACITY(i), remaining_capacity);
 
 		//if (NS_SSD_TYPE(i) == SSD_TYPE_NVM)
-		if (nvmev_vdev->ftl == SSD_TYPE_NVM)
+		if (nvmev_vdev->ftl == SSD_TYPE_NVM) {
 			simple_init_namespace(&ns[i], i, size, ns_addr, disp_no);
+			nvmev_vdev->mdts = NVM_MDTS;
+		}
 		//else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
-		else if (nvmev_vdev->ftl == SSD_TYPE_CONV)
+		else if (nvmev_vdev->ftl == SSD_TYPE_CONV) {
 			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
+			nvmev_vdev->mdts = CONV_MDTS;
+		}
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
 		//else if (nvmev_vdev->ftl == SSD_TYPE_ZNS)
 			zns_init_namespace(&ns[i], i, size, ns_addr, disp_no);
@@ -610,8 +614,9 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 	}
 
 	nvmev_vdev->ns = ns;
+	ns->p_dev = nvmev_vdev;
 	nvmev_vdev->nr_ns = nr_ns;
-	nvmev_vdev->mdts = MDTS;
+	//nvmev_vdev->mdts = MDTS;
 }
 
 void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
@@ -676,11 +681,11 @@ static void parse_command(char *cmd_line, struct params *p)
 		else if (strcmp(param, "ftl") == 0) {
 			if (strcmp(val, "simple") == 0)
 				p->ftl = SSD_TYPE_NVM;
-			else if (strcmp(val, "conv"))
+			else if (strcmp(val, "conv") == 0)
 				p->ftl = SSD_TYPE_CONV;
-			else if (strcmp(val, "kv"))
+			else if (strcmp(val, "kv") == 0)
 				p->ftl = SSD_TYPE_KV;
-			else if (strcmp(val, "zns"))
+			else if (strcmp(val, "zns") == 0)
 				p->ftl = SSD_TYPE_ZNS;
 		}
 			
@@ -883,6 +888,7 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 		printk("Memmap_start = %ld\n", p->memmap_start);
 		printk("Memmap_size = %ld\n", p->memmap_size);
 		printk("cpus = %s\n", p->cpus);
+		printk("ftl = %u\n", p->ftl);
 
 		if (p->name != NULL) {
 			printk("name = %s\n", p->name);

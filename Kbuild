@@ -23,5 +23,5 @@ nvmev-$(CONFIG_NVMEVIRT_ZNS) += ssd.o zns_ftl.o zns_read_write.o zns_mgmt_send.o
 ccflags-$(CONFIG_NVMEVIRT_KV) += -DBASE_SSD=KV_PROTOTYPE
 nvmev-$(CONFIG_NVMEVIRT_KV) += kv_ftl.o append_only.o bitmap.o
 
-ccflags-$(CONFIG_NVMEVIRT_MI) += -DBASE_SSD=INTEL_OPTANE
+ccflags-$(CONFIG_NVMEVIRT_MI) += -DBASE_SSD=MI
 nvmev-$(CONFIG_NVMEVIRT_MI) += simple_ftl.o ssd.o conv_ftl.o pqueue/pqueue.o channel_model.o

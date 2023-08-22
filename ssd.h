@@ -7,6 +7,7 @@
 #include "pqueue/pqueue.h"
 #include "ssd_config.h"
 #include "channel_model.h"
+#include "nvmev.h"
 /*
     Default malloc size
     Channel = 40 * 8 = 320
@@ -216,6 +217,8 @@ struct ssd {
 	struct ssd_pcie *pcie;
 	struct buffer *write_buffer;
 	unsigned int cpu_nr_dispatcher;
+
+	struct nvmev_ns *p_ns;
 };
 
 static inline struct ssd_channel *get_ch(struct ssd *ssd, struct ppa *ppa)

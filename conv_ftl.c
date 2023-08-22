@@ -7,7 +7,8 @@
 #include "conv_ftl.h"
 
 void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
-				 struct buffer *write_buffer, unsigned int buffs_to_release);
+				 struct buffer *write_buffer, unsigned int buffs_to_release, 
+				 struct nvmev_dev *nvmev_vdev);
 
 static inline bool last_pg_in_wordline(struct conv_ftl *conv_ftl, struct ppa *ppa)
 {
@@ -394,6 +395,8 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 		ssd = kmalloc(sizeof(struct ssd), GFP_KERNEL);
 		ssd_init(ssd, &spp, cpu_nr_dispatcher);
 		conv_init_ftl(&conv_ftls[i], &cpp, ssd);
+
+		ssd->p_ns = ns;
 	}
 
 	/* PCIe, Write buffer are shared by all instances*/
@@ -1007,7 +1010,7 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
 
 			schedule_internal_operation(req->sq_id, nsecs_completed, wbuf,
-						    spp->pgs_per_oneshotpg * spp->pgsz);
+						    spp->pgs_per_oneshotpg * spp->pgsz, ns->p_dev);
 		}
 
 		consume_write_credit(conv_ftl);
@@ -1045,7 +1048,7 @@ static void conv_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 	return;
 }
 
-bool conv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
+bool conv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret, struct nvmev_dev *nvmev_vdev)
 {
 	struct nvme_command *cmd = req->cmd;
 

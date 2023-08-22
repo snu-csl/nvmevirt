@@ -26,6 +26,8 @@ typedef uint32_t credit_t;
 #error "Invalid credit size"
 #endif
 
+#include "nvmev.h"
+
 struct channel_model {
 	uint64_t cur_time;
 	uint32_t head;
@@ -41,6 +43,7 @@ struct channel_model {
 #define BANDWIDTH_TO_MAX_CREDITS(MB_S) \
 	(MB(MB_S) * UNIT_TIME_INTERVAL / NS_PER_SEC(1) / UNIT_XFER_SIZE * UNIT_XFER_CREDITS)
 
-uint64_t chmodel_request(struct channel_model *ch, uint64_t request_time, uint64_t length);
+uint64_t chmodel_request(struct channel_model *ch, uint64_t request_time, 
+						uint64_t length, struct nvmev_dev *nvmev_vdev);
 void chmodel_init(struct channel_model *ch, uint64_t bandwidth /*MB/s*/);
 #endif

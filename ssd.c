@@ -334,7 +334,7 @@ void ssd_remove(struct ssd *ssd)
 uint64_t ssd_advance_pcie(struct ssd *ssd, uint64_t request_time, uint64_t length)
 {
 	struct channel_model *perf_model = ssd->pcie->perf_model;
-	return chmodel_request(perf_model, request_time, length);
+	return chmodel_request(perf_model, request_time, length, ssd->p_ns->p_dev);
 }
 
 /* Write buffer Performance Model
@@ -400,7 +400,7 @@ uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd)
 
 		while (remaining) {
 			xfer_size = min(remaining, (uint64_t)spp->max_ch_xfer_size);
-			chnl_etime = chmodel_request(ch->perf_model, chnl_stime, xfer_size);
+			chnl_etime = chmodel_request(ch->perf_model, chnl_stime, xfer_size, ssd->p_ns->p_dev);
 
 			if (ncmd->interleave_pci_dma) { /* overlap pci transfer with nand ch transfer*/
 				completed_time = ssd_advance_pcie(ssd, chnl_etime, xfer_size);
@@ -419,7 +419,7 @@ uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd)
 		/* write: transfer data through channel first */
 		chnl_stime = max(lun->next_lun_avail_time, cmd_stime);
 
-		chnl_etime = chmodel_request(ch->perf_model, chnl_stime, ncmd->xfer_size);
+		chnl_etime = chmodel_request(ch->perf_model, chnl_stime, ncmd->xfer_size, ssd->p_ns->p_dev);
 
 		/* write: then do NAND program */
 		nand_stime = chnl_etime;

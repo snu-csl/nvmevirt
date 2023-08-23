@@ -96,6 +96,8 @@ struct params {
 	char *cpus;
 	char *name;
 	unsigned int debug;
+
+	unsigned int ftl;
 };
 
 static unsigned long memmap_start = 0;
@@ -591,13 +593,21 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 		else
 			size = min(NS_CAPACITY(i), remaining_capacity);
 
-		if (NS_SSD_TYPE(i) == SSD_TYPE_NVM)
+		//if (NS_SSD_TYPE(i) == SSD_TYPE_NVM)
+		if (nvmev_vdev->ftl == SSD_TYPE_NVM) {
 			simple_init_namespace(&ns[i], i, size, ns_addr, disp_no);
-		else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
+			nvmev_vdev->mdts = NVM_MDTS;
+		}
+		//else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
+		else if (nvmev_vdev->ftl == SSD_TYPE_CONV) {
 			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
+			nvmev_vdev->mdts = CONV_MDTS;
+		}
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
+		//else if (nvmev_vdev->ftl == SSD_TYPE_ZNS)
 			zns_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
+		//else if (nvmev_vdev->ftl == SSD_TYPE_KV)
 			kv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else
 			BUG_ON(1);
@@ -608,8 +618,9 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 	}
 
 	nvmev_vdev->ns = ns;
+	ns->p_dev = nvmev_vdev;
 	nvmev_vdev->nr_ns = nr_ns;
-	nvmev_vdev->mdts = MDTS;
+	//nvmev_vdev->mdts = MDTS;
 }
 
 void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
@@ -670,6 +681,18 @@ static void parse_command(char *cmd_line, struct params *p)
 
 		else if (strcmp(param, "name") == 0)
 			p->name = val;
+
+		else if (strcmp(param, "ftl") == 0) {
+			if (strcmp(val, "simple") == 0)
+				p->ftl = SSD_TYPE_NVM;
+			else if (strcmp(val, "conv") == 0)
+				p->ftl = SSD_TYPE_CONV;
+			else if (strcmp(val, "kv") == 0)
+				p->ftl = SSD_TYPE_KV;
+			else if (strcmp(val, "zns") == 0)
+				p->ftl = SSD_TYPE_ZNS;
+		}
+			
 	}
 }
 
@@ -697,6 +720,8 @@ static struct params *PARAM_INIT(void)
 
 	params->name = NULL;
 	params->cpus = NULL;
+
+	params->ftl = SSD_TYPE_NVM;
 
 	return params;
 }
@@ -754,6 +779,9 @@ static int create_device(struct params *p)
 
 	/* Alloc dev ID from number of device. */
 	nvmev_vdev->dev_id = nvmev->nr_dev++;
+
+	/* Load ftl. */
+	nvmev_vdev->ftl = p->ftl;
 
 	/* Load name. */
 	if (p->name != NULL)
@@ -882,6 +910,7 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 		printk("Memmap_start = %ld\n", p->memmap_start);
 		printk("Memmap_size = %ld\n", p->memmap_size);
 		printk("cpus = %s\n", p->cpus);
+		printk("ftl = %u\n", p->ftl);
 
 		if (p->name != NULL) {
 			printk("name = %s\n", p->name);

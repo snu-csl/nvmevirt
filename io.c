@@ -21,7 +21,7 @@ struct buffer;
 
 extern bool io_using_dma;
 
-static inline unsigned int __get_io_worker(int sqid,struct nvmev_dev *nvmev_vdev)
+static inline unsigned int __get_io_worker(int sqid, struct nvmev_dev *nvmev_vdev)
 {
 #ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
 	return (sqid - 1) % nvmev_vdev->config.nr_io_workers;
@@ -245,10 +245,9 @@ static void __insert_req_sorted(unsigned int entry, struct nvmev_io_worker *work
 	}
 }
 
-static struct nvmev_io_worker *__allocate_work_queue_entry(int sqid, unsigned int *entry,struct nvmev_dev 
-		*nvmev_vdev)
+static struct nvmev_io_worker *__allocate_work_queue_entry(int sqid, unsigned int *entry, struct nvmev_dev *nvmev_vdev)
 {
-	unsigned int io_worker_turn = __get_io_worker(sqid,nvmev_vdev);
+	unsigned int io_worker_turn = __get_io_worker(sqid, nvmev_vdev);
 	struct nvmev_io_worker *worker = &nvmev_vdev->io_workers[io_worker_turn];
 	unsigned int e = worker->free_seq;
 	struct nvmev_io_work *w = worker->work_queue + e;
@@ -270,14 +269,14 @@ static struct nvmev_io_worker *__allocate_work_queue_entry(int sqid, unsigned in
 }
 
 static void __enqueue_io_req(int sqid, int cqid, int sq_entry, unsigned long long nsecs_start,
-			     struct nvmev_result *ret,struct nvmev_dev *nvmev_vdev)
+			     struct nvmev_result *ret, struct nvmev_dev *nvmev_vdev)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 	struct nvmev_io_worker *worker;
 	struct nvmev_io_work *w;
 	unsigned int entry;
 
-	worker = __allocate_work_queue_entry(sqid, &entry,nvmev_vdev);
+	worker = __allocate_work_queue_entry(sqid, &entry, nvmev_vdev);
 	if (!worker)
 		return;
 
@@ -314,7 +313,7 @@ void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
 	struct nvmev_io_work *w;
 	unsigned int entry;
 
-	worker = __allocate_work_queue_entry(sqid, &entry,nvmev_vdev);
+	worker = __allocate_work_queue_entry(sqid, &entry, nvmev_vdev);
 	if (!worker)
 		return;
 

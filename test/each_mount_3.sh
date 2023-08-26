@@ -33,17 +33,17 @@ df -h
 
 echo "simple random read"
 echo ""
-sudo fio --directory=/mnt/disk1 --name fio_simple_read --direct=1 --rw=randread --bs=4K --size=6G --numjobs=16 --time_based --runtime=180 --group_reporting --norandommap
+sudo fio --directory=/mnt/disk1 --name fio_simple_read --direct=1 --rw=randread --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap
 
 echo "conv random read"
 echo ""
-sudo fio --directory=/mnt/disk3 --name fio_conv_read --direct=1 --rw=randread --bs=4K --size=6G --numjobs=16 --time_based --runtime=180 --group_reporting --norandommap
+sudo fio --directory=/mnt/disk3 --name fio_conv_read --direct=1 --rw=randread --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap
 
 echo "simple random write"
-sudo fio --directory=/mnt/disk1 --name fio_simple_write --direct=1 --rw=randwrite --bs=4K --size=6G --numjobs=16 --time_based --runtime=180 --group_reporting --norandommap
+sudo fio --directory=/mnt/disk1 --name fio_simple_write --direct=1 --rw=randwrite --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap
 
 echo "conv random write"
-sudo fio --directory=/mnt/disk3 --name fio_conv_write --direct=1 --rw=randwrite --bs=4K --size=6G --numjobs=16 --time_based --runtime=180 --group_reporting --norandommap
+sudo fio --directory=/mnt/disk3 --name fio_conv_write --direct=1 --rw=randwrite --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap
 
 
 

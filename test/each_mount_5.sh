@@ -32,9 +32,9 @@ mount /dev/nvme2n3 /mnt/disk3
 df -h
 
 echo "simple random write and conv random write"
-sudo fio --directory=/mnt/disk1 --name fio_simple_write --direct=1 --rw=randwrite --bs=4K --size=6G --numjobs=16 --time_based --runtime=180 --group_reporting --norandommap &
+sudo fio --directory=/mnt/disk1 --name fio_simple_write --direct=1 --rw=randwrite --bs=4K --size=3G --time_based --runtime=180 --group_reporting --norandommap &
 
-sudo fio --directory=/mnt/disk3 --name fio_conv_write --direct=1 --rw=randwrite --bs=4K --size=6G --numjobs=16 --time_based --runtime=180 --group_reporting --norandommap &
+sudo fio --directory=/mnt/disk3 --name fio_conv_write --direct=1 --rw=randwrite --bs=4K --size=3G --time_based --runtime=180 --group_reporting --norandommap &
 
 
 

@@ -920,10 +920,16 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 	}
 
 	else if (strcmp(cmd, "delete") == 0) {
-		printk("target device: %s\n", p->name);
-
-		nvmev_vdev = __get_nvmev(p->name);
-		delete_device(nvmev_vdev);
+		
+		if(p->name != NULL){
+			printk("target device: %s\n", p->name);
+		
+			nvmev_vdev = __get_nvmev(p->name);
+			delete_device(nvmev_vdev);
+		}
+		else{
+			printk("Do not have target device\n");
+		}
 	} 
 
 	else {

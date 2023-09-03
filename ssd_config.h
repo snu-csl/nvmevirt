@@ -24,6 +24,110 @@
 #define CELL_MODE_TLC 3
 #define CELL_MODE_QLC 4
 
+struct conv_configs {
+	uint32_t ssd_partitions;
+	int nand_channels;
+	int luns_per_nand_ch;
+	int plns_per_lun;
+	int flash_page_size;
+	int oneshot_page_size;
+	int blks_per_pln;
+	int blk_size;
+
+	int max_ch_xfer_size;
+	int write_unit_size;
+
+	uint64_t nand_channel_bandwidth;
+	uint64_t pcie_bandwidth;
+
+	int nand_4kb_read_latency_lsb;
+	int nand_4kb_read_latency_msb;
+	int nand_4kb_read_latency_csb;
+	int nand_read_latency_lsb;
+	int nand_read_latency_msb;
+	int nand_read_latency_csb;
+	int nand_prog_latency;
+	int nand_erase_latency;
+
+	int fw_4kb_read_latency;
+	int fw_read_latency;
+	int fw_wbuf_latency0;
+	int fw_wbuf_latency1;
+	int fw_ch_xfer_latency;
+	double op_area_percent;
+
+	unsigned long long global_wb_size;
+	bool write_early_completion;
+};
+
+struct zns_configs {
+	uint32_t ssd_partitons;
+	int nand_channels;
+	int luns_per_nand_ch;
+	int plns_per_lun;
+	uint32_t dies_per_zone;
+
+	int flash_page_size;
+	int oneshot_page_size;
+	int zone_size;
+
+	int blks_per_pln;
+	int blk_size;
+
+	int max_ch_xfer_size;
+	int write_unit_size;
+
+	uint64_t nand_channel_bandwidth;
+	uint64_t pcie_bandwidth;
+
+	int nand_4kb_read_latency_lsb;
+	int nand_4kb_read_latency_msb;
+	int nand_4kb_read_latency_csb;
+	int nand_read_latency_lsb;
+	int nand_read_latency_msb;
+	int nand_read_latency_csb;
+	int nand_prog_latency;
+	int nand_erase_layency;
+
+	int fw_4kb_read_latency;
+	int fw_read_latency;
+	int fw_wbuf_latency0;
+	int fw_wbuf_latency1;
+	int fw_ch_xfer_latency;
+	double op_area_percent;
+
+	uint32_t zone_wb_size;
+	unsigned long long global_wb_size;
+	bool write_early_completion;	
+};
+
+enum {
+	allocator_type_bitmap,
+	allocator_type_append_only,
+};
+
+struct kv_configs {
+	unsigned long kv_mapping_table_size;
+	int allocator_type;
+};
+
+union extra_configs {
+	struct conv_configs conv;
+	struct zns_configs zns;
+	struct kv_configs kv;
+};
+
+struct ftl_configs {
+	uint32_t ns_ssd_type;
+
+	unsigned int mdts;
+	int cell_mode;
+
+	union extra_configs extra_configs;
+};
+
+void load_simple_configs(struct ftl_configs *cfgs);
+
 /* Must select one of INTEL_OPTANE, SAMSUNG_970PRO, or ZNS_PROTOTYPE
  * in Makefile */
 

@@ -24,4 +24,4 @@ ccflags-$(CONFIG_NVMEVIRT_KV) += -DBASE_SSD=KV_PROTOTYPE
 nvmev-$(CONFIG_NVMEVIRT_KV) += kv_ftl.o append_only.o bitmap.o
 
 ccflags-$(CONFIG_NVMEVIRT_MI) += -DBASE_SSD=MI
-nvmev-$(CONFIG_NVMEVIRT_MI) += simple_ftl.o ssd.o conv_ftl.o pqueue/pqueue.o channel_model.o
+nvmev-$(CONFIG_NVMEVIRT_MI) += ssd_config.o simple_ftl.o ssd.o conv_ftl.o pqueue/pqueue.o channel_model.o

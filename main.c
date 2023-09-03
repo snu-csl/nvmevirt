@@ -355,7 +355,6 @@ static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, c
 	/* TODO: Need a function that search "nvnev-vdev" from file name. */
 	/* TODO: Print to file from nvmev_config data. */
 	ssize_t len = 0;
-	printk("??\n");
 	const char *dev_name = kobj->name;
 	const char *file_name = attr->attr.name;
 
@@ -415,7 +414,6 @@ static ssize_t __sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, 
 {
 	/* TODO: Need a function that search "nvnev-vdev" from file name. */
 	/* TODO: Scan from file to nvmev_config data. */
-	printk("store\n");
 	ssize_t len = count;
 	unsigned int ret;
 	unsigned long long *old_stat;
@@ -586,6 +584,7 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 	unsigned long long size;
 
 	struct nvmev_ns *ns = kmalloc(sizeof(struct nvmev_ns) * nr_ns, GFP_KERNEL);
+	struct ftl_configs *ftl_cfgs = kmalloc(sizeof(struct ftl_configs), GFP_KERNEL);
 
 	for (i = 0; i < nr_ns; i++) {
 		if (NS_CAPACITY(i) == 0)
@@ -595,13 +594,13 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 
 		//if (NS_SSD_TYPE(i) == SSD_TYPE_NVM)
 		if (nvmev_vdev->ftl == SSD_TYPE_NVM) {
-			simple_init_namespace(&ns[i], i, size, ns_addr, disp_no);
-			nvmev_vdev->mdts = NVM_MDTS;
+			load_simple_configs(ftl_cfgs);
+			simple_init_namespace(&ns[i], i, size, ns_addr, disp_no, ftl_cfgs);
 		}
 		//else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
 		else if (nvmev_vdev->ftl == SSD_TYPE_CONV) {
+			load_conv_configs(ftl_cfgs);
 			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
-			nvmev_vdev->mdts = CONV_MDTS;
 		}
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
 		//else if (nvmev_vdev->ftl == SSD_TYPE_ZNS)
@@ -620,7 +619,7 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->ns = ns;
 	ns->p_dev = nvmev_vdev;
 	nvmev_vdev->nr_ns = nr_ns;
-	//nvmev_vdev->mdts = MDTS;
+	nvmev_vdev->mdts = ftl_cfgs->mdts;
 }
 
 void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)

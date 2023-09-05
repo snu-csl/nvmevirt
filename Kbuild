@@ -25,3 +25,5 @@ nvmev-$(CONFIG_NVMEVIRT_KV) += kv_ftl.o append_only.o bitmap.o
 
 ccflags-$(CONFIG_NVMEVIRT_MI) += -DBASE_SSD=MI
 nvmev-$(CONFIG_NVMEVIRT_MI) += simple_ftl.o ssd.o conv_ftl.o pqueue/pqueue.o channel_model.o
+#zns_ftl.o zns_read_write.o zns_mgmt_send.o zns_mgmt_recv.o
+#kv_ftl.o append_only.o bitmap.o

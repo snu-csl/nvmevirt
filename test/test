@@ -1,0 +1,128 @@
+#!/bin/bash
+
+echo "Read and Write test using fio"
+echo "if you dont know, how to use this testing code"
+echo "push '-help'"
+
+if [[ $1 == "-help" ]]; then
+	echo "origin test at randread, simple ftl for background"
+	echo "But if you want other form, you can do it"
+	echo "./test [first nvme] [seconde nvme]"
+	echo "you can give parameter starting - symbol"
+	echo "f is foreground"
+	echo "s is sequence read or write"
+	echo "w is write"
+	echo "c is conv ftl"
+	echo "if you give ./test -cs"
+	echo "then that mean test just one nvme device for conv ftl, sequence, read, background"
+	echo "if you give ./test - -w"
+	echo "then that mean test first nvme device for simple ftl, rand, read, background"
+	echo "seconde device for simple ftl,rand, write, background"
+	exit 0
+fi
+
+if [ ! -d /mnt/disk1 ] ; then
+	mkdir /mnt/disk1
+fi
+
+if [ ! -d /mnt/disk2 ] ; then
+	mkdir /mnt/disk2
+fi
+
+if [ ! -d /mnt/disk3 ] ; then
+	mkdir /mnt/disk3
+fi
+
+if [ ! -d /mnt/disk4 ] ; then
+	mkdir /mnt/disk4
+fi
+
+file -s /dev/nvme0n1 | grep ': data' && sudo mkfs.ext4 -E lazy_itable_init=0,lazy_journal_init=0 /dev/nvme0n1
+
+file -s /dev/nvme1n2 | grep ': data' && sudo mkfs.ext4 -E lazy_itable_init=0,lazy_journal_init=0 /dev/nvme1n2
+
+file -s /dev/nvme2n3 | grep ': data' && sudo mkfs.ext4 -E lazy_itable_init=0,lazy_journal_init=0 /dev/nvme2n3
+
+file -s /dev/nvme3n4 | grep ': data' && sudo mkfs.ext4 -E lazy_itable_init=0,lazy_journal_init=0 /dev/nvme3n4
+
+df -h | grep '/dev/nvme0n1' || mount /dev/nvme0n1 /mnt/disk1
+df -h | grep '/dev/nvme1n2' || mount /dev/nvme1n2 /mnt/disk2
+df -h | grep '/dev/nvme2n3' || mount /dev/nvme2n3 /mnt/disk3
+df -h | grep '/dev/nvme3n4' || mount /dev/nvme3n4 /mnt/disk4
+
+
+FIRST_MODE="randread"
+FIRST_STYLE=1
+#coding
+#origin is simple nvme and randread test
+if [[ $1 == "-"* ]]; then 
+	#command start
+	if [[ $1 == *"s"* ]]; then
+		if [[ $1 == *"w"* ]]; then
+			FIRST_MODE="write"
+		else
+			FIRST_MODE="read"
+		fi
+	else
+		if [[ $1 == *"w"* ]]; then
+			FIRST_MODE="randwrite"
+		fi
+	fi
+
+	#conv or simple. origin is simple
+	if [[ $1 == *"c"* ]]; then
+		FIRST_STYLE=2
+	fi
+fi
+
+echo "testing first nvme ${FIRST_STYLE} and ${FIRST_MODE} for background"
+if [[ ${FIRST_STYLE} -eq 1 ]]; then
+	sudo fio --directory=/mnt/disk1 --name fio_simple --direct=1 --rw=${FIRST_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &
+	sudo rm -rf /mnt/disk1/fio*
+elif [[ ${FIRST_STYLE} -eq 2 ]]; then
+	sudo fio --directory=/mnt/disk2 --name fio_simple --direct=1 --rw=${FIRST_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &
+	sudo rm -rf /mnt/disk2/fio*
+fi
+
+
+SECONDE_MODE="randread"
+SECONDE_STYLE=0
+#coding
+#origin is simple nvme and randread test
+if [[ $2 == "-"* ]]; then 
+	SECONDE_STYLE=1
+	#command start
+	if [[ $2 == *"s"* ]]; then
+		if [[ $2 == *"w"* ]]; then
+			SECONDE_MODE="write"
+		else
+			SECONDE_MODE="read"
+		fi
+	else
+		if [[ $2 == *"w"* ]]; then
+			SECONDE_MODE="randwrite"
+		fi
+	fi
+
+	#conv or simple. origin is simple
+	if [[ $2 == *"c"* ]]; then
+		SECONDE_STYLE=2
+	fi
+else
+	exit 0
+fi
+
+echo "testing seconde nvme ${SECONDE_STYLE} and ${SECONDE_MODE} for background"
+if [[ ${SECONDE_STYLE} -eq 1 ]]; then
+	sudo fio --directory=/mnt/disk3 --name fio_simple --direct=1 --rw=${SECONDE_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &
+	sudo rm -rf /mnt/disk3/fio*
+elif [[ ${SECONDE_STYLE} -eq 2 ]]; then
+	sudo fio --directory=/mnt/disk4 --name fio_simple --direct=1 --rw=${SECONDE_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &
+	sudo rm -rf /mnt/disk4/fio*
+fi
+
+
+
+
+
+

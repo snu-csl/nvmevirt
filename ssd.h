@@ -256,7 +256,7 @@ static inline uint32_t get_cell(struct ssd *ssd, struct ppa *ppa)
 	return (ppa->g.pg / spp->pgs_per_flashpg) % (spp->cell_mode + 1);
 }
 
-void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts);
+void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts, struct ftl_configs *ftl_cfgs);
 void ssd_init(struct ssd *ssd, struct ssdparams *spp, uint32_t cpu_nr_dispatcher);
 void ssd_remove(struct ssd *ssd);
 

@@ -63,32 +63,35 @@ static void check_params(struct ssdparams *spp)
 	//ftl_assert(is_power_of_2(spp->nchs));
 }
 
-void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
+void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts, 
+					struct ftl_configs *ftl_cfgs)
 {
 	uint64_t blk_size, total_size;
+	int ONESHOT_PAGE_SIZE = ftl_cfgs->ONESHOT_PAGE_SIZE;
+	int FLASH_PAGE_SIZE = ftl_cfgs->FLASH_PAGE_SIZE;	
 
 	spp->secsz = 512;
 	spp->secs_per_pg = 8;
 	spp->pgsz = spp->secsz * spp->secs_per_pg;
 
-	spp->nchs = NAND_CHANNELS;
-	spp->pls_per_lun = PLNS_PER_LUN;
-	spp->luns_per_ch = LUNS_PER_NAND_CH;
-	spp->cell_mode = CELL_MODE;
+	spp->nchs = ftl_cfgs->NAND_CHANNELS;
+	spp->pls_per_lun = ftl_cfgs->PLNS_PER_LUN;
+	spp->luns_per_ch = ftl_cfgs->LUNS_PER_NAND_CH;
+	spp->cell_mode = ftl_cfgs->CELL_MODE;
 
 	/* partitioning SSD by dividing channel*/
 	NVMEV_ASSERT((spp->nchs % nparts) == 0);
 	spp->nchs /= nparts;
 	capacity /= nparts;
 
-	if (BLKS_PER_PLN > 0) {
+	if (ftl_cfgs->BLKS_PER_PLN > 0) {
 		/* flashpgs_per_blk depends on capacity */
-		spp->blks_per_pl = BLKS_PER_PLN;
+		spp->blks_per_pl = ftl_cfgs->BLKS_PER_PLN;
 		blk_size = DIV_ROUND_UP(capacity, spp->blks_per_pl * spp->pls_per_lun *
 							  spp->luns_per_ch * spp->nchs);
 	} else {
-		NVMEV_ASSERT(BLK_SIZE > 0);
-		blk_size = BLK_SIZE;
+		NVMEV_ASSERT(ftl_cfgs->BLK_SIZE > 0);
+		blk_size = ftl_cfgs->BLK_SIZE;
 		spp->blks_per_pl = DIV_ROUND_UP(capacity, blk_size * spp->pls_per_lun *
 								  spp->luns_per_ch * spp->nchs);
 	}
@@ -104,29 +107,29 @@ void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
 
 	spp->pgs_per_blk = spp->pgs_per_oneshotpg * spp->oneshotpgs_per_blk;
 
-	spp->write_unit_size = WRITE_UNIT_SIZE;
+	spp->write_unit_size = ftl_cfgs->WRITE_UNIT_SIZE;
 
-	spp->pg_4kb_rd_lat[CELL_TYPE_LSB] = NAND_4KB_READ_LATENCY_LSB;
-	spp->pg_4kb_rd_lat[CELL_TYPE_MSB] = NAND_4KB_READ_LATENCY_MSB;
-	spp->pg_4kb_rd_lat[CELL_TYPE_CSB] = NAND_4KB_READ_LATENCY_CSB;
-	spp->pg_rd_lat[CELL_TYPE_LSB] = NAND_READ_LATENCY_LSB;
-	spp->pg_rd_lat[CELL_TYPE_MSB] = NAND_READ_LATENCY_MSB;
-	spp->pg_rd_lat[CELL_TYPE_CSB] = NAND_READ_LATENCY_CSB;
-	spp->pg_wr_lat = NAND_PROG_LATENCY;
-	spp->blk_er_lat = NAND_ERASE_LATENCY;
-	spp->max_ch_xfer_size = MAX_CH_XFER_SIZE;
+	spp->pg_4kb_rd_lat[CELL_TYPE_LSB] = ftl_cfgs->NAND_4KB_READ_LATENCY_LSB;
+	spp->pg_4kb_rd_lat[CELL_TYPE_MSB] = ftl_cfgs->NAND_4KB_READ_LATENCY_MSB;
+	spp->pg_4kb_rd_lat[CELL_TYPE_CSB] = ftl_cfgs->NAND_4KB_READ_LATENCY_CSB;
+	spp->pg_rd_lat[CELL_TYPE_LSB] = ftl_cfgs->NAND_READ_LATENCY_LSB;
+	spp->pg_rd_lat[CELL_TYPE_MSB] = ftl_cfgs->NAND_READ_LATENCY_MSB;
+	spp->pg_rd_lat[CELL_TYPE_CSB] = ftl_cfgs->NAND_READ_LATENCY_CSB;
+	spp->pg_wr_lat = ftl_cfgs->NAND_PROG_LATENCY;
+	spp->blk_er_lat = ftl_cfgs->NAND_ERASE_LATENCY;
+	spp->max_ch_xfer_size = ftl_cfgs->MAX_CH_XFER_SIZE;
 
-	spp->fw_4kb_rd_lat = FW_4KB_READ_LATENCY;
-	spp->fw_rd_lat = FW_READ_LATENCY;
-	spp->fw_ch_xfer_lat = FW_CH_XFER_LATENCY;
-	spp->fw_wbuf_lat0 = FW_WBUF_LATENCY0;
-	spp->fw_wbuf_lat1 = FW_WBUF_LATENCY1;
+	spp->fw_4kb_rd_lat = ftl_cfgs->FW_4KB_READ_LATENCY;
+	spp->fw_rd_lat = ftl_cfgs->FW_READ_LATENCY;
+	spp->fw_ch_xfer_lat = ftl_cfgs->FW_CH_XFER_LATENCY;
+	spp->fw_wbuf_lat0 = ftl_cfgs->FW_WBUF_LATENCY0;
+	spp->fw_wbuf_lat1 = ftl_cfgs->FW_WBUF_LATENCY1;
 
-	spp->ch_bandwidth = NAND_CHANNEL_BANDWIDTH;
-	spp->pcie_bandwidth = PCIE_BANDWIDTH;
+	spp->ch_bandwidth = ftl_cfgs->NAND_CHANNEL_BANDWIDTH;
+	spp->pcie_bandwidth = ftl_cfgs->PCIE_BANDWIDTH;
 
-	spp->write_buffer_size = GLOBAL_WB_SIZE;
-	spp->write_early_completion = WRITE_EARLY_COMPLETION;
+	spp->write_buffer_size = ftl_cfgs->GLOBAL_WB_SIZE;
+	spp->write_early_completion = ftl_cfgs->WRITE_EARLY_COMPLETION;
 
 	/* calculated values */
 	spp->secs_per_blk = spp->secs_per_pg * spp->pgs_per_blk;

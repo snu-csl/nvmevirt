@@ -600,7 +600,7 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 		//else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
 		else if (nvmev_vdev->ftl == SSD_TYPE_CONV) {
 			load_conv_configs(ftl_cfgs);
-			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
+			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no, ftl_cfgs);
 		}
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
 		//else if (nvmev_vdev->ftl == SSD_TYPE_ZNS)
@@ -619,7 +619,7 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->ns = ns;
 	ns->p_dev = nvmev_vdev;
 	nvmev_vdev->nr_ns = nr_ns;
-	nvmev_vdev->mdts = ftl_cfgs->mdts;
+	nvmev_vdev->mdts = ftl_cfgs->MDTS;
 }
 
 void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)

@@ -25,9 +25,14 @@
 #define CELL_MODE_QLC 4
 
 struct zns_configs {
-	uint32_t dies_per_zone;
-	int zone_size;
-	uint32_t zone_wb_size;
+	uint64_t ZONE_SIZE;
+	uint32_t DIES_PER_ZONE;
+	uint32_t ZONE_WB_SIZE;
+
+	uint32_t MAX_ZRWA_ZONES;
+	uint32_t ZRWAFG_SIZE;
+	uint32_t ZRWA_SIZE;
+	uint32_t ZRWA_BUFFER_SIZE;
 };
 
 enum {
@@ -90,6 +95,7 @@ struct ftl_configs {
 
 void load_simple_configs(struct ftl_configs *flt_cfgs);
 void load_conv_configs(struct ftl_configs *ftl_cfgs);
+void load_zns_configs(struct ftl_configs *ftl_cfgs);
 
 /* Must select one of INTEL_OPTANE, SAMSUNG_970PRO, or ZNS_PROTOTYPE
  * in Makefile */

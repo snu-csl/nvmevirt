@@ -5,7 +5,8 @@
 #include "zns_ftl.h"
 
 void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
-				 struct buffer *write_buffer, size_t buffs_to_release);
+				 struct buffer *write_buffer, size_t buffs_to_release,
+				 struct nvmev_dev *nvmev_vdev);
 
 static inline uint32_t __nr_lbas_from_rw_cmd(struct nvme_rw_command *cmd)
 {
@@ -64,7 +65,7 @@ static inline struct ppa __lpn_to_ppa(struct zns_ftl *zns_ftl, uint64_t lpn)
 	return ppa;
 }
 
-static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
+static bool __zns_write(struct nvmev_ns *ns, struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			struct nvmev_result *ret)
 {
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
@@ -120,6 +121,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 
 	// check if slba == current write pointer
 	if (slba != zone_descs[zid].wp) {
+		printk("%lld %lld\n", slba, zone_descs[zid].wp);
 		NVMEV_ERROR("%s WP error slba 0x%llx nr_lba 0x%llx zone_id %d wp %llx state %d\n",
 			    __func__, slba, nr_lba, zid, zns_ftl->zone_descs[zid].wp, state);
 		status = NVME_SC_ZNS_INVALID_WRITE;
@@ -208,7 +210,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 				bufs_to_release = spp->pgs_per_oneshotpg * spp->pgsz;
 
 			schedule_internal_operation(req->sq_id, nsecs_completed, write_buffer,
-						    bufs_to_release);
+						    bufs_to_release, ns->p_dev);
 		}
 	}
 
@@ -223,8 +225,8 @@ out:
 	return true;
 }
 
-static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
-			     struct nvmev_result *ret)
+static bool __zns_write_zrwa(struct nvmev_ns *ns, struct zns_ftl *zns_ftl, 
+				 struct nvmev_request *req, struct nvmev_result *ret)
 {
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	struct ssdparams *spp = &zns_ftl->ssd->sp;
@@ -361,7 +363,7 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 
 			schedule_internal_operation(req->sq_id, nsecs_completed,
 						    &zns_ftl->zwra_buffer[zid],
-						    spp->pgs_per_oneshotpg * spp->pgsz);
+						    spp->pgs_per_oneshotpg * spp->pgsz, ns->p_dev);
 		}
 
 		lpn += pgs;
@@ -393,9 +395,9 @@ bool zns_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resu
 	NVMEV_DEBUG("%s slba 0x%llx zone_id %d \n", __func__, cmd->slba, zid);
 
 	if (zone_descs[zid].zrwav == 0)
-		return __zns_write(zns_ftl, req, ret);
+		return __zns_write(ns, zns_ftl, req, ret);
 	else
-		return __zns_write_zrwa(zns_ftl, req, ret);
+		return __zns_write_zrwa(ns, zns_ftl, req, ret);
 }
 
 bool zns_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)

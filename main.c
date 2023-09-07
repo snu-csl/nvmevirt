@@ -602,9 +602,11 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 			load_conv_configs(ftl_cfgs);
 			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no, ftl_cfgs);
 		}
-		else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
-		//else if (nvmev_vdev->ftl == SSD_TYPE_ZNS)
-			zns_init_namespace(&ns[i], i, size, ns_addr, disp_no);
+		//else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
+		else if (nvmev_vdev->ftl == SSD_TYPE_ZNS) {
+			load_zns_configs(ftl_cfgs);
+			zns_init_namespace(&ns[i], i, size, ns_addr, disp_no, ftl_cfgs);
+		}
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
 		//else if (nvmev_vdev->ftl == SSD_TYPE_KV)
 			kv_init_namespace(&ns[i], i, size, ns_addr, disp_no);

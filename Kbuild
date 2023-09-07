@@ -24,4 +24,5 @@ ccflags-$(CONFIG_NVMEVIRT_KV) += -DBASE_SSD=KV_PROTOTYPE
 nvmev-$(CONFIG_NVMEVIRT_KV) += kv_ftl.o append_only.o bitmap.o
 
 ccflags-$(CONFIG_NVMEVIRT_MI) += -DBASE_SSD=MI
-nvmev-$(CONFIG_NVMEVIRT_MI) += ssd_config.o simple_ftl.o ssd.o conv_ftl.o pqueue/pqueue.o channel_model.o
+ccflags-$(CONFIG_NVMEVIRT_MI) += -Wno-implicit-fallthrough
+nvmev-$(CONFIG_NVMEVIRT_MI) += ssd_config.o simple_ftl.o ssd.o conv_ftl.o pqueue/pqueue.o zns_ftl.o zns_read_write.o zns_mgmt_send.o zns_mgmt_recv.o channel_model.o

@@ -52,7 +52,7 @@
 *.zst
 Module.symvers
 modules.order
-
+Makefile.local
 #
 # Top-level generic files
 #

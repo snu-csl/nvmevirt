@@ -50,7 +50,10 @@ df -h | grep '/dev/nvme1n2' || mount /dev/nvme1n2 /mnt/disk2
 df -h | grep '/dev/nvme2n3' || mount /dev/nvme2n3 /mnt/disk3
 df -h | grep '/dev/nvme3n4' || mount /dev/nvme3n4 /mnt/disk4
 
-
+sudo rm -rf /mnt/disk1/fio*
+sudo rm -rf /mnt/disk2/fio*
+sudo rm -rf /mnt/disk3/fio*
+sudo rm -rf /mnt/disk4/fio*
 FIRST_MODE="randread"
 FIRST_STYLE=1
 #coding
@@ -77,13 +80,10 @@ fi
 
 echo "testing first nvme ${FIRST_STYLE} and ${FIRST_MODE} for background"
 if [[ ${FIRST_STYLE} -eq 1 ]]; then
-	sudo fio --directory=/mnt/disk1 --name fio_simple --direct=1 --rw=${FIRST_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &
-	sudo rm -rf /mnt/disk1/fio*
+	(sudo fio --directory=/mnt/disk1 --name fio_simple --direct=1 --rw=${FIRST_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &) && sudo rm -rf /mnt/disk1/fio*
 elif [[ ${FIRST_STYLE} -eq 2 ]]; then
-	sudo fio --directory=/mnt/disk2 --name fio_simple --direct=1 --rw=${FIRST_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &
-	sudo rm -rf /mnt/disk2/fio*
+	(sudo fio --directory=/mnt/disk2 --name fio_conv --direct=1 --rw=${FIRST_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &) && sudo rm -rf /mnt/disk2/fio*
 fi
-
 
 SECONDE_MODE="randread"
 SECONDE_STYLE=0
@@ -114,13 +114,10 @@ fi
 
 echo "testing seconde nvme ${SECONDE_STYLE} and ${SECONDE_MODE} for background"
 if [[ ${SECONDE_STYLE} -eq 1 ]]; then
-	sudo fio --directory=/mnt/disk3 --name fio_simple --direct=1 --rw=${SECONDE_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &
-	sudo rm -rf /mnt/disk3/fio*
+	(sudo fio --directory=/mnt/disk3 --name fio_simple --direct=1 --rw=${SECONDE_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &) && sudo rm -rf /mnt/disk3/fio*
 elif [[ ${SECONDE_STYLE} -eq 2 ]]; then
-	sudo fio --directory=/mnt/disk4 --name fio_simple --direct=1 --rw=${SECONDE_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &
-	sudo rm -rf /mnt/disk4/fio*
+	(sudo fio --directory=/mnt/disk4 --name fio_conv --direct=1 --rw=${SECONDE_MODE} --bs=4K --size=2G --time_based --runtime=180 --group_reporting --norandommap &) && sudo rm -rf /mnt/disk4/fio*
 fi
-
 
 
 

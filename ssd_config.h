@@ -36,13 +36,13 @@ struct zns_configs {
 };
 
 enum {
-	allocator_type_bitmap,
-	allocator_type_append_only,
+	ALLOCATOR_TYPE_BITMAP,
+	ALLOCATOR_TYPE_APPEND_ONLY,
 };
 
 struct kv_configs {
-	unsigned long kv_mapping_table_size;
-	int allocator_type;
+	unsigned long KV_MAPPING_TABLE_SIZE;
+	int ALLOCATOR_TYPE;
 };
 
 union extra_configs {
@@ -96,6 +96,7 @@ struct ftl_configs {
 void load_simple_configs(struct ftl_configs *flt_cfgs);
 void load_conv_configs(struct ftl_configs *ftl_cfgs);
 void load_zns_configs(struct ftl_configs *ftl_cfgs);
+void load_kv_configs(struct ftl_configs *ftl_cfgs);
 
 /* Must select one of INTEL_OPTANE, SAMSUNG_970PRO, or ZNS_PROTOTYPE
  * in Makefile */

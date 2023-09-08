@@ -19,7 +19,7 @@ static const struct allocator_ops bitmap_ops = {
 	.kill = bitmap_kill,
 };
 
-static inline unsigned long long __get_wallclock(void)
+static inline unsigned long long __get_wallclock(struct nvmev_dev *nvmev_vdev)
 {
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
@@ -58,7 +58,7 @@ static unsigned int cmd_value_length(struct nvme_kv_command cmd)
 
 /* Return the time to complete */
 static unsigned long long __schedule_io_units(int opcode, unsigned long lba, unsigned int length,
-					      unsigned long long nsecs_start)
+					      unsigned long long nsecs_start, struct nvmev_dev *nvmev_vdev)
 {
 	unsigned int io_unit_size = 1 << nvmev_vdev->config.io_unit_shift;
 	unsigned int io_unit =
@@ -99,7 +99,7 @@ static unsigned long long __schedule_io_units(int opcode, unsigned long lba, uns
 	return latest;
 }
 
-static unsigned long long __schedule_flush(struct nvmev_request *req)
+static unsigned long long __schedule_flush(struct nvmev_request *req, struct nvmev_dev *nvmev_vdev)
 {
 	unsigned long long latest = 0;
 	int i;
@@ -185,7 +185,7 @@ static unsigned int find_next_slot(struct kv_ftl *kv_ftl, int original_slot, int
 }
 
 static unsigned int new_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
-				      size_t val_offset)
+				      size_t val_offset, struct nvmev_dev *nvmev_vdev)
 {
 	unsigned int slot = -1;
 	unsigned int prev_slot;
@@ -219,7 +219,7 @@ static unsigned int new_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_comm
 }
 
 static unsigned int new_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsigned char *key, int key_len,
-					     int val_len, size_t val_offset)
+					     int val_len, size_t val_offset, struct nvmev_dev *nvmev_vdev)
 {
 	unsigned int slot = -1;
 	unsigned int prev_slot;
@@ -490,7 +490,7 @@ static struct mapping_entry delete_mapping_entry(struct kv_ftl *kv_ftl, struct n
  *   else -> key doesn't exist!
  */
 static unsigned int __do_perform_kv_io(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
-				       unsigned int *status)
+				       unsigned int *status, struct nvmev_dev *nvmev_vdev)
 {
 	size_t offset;
 	size_t length, remaining;
@@ -615,7 +615,7 @@ static unsigned int __do_perform_kv_io(struct kv_ftl *kv_ftl, struct nvme_kv_com
 		kunmap_atomic(paddr_list);
 
 	if (is_insert == 1) { // need to make new mapping
-		new_mapping_entry(kv_ftl, cmd, new_offset);
+		new_mapping_entry(kv_ftl, cmd, new_offset, nvmev_vdev);
 	} else if (is_insert == 2) {
 		update_mapping_entry(kv_ftl, cmd);
 	}
@@ -627,7 +627,7 @@ static unsigned int __do_perform_kv_io(struct kv_ftl *kv_ftl, struct nvme_kv_com
 }
 
 static unsigned int __do_perform_kv_batched_io(struct kv_ftl *kv_ftl, int opcode, char *key,
-					       int key_len, char *value, int val_len)
+					       int key_len, char *value, int val_len, struct nvmev_dev *nvmev_vdev)
 {
 	size_t offset;
 	size_t new_offset = 0;
@@ -666,7 +666,7 @@ static unsigned int __do_perform_kv_batched_io(struct kv_ftl *kv_ftl, int opcode
 	memcpy(nvmev_vdev->storage_mapped + offset, value, val_len);
 
 	if (is_insert == 1) { // need to make new mapping
-		new_mapping_entry_by_key(kv_ftl, key, key_len, val_len, new_offset);
+		new_mapping_entry_by_key(kv_ftl, key, key_len, val_len, new_offset, nvmev_vdev);
 	}
 	// else if (is_insert == 2) {
 	// 	update_mapping_entry(cmd);
@@ -676,7 +676,7 @@ static unsigned int __do_perform_kv_batched_io(struct kv_ftl *kv_ftl, int opcode
 }
 
 static unsigned int __do_perform_kv_batch(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd,
-					  unsigned int *status)
+					  unsigned int *status, struct nvmev_dev *nvmev_vdev)
 {
 	size_t offset;
 	size_t length, remaining;
@@ -766,7 +766,7 @@ static unsigned int __do_perform_kv_batch(struct kv_ftl *kv_ftl, struct nvme_kv_
 		NVMEV_DEBUG("sub-payload %d %d %d %d %s %s", payload->batch_head.attr[i].opcode,
 			    key_len, val_len, sub_len, key, value);
 
-		__do_perform_kv_batched_io(kv_ftl, opcode, key, key_len, value, val_len);
+		__do_perform_kv_batched_io(kv_ftl, opcode, key, key_len, value, val_len, nvmev_vdev);
 	}
 
 	NVMEV_DEBUG("finished kv_batch with %d sub-commands", sub_cmd_cnt);
@@ -950,7 +950,8 @@ static unsigned int __do_perform_kv_iter_io(struct kv_ftl *kv_ftl, struct nvme_k
 	return 0;
 }
 
-bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
+bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret,
+				struct nvmev_dev *nvmev_vdev)
 {
 	struct nvme_command *cmd = req->cmd;
 
@@ -959,19 +960,20 @@ bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct 
 	case nvme_cmd_read:
 		ret->nsecs_target = __schedule_io_units(
 			cmd->common.opcode, cmd->rw.slba,
-			__cmd_io_size((struct nvme_rw_command *)cmd), __get_wallclock());
+			__cmd_io_size((struct nvme_rw_command *)cmd), __get_wallclock(nvmev_vdev),
+			nvmev_vdev);
 		break;
 	case nvme_cmd_flush:
-		ret->nsecs_target = __schedule_flush(req);
+		ret->nsecs_target = __schedule_flush(req, nvmev_vdev);
 		break;
 	case nvme_cmd_kv_store:
 	case nvme_cmd_kv_retrieve:
 	case nvme_cmd_kv_batch:
 		ret->nsecs_target = __schedule_io_units(
 			cmd->common.opcode, 0, cmd_value_length(*((struct nvme_kv_command *)cmd)),
-			__get_wallclock());
+			__get_wallclock(nvmev_vdev), nvmev_vdev);
 		NVMEV_INFO("%d, %llu, %llu\n", cmd_value_length(*((struct nvme_kv_command *)cmd)),
-			   __get_wallclock(), ret->nsecs_target);
+			   __get_wallclock(nvmev_vdev), ret->nsecs_target);
 		break;
 	default:
 		NVMEV_ERROR("%s: command not implemented: %s (0x%x)\n", __func__,
@@ -992,23 +994,30 @@ unsigned int kv_perform_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command *cm
 	struct kv_ftl *kv_ftl = (struct kv_ftl *)ns->ftls;
 	struct nvme_kv_command *kv_cmd = (struct nvme_kv_command *)cmd;
 
+	struct nvmev_dev *nvmev_vdev = ns->p_dev;
+
 	if (is_kv_batch_cmd(cmd->common.opcode))
-		return __do_perform_kv_batch(kv_ftl, *kv_cmd, status);
+		return __do_perform_kv_batch(kv_ftl, *kv_cmd, status, nvmev_vdev);
 	else if (is_kv_iter_cmd(cmd->common.opcode))
 		return __do_perform_kv_iter_io(kv_ftl, *kv_cmd, status);
 	else
-		return __do_perform_kv_io(kv_ftl, *kv_cmd, status);
+		return __do_perform_kv_io(kv_ftl, *kv_cmd, status, nvmev_vdev);
 }
 
 void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
-		       uint32_t cpu_nr_dispatcher)
+		       uint32_t cpu_nr_dispatcher, struct ftl_configs *ftl_cfgs)
 {
 	struct kv_ftl *kv_ftl;
 	int i;
 
+	struct nvmev_dev *nvmev_vdev = ns->p_dev;
+	struct kv_configs *kv_cfgs = &ftl_cfgs->extra_configs.kv;
+	unsigned long KV_MAPPING_TABLE_SIZE = kv_cfgs->KV_MAPPING_TABLE_SIZE;
+	int ALLOCATOR_TYPE = kv_cfgs->ALLOCATOR_TYPE;
+
 	kv_ftl = kmalloc(sizeof(struct kv_ftl), GFP_KERNEL);
 
-	NVMEV_INFO("KV mapping table: %#010lx-%#010x\n",
+	NVMEV_INFO("KV mapping table: %#010lx-%lu\n",
 		   nvmev_vdev->config.storage_start + nvmev_vdev->config.storage_size,
 		   KV_MAPPING_TABLE_SIZE);
 

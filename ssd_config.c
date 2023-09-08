@@ -117,3 +117,16 @@ void load_zns_configs(struct ftl_configs *ftl_cfgs)
 	zns_cfgs->ZRWA_SIZE = 0;
 	zns_cfgs->ZRWA_BUFFER_SIZE = 0;
 }
+
+void load_kv_configs(struct ftl_configs *ftl_cfgs)
+{
+	struct kv_configs *kv_cfgs = &ftl_cfgs->extra_configs.kv;
+	
+	ftl_cfgs->NS_SSD_TYPE = SSD_TYPE_KV;
+
+	ftl_cfgs->MDTS = 5;
+	ftl_cfgs->CELL_MODE = CELL_MODE_MLC;
+
+	kv_cfgs->KV_MAPPING_TABLE_SIZE = GB(1);
+	kv_cfgs->ALLOCATOR_TYPE = ALLOCATOR_TYPE_APPEND_ONLY;
+}

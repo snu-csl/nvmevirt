@@ -586,6 +586,8 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 	struct nvmev_ns *ns = kmalloc(sizeof(struct nvmev_ns) * nr_ns, GFP_KERNEL);
 	struct ftl_configs *ftl_cfgs = kmalloc(sizeof(struct ftl_configs), GFP_KERNEL);
 
+	ns->p_dev = nvmev_vdev;
+
 	for (i = 0; i < nr_ns; i++) {
 		if (NS_CAPACITY(i) == 0)
 			size = remaining_capacity;
@@ -607,9 +609,11 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 			load_zns_configs(ftl_cfgs);
 			zns_init_namespace(&ns[i], i, size, ns_addr, disp_no, ftl_cfgs);
 		}
-		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
-		//else if (nvmev_vdev->ftl == SSD_TYPE_KV)
-			kv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
+		//else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
+		else if (nvmev_vdev->ftl == SSD_TYPE_KV) {
+			load_kv_configs(ftl_cfgs);
+			kv_init_namespace(&ns[i], i, size, ns_addr, disp_no, ftl_cfgs);
+		}
 		else
 			BUG_ON(1);
 
@@ -619,7 +623,6 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 	}
 
 	nvmev_vdev->ns = ns;
-	ns->p_dev = nvmev_vdev;
 	nvmev_vdev->nr_ns = nr_ns;
 	nvmev_vdev->mdts = ftl_cfgs->MDTS;
 }

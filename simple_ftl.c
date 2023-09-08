@@ -101,7 +101,7 @@ bool simple_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req,
 }
 
 void simple_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
-			   uint32_t cpu_nr_dispatcher)
+			   uint32_t cpu_nr_dispatcher, struct ftl_configs *ftl_cfgs)
 {
 	ns->id = id;
 	ns->csi = NVME_CSI_NVM;

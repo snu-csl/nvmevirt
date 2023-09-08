@@ -82,19 +82,22 @@ static void __init_resource(struct zns_ftl *zns_ftl)
 	};
 }
 
-static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64_t capacity)
+static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, 
+					uint64_t capacity, struct ftl_configs *ftl_cfgs)
 {
+	struct zns_configs *zns_cfgs = &ftl_cfgs->extra_configs.zns;
+
 	*zpp = (struct znsparams){
-		.zone_size = ZONE_SIZE,
-		.nr_zones = capacity / ZONE_SIZE,
-		.dies_per_zone = DIES_PER_ZONE,
+		.zone_size = zns_cfgs->ZONE_SIZE,
+		.nr_zones = capacity / zns_cfgs->ZONE_SIZE,
+		.dies_per_zone = zns_cfgs->DIES_PER_ZONE,
 		.nr_active_zones = zpp->nr_zones, // max
 		.nr_open_zones = zpp->nr_zones, // max
-		.nr_zrwa_zones = MAX_ZRWA_ZONES,
-		.zone_wb_size = ZONE_WB_SIZE,
-		.zrwa_size = ZRWA_SIZE,
-		.zrwafg_size = ZRWAFG_SIZE,
-		.zrwa_buffer_size = ZRWA_BUFFER_SIZE,
+		.nr_zrwa_zones = zns_cfgs->MAX_ZRWA_ZONES,
+		.zone_wb_size = zns_cfgs->ZONE_WB_SIZE,
+		.zrwa_size = zns_cfgs->ZRWA_SIZE,
+		.zrwafg_size = zns_cfgs->ZRWAFG_SIZE,
+		.zrwa_buffer_size = zns_cfgs->ZRWA_BUFFER_SIZE,
 		.lbas_per_zrwa = zpp->zrwa_size / spp->secsz,
 		.lbas_per_zrwafg = zpp->zrwafg_size / spp->secsz,
 	};
@@ -122,7 +125,7 @@ static void zns_init_ftl(struct zns_ftl *zns_ftl, struct znsparams *zpp, struct 
 }
 
 void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
-			uint32_t cpu_nr_dispatcher)
+			uint32_t cpu_nr_dispatcher, struct ftl_configs *ftl_cfgs)
 {
 	struct ssd *ssd;
 	struct zns_ftl *zns_ftl;
@@ -134,11 +137,13 @@ void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *m
 	NVMEV_ASSERT(nr_parts == 1);
 
 	ssd = kmalloc(sizeof(struct ssd), GFP_KERNEL);
-	ssd_init_params(&spp, size, nr_parts);
+	ssd_init_params(&spp, size, nr_parts, ftl_cfgs);
 	ssd_init(ssd, &spp, cpu_nr_dispatcher);
 
+	ssd->p_ns = ns;
+
 	zns_ftl = kmalloc(sizeof(struct zns_ftl) * nr_parts, GFP_KERNEL);
-	zns_init_params(&zpp, &spp, size);
+	zns_init_params(&zpp, &spp, size, ftl_cfgs);
 	zns_init_ftl(zns_ftl, &zpp, ssd, mapped_addr);
 
 	*ns = (struct nvmev_ns){
@@ -187,7 +192,8 @@ static void zns_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvm
 	return;
 }
 
-bool zns_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
+bool zns_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, 
+				struct nvmev_result *ret, struct nvmev_dev *nvemv_vdev)
 {
 	struct nvme_command *cmd = req->cmd;
 	NVMEV_ASSERT(ns->csi == NVME_CSI_ZNS);

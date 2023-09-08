@@ -69,7 +69,7 @@ struct conv_ftl {
 };
 
 void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
-			 uint32_t cpu_nr_dispatcher);
+			 uint32_t cpu_nr_dispatcher, struct ftl_configs *ftl_cfgs);
 
 void conv_remove_namespace(struct nvmev_ns *ns);
 

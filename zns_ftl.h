@@ -133,12 +133,13 @@ static inline uint64_t lba_to_lpn(struct zns_ftl *zns_ftl, uint64_t lba)
 
 /* zns external interface */
 void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
-			uint32_t cpu_nr_dispatcher);
+			uint32_t cpu_nr_dispatcher, struct ftl_configs *ftl_cfgs);
 void zns_remove_namespace(struct nvmev_ns *ns);
 
 void zns_zmgmt_recv(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
 void zns_zmgmt_send(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
 bool zns_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
 bool zns_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
-bool zns_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret);
+bool zns_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, 
+				struct nvmev_result *ret, struct nvmev_dev *nvmev_vdev);
 #endif

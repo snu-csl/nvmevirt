@@ -369,29 +369,30 @@ static void conv_remove_ftl(struct conv_ftl *conv_ftl)
 
 static void conv_init_params(struct convparams *cpp)
 {
-	cpp->op_area_pcent = OP_AREA_PERCENT;
+	cpp->op_area_pcent = CONV_OP_AREA_PERCENT;
 	cpp->gc_thres_lines = 2; /* Need only two lines.(host write, gc)*/
 	cpp->gc_thres_lines_high = 2; /* Need only two lines.(host write, gc)*/
 	cpp->enable_gc_delay = 1;
-	cpp->pba_pcent = (int)((1 + cpp->op_area_pcent) * 100);
+	cpp->pba_pcent = (int)((1.0 + cpp->op_area_pcent) * 100);
 }
 
 void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
-			 uint32_t cpu_nr_dispatcher)
+			 uint32_t cpu_nr_dispatcher, struct ftl_configs *ftl_cfgs)
 {
 	struct ssdparams spp;
 	struct convparams cpp;
 	struct conv_ftl *conv_ftls;
 	struct ssd *ssd;
 	uint32_t i;
-	const uint32_t nr_parts = SSD_PARTITIONS;
 
-	ssd_init_params(&spp, size, nr_parts);
+	ns->nr_parts = ftl_cfgs->SSD_PARTITIONS;
+
+	ssd_init_params(&spp, size, ns->nr_parts, ftl_cfgs);
 	conv_init_params(&cpp);
 
-	conv_ftls = kmalloc(sizeof(struct conv_ftl) * nr_parts, GFP_KERNEL);
+	conv_ftls = kmalloc(sizeof(struct conv_ftl) * ns->nr_parts, GFP_KERNEL);
 
-	for (i = 0; i < nr_parts; i++) {
+	for (i = 0; i < ns->nr_parts; i++) {
 		ssd = kmalloc(sizeof(struct ssd), GFP_KERNEL);
 		ssd_init(ssd, &spp, cpu_nr_dispatcher);
 		conv_init_ftl(&conv_ftls[i], &cpp, ssd);
@@ -400,7 +401,7 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 	}
 
 	/* PCIe, Write buffer are shared by all instances*/
-	for (i = 1; i < nr_parts; i++) {
+	for (i = 1; i < ns->nr_parts; i++) {
 		kfree(conv_ftls[i].ssd->pcie->perf_model);
 		kfree(conv_ftls[i].ssd->pcie);
 		kfree(conv_ftls[i].ssd->write_buffer);
@@ -411,7 +412,7 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 
 	ns->id = id;
 	ns->csi = NVME_CSI_NVM;
-	ns->nr_parts = nr_parts;
+	//ns->nr_parts = nr_parts;
 	ns->ftls = (void *)conv_ftls;
 	ns->size = (uint64_t)((size * 100) / cpp.pba_pcent);
 	ns->mapped = mapped_addr;
@@ -427,7 +428,7 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 void conv_remove_namespace(struct nvmev_ns *ns)
 {
 	struct conv_ftl *conv_ftls = (struct conv_ftl *)ns->ftls;
-	const uint32_t nr_parts = SSD_PARTITIONS;
+	const uint32_t nr_parts = ns->nr_parts;
 	uint32_t i;
 
 	/* PCIe, Write buffer are shared by all instances*/

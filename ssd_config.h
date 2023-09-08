@@ -24,6 +24,80 @@
 #define CELL_MODE_TLC 3
 #define CELL_MODE_QLC 4
 
+struct zns_configs {
+	uint64_t ZONE_SIZE;
+	uint32_t DIES_PER_ZONE;
+	uint32_t ZONE_WB_SIZE;
+
+	uint32_t MAX_ZRWA_ZONES;
+	uint32_t ZRWAFG_SIZE;
+	uint32_t ZRWA_SIZE;
+	uint32_t ZRWA_BUFFER_SIZE;
+};
+
+enum {
+	ALLOCATOR_TYPE_BITMAP,
+	ALLOCATOR_TYPE_APPEND_ONLY,
+};
+
+struct kv_configs {
+	unsigned long KV_MAPPING_TABLE_SIZE;
+	int ALLOCATOR_TYPE;
+};
+
+union extra_configs {
+	struct zns_configs zns;
+	struct kv_configs kv;
+};
+
+struct ftl_configs {
+	uint32_t NS_SSD_TYPE;
+
+	unsigned int MDTS;
+	int CELL_MODE;
+
+	uint32_t SSD_PARTITIONS;
+	int NAND_CHANNELS;
+	int LUNS_PER_NAND_CH;
+	int PLNS_PER_LUN;
+	int FLASH_PAGE_SIZE;
+	int ONESHOT_PAGE_SIZE;
+	int BLKS_PER_PLN;
+	int BLK_SIZE;
+
+	int MAX_CH_XFER_SIZE;
+	int WRITE_UNIT_SIZE;
+
+	uint64_t NAND_CHANNEL_BANDWIDTH;
+	uint64_t PCIE_BANDWIDTH;
+
+	int NAND_4KB_READ_LATENCY_LSB;
+	int NAND_4KB_READ_LATENCY_MSB;
+	int NAND_4KB_READ_LATENCY_CSB;
+	int NAND_READ_LATENCY_LSB;
+	int NAND_READ_LATENCY_MSB;
+	int NAND_READ_LATENCY_CSB;
+	int NAND_PROG_LATENCY;
+	int NAND_ERASE_LATENCY;
+
+	int FW_4KB_READ_LATENCY;
+	int FW_READ_LATENCY;
+	int FW_WBUF_LATENCY0;
+	int FW_WBUF_LATENCY1;
+	int FW_CH_XFER_LATENCY;
+	//double OP_AREA_PERCENT;
+
+	int GLOBAL_WB_SIZE;
+	bool WRITE_EARLY_COMPLETION;
+
+	union extra_configs extra_configs;
+};
+
+void load_simple_configs(struct ftl_configs *flt_cfgs);
+void load_conv_configs(struct ftl_configs *ftl_cfgs);
+void load_zns_configs(struct ftl_configs *ftl_cfgs);
+void load_kv_configs(struct ftl_configs *ftl_cfgs);
+
 /* Must select one of INTEL_OPTANE, SAMSUNG_970PRO, or ZNS_PROTOTYPE
  * in Makefile */
 
@@ -35,47 +109,8 @@
 #define NS_SSD_TYPE_1 SSD_TYPE_CONV
 #define NS_CAPACITY_1 (0)
 
-#define NVM_MDTS (5)
-//#define NVM_CELL_MODE (CELL_MODE_UNKNOWN)
-
-#define CONV_MDTS (6)
-//#define CONV_CELL_MODE (CELL_MODE_MLC)
-#define CELL_MODE (CELL_MODE_MLC)
-
-#define SSD_PARTITIONS (4)
-#define NAND_CHANNELS (8)
-#define LUNS_PER_NAND_CH (2)
-#define PLNS_PER_LUN (1)
-#define FLASH_PAGE_SIZE KB(32)
-#define ONESHOT_PAGE_SIZE (FLASH_PAGE_SIZE * 1)
-#define BLKS_PER_PLN (8192)
-#define BLK_SIZE (0) /*BLKS_PER_PLN should not be 0 */
-static_assert((ONESHOT_PAGE_SIZE % FLASH_PAGE_SIZE) == 0);
-
-#define MAX_CH_XFER_SIZE KB(16) /* to overlap with pcie transfer */
-#define WRITE_UNIT_SIZE (512)
-
-#define NAND_CHANNEL_BANDWIDTH (800ull) //MB/s
-#define PCIE_BANDWIDTH (3360ull) //MB/s
-
-#define NAND_4KB_READ_LATENCY_LSB (35760 - 6000) //ns
-#define NAND_4KB_READ_LATENCY_MSB (35760 + 6000) //ns
-#define NAND_4KB_READ_LATENCY_CSB (0) //not used
-#define NAND_READ_LATENCY_LSB (36013 - 6000)
-#define NAND_READ_LATENCY_MSB (36013 + 6000)
-#define NAND_READ_LATENCY_CSB (0) //not used
-#define NAND_PROG_LATENCY (185000)
-#define NAND_ERASE_LATENCY (0)
-
-#define FW_4KB_READ_LATENCY (21500)
-#define FW_READ_LATENCY (30490)
-#define FW_WBUF_LATENCY0 (4000)
-#define FW_WBUF_LATENCY1 (460)
-#define FW_CH_XFER_LATENCY (0)
-#define OP_AREA_PERCENT (0.07)
-
-#define GLOBAL_WB_SIZE (NAND_CHANNELS * LUNS_PER_NAND_CH * ONESHOT_PAGE_SIZE * 2)
-#define WRITE_EARLY_COMPLETION 1
+#define CONV_OP_AREA_PERCENT (0.07)
+#define ZNS_OP_AREA_PERCENT (0) 
 
 #elif (BASE_SSD == INTEL_OPTANE)
 #define NR_NAMESPACES 1

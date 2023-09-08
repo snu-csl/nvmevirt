@@ -86,14 +86,6 @@ static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp,
 					uint64_t capacity, struct ftl_configs *ftl_cfgs)
 {
 	struct zns_configs *zns_cfgs = &ftl_cfgs->extra_configs.zns;
-	printk("%lld\n", capacity);
-	printk("%lld\n", zns_cfgs->ZONE_SIZE);
-	printk("%d\n", zns_cfgs->DIES_PER_ZONE);
-	printk("%d\n", zns_cfgs->MAX_ZRWA_ZONES);
-	printk("%d\n", zns_cfgs->ZONE_WB_SIZE);
-	printk("%d\n", zns_cfgs->ZRWA_SIZE);
-	printk("%d\n", zns_cfgs->ZRWAFG_SIZE);
-	printk("%d\n", zns_cfgs->ZRWA_BUFFER_SIZE);
 
 	*zpp = (struct znsparams){
 		.zone_size = zns_cfgs->ZONE_SIZE,

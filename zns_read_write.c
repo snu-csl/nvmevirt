@@ -121,7 +121,6 @@ static bool __zns_write(struct nvmev_ns *ns, struct zns_ftl *zns_ftl, struct nvm
 
 	// check if slba == current write pointer
 	if (slba != zone_descs[zid].wp) {
-		printk("%lld %lld\n", slba, zone_descs[zid].wp);
 		NVMEV_ERROR("%s WP error slba 0x%llx nr_lba 0x%llx zone_id %d wp %llx state %d\n",
 			    __func__, slba, nr_lba, zid, zns_ftl->zone_descs[zid].wp, state);
 		status = NVME_SC_ZNS_INVALID_WRITE;

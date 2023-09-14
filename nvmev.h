@@ -307,7 +307,28 @@ struct nvmev {
 	struct kobj_attribute *config_attr;
 };
 
-// VDEV Init, Final Function
+struct params {
+	unsigned long memmap_start;
+	unsigned long memmap_size;
+
+	unsigned int read_time;
+	unsigned int read_delay;
+	unsigned int read_trailing;
+
+	unsigned int write_time;
+	unsigned int write_delay;
+	unsigned int write_trailing;
+
+	unsigned int nr_io_units;
+	unsigned int io_unit_shift;
+
+	char *cpus;
+	char *name;
+	unsigned int debug;
+
+	unsigned int ftl;
+};
+
 //extern struct nvmev_dev *nvmev_vdev;
 extern struct nvmev *nvmev;
 struct nvmev_dev *VDEV_INIT(void);

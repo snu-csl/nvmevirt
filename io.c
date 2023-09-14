@@ -710,7 +710,6 @@ void NVMEV_IO_WORKER_INIT(struct nvmev_dev *nvmev_vdev)
 					"nvmev_io/%d:%d", nvmev_vdev->dev_id, worker_id);
 
 		worker->task_struct = kthread_create(nvmev_io_worker, worker, "%s", worker->thread_name);
-		printk("IO worker: %d", worker->task_struct->pid);		
 
 		kthread_bind(worker->task_struct, nvmev_vdev->config.cpu_nr_io_workers[worker_id]);
 		wake_up_process(worker->task_struct);

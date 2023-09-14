@@ -256,14 +256,10 @@ static unsigned int update_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_c
 {
 	unsigned int slot = 0;
 	bool found = false;
-	// u64 t0, t1;
-
+	
 	u32 count = 0;
 
-	// t0 = ktime_get_ns();
 	slot = get_hash_slot(kv_ftl, cmd.kv_store.key, cmd_key_length(cmd));
-	// t1 = ktime_get_ns();
-	// printk("Hashing took %llu\n", t1-t0);
 
 	while (kv_ftl->kv_mapping_table[slot].mem_offset != -1) {
 		NVMEV_DEBUG("Comparing %s | %.*s\n", cmd.kv_store.key, cmd_key_length(cmd),
@@ -272,7 +268,6 @@ static unsigned int update_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_c
 
 		if (count > 10) {
 			NVMEV_ERROR("Searched %u times", count);
-			// break;
 		}
 
 		if (memcmp(cmd.kv_store.key, kv_ftl->kv_mapping_table[slot].key,
@@ -285,8 +280,6 @@ static unsigned int update_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_c
 		slot = kv_ftl->kv_mapping_table[slot].next_slot;
 		if (slot == -1)
 			break;
-		// t1 = ktime_get_ns();
-		// printk("Comparison took %llu", t1-t0);
 	}
 
 	if (found) {
@@ -307,19 +300,14 @@ static unsigned int update_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_c
 static struct mapping_entry get_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
 {
 	struct mapping_entry mapping;
-	// char *key = NULL;
 	unsigned int slot = 0;
 	bool found = false;
-	// u64 t0, t1;
 
 	u32 count = 0;
 
 	memset(&mapping, -1, sizeof(struct mapping_entry)); // init mapping
 
-	// t0 = ktime_get_ns();
 	slot = get_hash_slot(kv_ftl, cmd.kv_store.key, cmd_key_length(cmd));
-	// t1 = ktime_get_ns();
-	// printk("Hashing took %llu\n", t1-t0);
 
 	while (kv_ftl->kv_mapping_table[slot].mem_offset != -1) {
 		NVMEV_DEBUG("Comparing %s | %.*s\n", cmd.kv_store.key, cmd_key_length(cmd),
@@ -328,7 +316,6 @@ static struct mapping_entry get_mapping_entry(struct kv_ftl *kv_ftl, struct nvme
 
 		if (count > 10) {
 			NVMEV_DEBUG("Searched %u times", count);
-			// break;
 		}
 
 		if (memcmp(cmd.kv_store.key, kv_ftl->kv_mapping_table[slot].key,
@@ -342,8 +329,6 @@ static struct mapping_entry get_mapping_entry(struct kv_ftl *kv_ftl, struct nvme
 		if (slot == -1)
 			break;
 		NVMEV_DEBUG("Next slot %d", slot);
-		// t1 = ktime_get_ns();
-		// printk("Comparison took %llu", t1-t0);
 	}
 
 	if (found) {
@@ -367,19 +352,14 @@ static struct mapping_entry get_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsi
 						     int key_len)
 {
 	struct mapping_entry mapping;
-	// char *key = NULL;
 	unsigned int slot = 0;
 	bool found = false;
-	// u64 t0, t1;
 
 	u32 count = 0;
 
 	memset(&mapping, -1, sizeof(struct mapping_entry)); // init mapping
 
-	// t0 = ktime_get_ns();
 	slot = get_hash_slot(kv_ftl, key, key_len);
-	// t1 = ktime_get_ns();
-	// printk("Hashing took %llu\n", t1-t0);
 
 	while (kv_ftl->kv_mapping_table[slot].mem_offset != -1) {
 		NVMEV_DEBUG("Comparing %s | %.*s\n", key, key_len,
@@ -388,7 +368,6 @@ static struct mapping_entry get_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsi
 
 		if (count > 10) {
 			NVMEV_DEBUG("Searched %u times", count);
-			// break;
 		}
 
 		if (memcmp(key, kv_ftl->kv_mapping_table[slot].key, key_len) == 0) {
@@ -401,8 +380,6 @@ static struct mapping_entry get_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsi
 		if (slot == -1)
 			break;
 		NVMEV_DEBUG("Next slot %d", slot);
-		// t1 = ktime_get_ns();
-		// printk("Comparison took %llu", t1-t0);
 	}
 
 	if (found) {
@@ -425,19 +402,14 @@ static struct mapping_entry get_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsi
 static struct mapping_entry delete_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
 {
 	struct mapping_entry mapping;
-	// char *key = NULL;
 	unsigned int slot = 0;
 	bool found = false;
-	// u64 t0, t1;
 
 	u32 count = 0;
 
 	memset(&mapping, -1, sizeof(struct mapping_entry)); // init mapping
 
-	// t0 = ktime_get_ns();
 	slot = get_hash_slot(kv_ftl, cmd.kv_store.key, cmd_key_length(cmd));
-	// t1 = ktime_get_ns();
-	// printk("Hashing took %llu\n", t1-t0);
 
 	while (kv_ftl->kv_mapping_table[slot].mem_offset != -1) {
 		NVMEV_DEBUG("Comparing %s | %.*s\n", cmd.kv_store.key, cmd_key_length(cmd),
@@ -446,7 +418,6 @@ static struct mapping_entry delete_mapping_entry(struct kv_ftl *kv_ftl, struct n
 
 		if (count > 10) {
 			NVMEV_DEBUG("Searched %u times", count);
-			// break;
 		}
 
 		if (memcmp(cmd.kv_store.key, kv_ftl->kv_mapping_table[slot].key,
@@ -460,8 +431,6 @@ static struct mapping_entry delete_mapping_entry(struct kv_ftl *kv_ftl, struct n
 		if (slot == -1)
 			break;
 		NVMEV_DEBUG("Next slot %d", slot);
-		// t1 = ktime_get_ns();
-		// printk("Comparison took %llu", t1-t0);
 	}
 
 	if (found) {
@@ -699,7 +668,6 @@ static unsigned int __do_perform_kv_batch(struct kv_ftl *kv_ftl, struct nvme_kv_
 	value = kmalloc(4097, GFP_KERNEL);
 	buffer = kmalloc(length, GFP_KERNEL);
 
-	//printk("kv_batch %d %d", sub_cmd_cnt, length);
 
 	remaining = length;
 	offset = 0;

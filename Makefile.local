@@ -1,2 +1,2 @@
 # Define local configurations. DO NOT push the local configuration
-#KERNELDIR := ~/Linux-study/linux
+KERNELDIR := ~/Linux-study/linux

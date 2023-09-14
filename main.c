@@ -55,48 +55,14 @@
  *
  ****************************************************************/
 
+/*global variables*/
 LIST_HEAD(devices);
 struct nvmev *nvmev = NULL;
 
 int io_using_dma = false;
 
 char *cmd;
-
-struct params {
-	unsigned long memmap_start;
-	unsigned long memmap_size;
-
-	unsigned int read_time;
-	unsigned int read_delay;
-	unsigned int read_trailing;
-
-	unsigned int write_time;
-	unsigned int write_delay;
-	unsigned int write_trailing;
-
-	unsigned int nr_io_units;
-	unsigned int io_unit_shift;
-
-	char *cpus;
-	char *name;
-	unsigned int debug;
-
-	unsigned int ftl;
-};
-
-/*
-static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
-{
-	unsigned long *arg = (unsigned long *)kp->arg;
-	*arg = memparse(val, NULL);
-	return 0;
-}
-
-static struct kernel_param_ops ops_parse_mem_param = {
-	.set = set_parse_mem_param,
-	.get = param_get_ulong,
-};
-*/
+/*****************/
 
 static void nvmev_proc_dbs(struct nvmev_dev *nvmev_vdev)
 {
@@ -147,7 +113,6 @@ static void nvmev_proc_dbs(struct nvmev_dev *nvmev_vdev)
 static int nvmev_dispatcher(void *data)
 {
 	struct nvmev_dev *nvmev_vdev = (struct nvmev_dev *)data;
-	printk("dispatcher's nvmev :%p\n",nvmev_vdev);
 	NVMEV_INFO("nvmev_dispatcher started on cpu %d (node %d)\n",
 		   nvmev_vdev->config.cpu_nr_dispatcher,
 		   cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher));
@@ -164,7 +129,6 @@ static int nvmev_dispatcher(void *data)
 static void NVMEV_DISPATCHER_INIT(struct nvmev_dev *nvmev_vdev)
 {
 	char thread_name[32];
-	printk("nvmev_vdev : %p\n",nvmev_vdev);
 	snprintf(thread_name, sizeof(thread_name), "nvmev_%d_disp", nvmev_vdev->dev_id);
 
 	nvmev_vdev->nvmev_dispatcher =
@@ -271,7 +235,7 @@ static void __print_perf_configs(struct nvmev_dev *nvmev_vdev)
 #endif
 }
 
-static int __get_nr_entries(int dbs_idx, int queue_size)
+static int __get_nr_entries(int dbs_idx, int queue_size,struct nvmev_dev *nvmev_vdev)
 {
 	int diff = nvmev_vdev->dbs[dbs_idx] - nvmev_vdev->old_dbs[dbs_idx];
 	if (diff < 0) {
@@ -332,7 +296,7 @@ static ssize_t __sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, c
 				continue;
 
 			len += sprintf(buf, "%2d: %2u %4u %4u %4u %4u %llu\n", i,
-				       __get_nr_entries(i * 2, sq->queue_size),
+				       __get_nr_entries(i * 2, sq->queue_size,nvmev_vdev),
 				       sq->stat.nr_in_flight, sq->stat.max_nr_in_flight,
 				       sq->stat.nr_dispatch, sq->stat.nr_dispatched,
 				       sq->stat.total_io);
@@ -377,11 +341,9 @@ static ssize_t __sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, 
 	if (!strcmp(file_name, "read_times")) {
 		ret = sscanf(buf, "%u %u %u", &cfg->read_delay, &cfg->read_time,
 			     &cfg->read_trailing);
-		//adjust_ftl_latency(0, cfg->read_time);
 	} else if (!strcmp(file_name, "write_times")) {
 		ret = sscanf(buf, "%u %u %u", &cfg->write_delay, &cfg->write_time,
 			     &cfg->write_trailing);
-		//adjust_ftl_latency(1, cfg->write_time);
 	} else if (!strcmp(file_name, "io_units")) {
 		ret = sscanf(buf, "%d %d", &cfg->nr_io_units, &cfg->io_unit_shift);
 		if (ret < 1)
@@ -439,8 +401,6 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 
 	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
-
-	printk("addr : %p\n", nvmev_vdev->storage_mapped);
 
 	nvmev_vdev->sysfs_root = kobject_create_and_add(nvmev_vdev->dev_name, nvmev->config_root);
 	nvmev_vdev->sysfs_read_times = &read_times_attr;
@@ -537,22 +497,18 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 		else
 			size = min(NS_CAPACITY(i), remaining_capacity);
 
-		//if (NS_SSD_TYPE(i) == SSD_TYPE_NVM)
 		if (nvmev_vdev->ftl == SSD_TYPE_NVM) {
 			load_simple_configs(ftl_cfgs);
 			simple_init_namespace(&ns[i], i, size, ns_addr, disp_no, ftl_cfgs);
 		}
-		//else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
 		else if (nvmev_vdev->ftl == SSD_TYPE_CONV) {
 			load_conv_configs(ftl_cfgs);
 			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no, ftl_cfgs);
 		}
-		//else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
 		else if (nvmev_vdev->ftl == SSD_TYPE_ZNS) {
 			load_zns_configs(ftl_cfgs);
 			zns_init_namespace(&ns[i], i, size, ns_addr, disp_no, ftl_cfgs);
 		}
-		//else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
 		else if (nvmev_vdev->ftl == SSD_TYPE_KV) {
 			load_kv_configs(ftl_cfgs);
 			kv_init_namespace(&ns[i], i, size, ns_addr, disp_no, ftl_cfgs);
@@ -701,15 +657,6 @@ static void __print_base_config(void)
 	NVMEV_INFO("Version %x.%x for >> %s <<\n",
 			(NVMEV_VERSION & 0xff00) >> 8, (NVMEV_VERSION & 0x00ff), type);
 }
-int dev_open(struct inode *inode,struct file *filp){
-	printk("open dev\n");
-	return 0;
-}
-
-struct file_operations dev_fops =
-{
-	.open = dev_open,
-};
 
 static int create_device(struct params *p)
 {
@@ -740,13 +687,6 @@ static int create_device(struct params *p)
 	else
 		snprintf(nvmev_vdev->dev_name, sizeof(nvmev_vdev->dev_name), "nvmev_%d", nvmev_vdev->dev_id);
 	
-	nvmev_vdev->major = register_chrdev(0,nvmev_vdev->dev_name,&dev_fops);
-	if(nvmev_vdev->major < 0)
-		printk("fault major\n");
-	else
-		printk("success major\n");
-
-	printk("storage\n");
 	NVMEV_STORAGE_INIT(nvmev_vdev);
 
 	NVMEV_NAMESPACE_INIT(nvmev_vdev);
@@ -850,25 +790,14 @@ static ssize_t __config_store(struct kobject *kobj, struct kobj_attribute *attr,
 	struct params *p;
 
 	strncpy(input, buf, min(count, sizeof(input)));
-	printk("Command Start, Command is %s\n", input);
 
 	p = PARAM_INIT();
 	cmd = parse_to_cmd(input);
 	parse_command(input + (sizeof(cmd) - 1), p);
 
 	if (strcmp(cmd, "create") == 0) {
-		printk("Memmap_start = %ld\n", p->memmap_start);
-		printk("Memmap_size = %ld\n", p->memmap_size);
-		printk("cpus = %s\n", p->cpus);
-		printk("ftl = %u\n", p->ftl);
-
-		if (p->name != NULL) {
-			printk("name = %s\n", p->name);
-		}
-
 		printk("return = %d\n", create_device(p));
 	}
-
 	else if (strcmp(cmd, "delete") == 0) {
 		
 		if(p->name != NULL){
@@ -894,7 +823,6 @@ static struct kobj_attribute config_attr = __ATTR(config, 0664, __config_show, _
 static int NVMeV_init(void)
 {
 	int ret = 0;
-	nvmev_vdev = NULL;
 
 	nvmev = kzalloc(sizeof(struct nvmev), GFP_KERNEL);
 

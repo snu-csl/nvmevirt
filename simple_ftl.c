@@ -109,11 +109,6 @@ void simple_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void
 	ns->mapped = mapped_addr;
 	ns->proc_io_cmd = simple_proc_nvme_io_cmd;
 
-	/* debug */
-	printk("ftl id : %d\n",id);
-	printk("ftl addr : %p\n",mapped_addr);
-	printk("ftl ns : %p\n",ns);
-	/*       */	
 	return;
 }
 

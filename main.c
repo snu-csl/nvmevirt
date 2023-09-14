@@ -586,8 +586,6 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 	struct nvmev_ns *ns = kmalloc(sizeof(struct nvmev_ns) * nr_ns, GFP_KERNEL);
 	struct ftl_configs *ftl_cfgs = kmalloc(sizeof(struct ftl_configs), GFP_KERNEL);
 
-	ns->p_dev = nvmev_vdev;
-
 	for (i = 0; i < nr_ns; i++) {
 		if (NS_CAPACITY(i) == 0)
 			size = remaining_capacity;
@@ -620,11 +618,14 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 		remaining_capacity -= size;
 		ns_addr += size;
 		NVMEV_INFO("ns %d/%d: size %lld MiB\n", i, nr_ns, BYTE_TO_MB(ns[i].size));
+
+		ns[i].p_dev = nvmev_vdev;
 	}
 
 	nvmev_vdev->ns = ns;
 	nvmev_vdev->nr_ns = nr_ns;
 	nvmev_vdev->mdts = ftl_cfgs->MDTS;
+
 }
 
 void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
@@ -649,6 +650,7 @@ void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 	kfree(ns);
 	nvmev_vdev->ns = NULL;
 }
+
 static char *parse_to_cmd(char *cmd_line)
 {
 	char *command;
@@ -696,7 +698,6 @@ static void parse_command(char *cmd_line, struct params *p)
 			else if (strcmp(val, "zns") == 0)
 				p->ftl = SSD_TYPE_ZNS;
 		}
-			
 	}
 }
 

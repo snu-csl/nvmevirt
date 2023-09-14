@@ -55,28 +55,12 @@
  *
  ****************************************************************/
 
-/****************************************************************
- * Argument
- ****************************************************************
- * 1. Memmap start
- * 2. Memmap size
- ****************************************************************/
-
-struct nvmev_dev *nvmev_vdev = NULL;
-
-struct dentry *debug_root;
-struct dentry *config_path;
-
 LIST_HEAD(devices);
-static unsigned int nr_dev = 0;
-
 struct nvmev *nvmev = NULL;
+
 int io_using_dma = false;
 
-//char input[128] ={0,};
 char *cmd;
-DEFINE_SPINLOCK(config_file_lock);
-int dir_num = 0;
 
 struct params {
 	unsigned long memmap_start;
@@ -100,23 +84,7 @@ struct params {
 	unsigned int ftl;
 };
 
-static unsigned long memmap_start = 0;
-static unsigned long memmap_size = 0;
-
-static unsigned int read_time = 1;
-static unsigned int read_delay = 1;
-static unsigned int read_trailing = 0;
-
-static unsigned int write_time = 1;
-static unsigned int write_delay = 1;
-static unsigned int write_trailing = 0;
-
-static unsigned int nr_io_units = 8;
-static unsigned int io_unit_shift = 12;
-
-static char *cpus;
-static unsigned int debug = 0;
-
+/*
 static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
 {
 	unsigned long *arg = (unsigned long *)kp->arg;
@@ -128,30 +96,7 @@ static struct kernel_param_ops ops_parse_mem_param = {
 	.set = set_parse_mem_param,
 	.get = param_get_ulong,
 };
-
-// module_param_cb(memmap_start, &ops_parse_mem_param, &memmap_start, 0444);
-// MODULE_PARM_DESC(memmap_start, "Reserved memory address");
-// module_param_cb(memmap_size, &ops_parse_mem_param, &memmap_size, 0444);
-// MODULE_PARM_DESC(memmap_size, "Reserved memory size");
-// module_param(read_time, uint, 0644);
-// MODULE_PARM_DESC(read_time, "Read time in nanoseconds");
-// module_param(read_delay, uint, 0644);
-// MODULE_PARM_DESC(read_delay, "Read delay in nanoseconds");
-// module_param(read_trailing, uint, 0644);
-// MODULE_PARM_DESC(read_trailing, "Read trailing in nanoseconds");
-// module_param(write_time, uint, 0644);
-// MODULE_PARM_DESC(write_time, "Write time in nanoseconds");
-// module_param(write_delay, uint, 0644);
-// MODULE_PARM_DESC(write_delay, "Write delay in nanoseconds");
-// module_param(write_trailing, uint, 0644);
-// MODULE_PARM_DESC(write_trailing, "Write trailing in nanoseconds");
-// module_param(nr_io_units, uint, 0444);
-// MODULE_PARM_DESC(nr_io_units, "Number of I/O units that operate in parallel");
-// module_param(io_unit_shift, uint, 0444);
-// MODULE_PARM_DESC(io_unit_shift, "Size of each I/O unit (2^)");
-// module_param(cpus, charp, 0444);
-// MODULE_PARM_DESC(cpus, "CPU list for process, completion(int.) threads, Seperated by Comma(,)");
-// module_param(debug, uint, 0644);
+*/
 
 static void nvmev_proc_dbs(struct nvmev_dev *nvmev_vdev)
 {

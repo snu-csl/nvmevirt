@@ -53,7 +53,6 @@ static void __signal_irq(const char *type, unsigned int irq)
 static void __process_msi_irq(struct nvmev_dev *nvmev_vdev,int msi_index)
 {
 	unsigned int virq = msi_get_virq(&nvmev_vdev->pdev->dev, msi_index);
-struct nvmev_dev
 	BUG_ON(virq == 0);
 	__signal_irq("msi", virq);
 }

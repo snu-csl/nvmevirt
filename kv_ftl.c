@@ -165,13 +165,26 @@ static unsigned int find_next_slot(struct kv_ftl *kv_ftl, int original_slot, int
 {
 	unsigned int ret_slot = original_slot;
 
+	// 1. Find the tail of the link.
+	unsigned int tail = original_slot;
+	unsigned int prevs = -1;
+	while (kv_ftl->kv_mapping_table[tail].mem_offset != -1) {	
+		prevs = tail;
+		tail = kv_ftl->kv_mapping_table[tail].next_slot;
+		if (tail == -1) break;
+	}
+
+	ret_slot = prevs;
+	*prev_slot = prevs;
+
+	// 2. Search the next available slots starting from the tail.
 	while (kv_ftl->kv_mapping_table[ret_slot].mem_offset != -1) {
 		ret_slot++;
 		if (ret_slot >= kv_ftl->hash_slots)
 			ret_slot = 0;
 	}
 
-	*prev_slot = original_slot;
+	// *prev_slot = original_slot;
 
 	if (prev_slot < 0) {
 		NVMEV_ERROR("Prev slot less than 0\n");

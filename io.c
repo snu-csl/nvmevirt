@@ -597,8 +597,9 @@ static int nvmev_io_worker(void *data)
 					} else {
 						__do_perform_io(w->sqid, w->sq_entry);
 					}
-#endif
+#else 
 					__do_perform_io(w->sqid, w->sq_entry);
+#endif
 				}
 
 #ifdef PERF_DEBUG

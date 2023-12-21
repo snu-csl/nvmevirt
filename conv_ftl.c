@@ -97,13 +97,13 @@ static inline void consume_write_credit(struct conv_ftl *conv_ftl)
 	conv_ftl->wfc.write_credits--;
 }
 
-static void forground_gc(struct conv_ftl *conv_ftl);
+static void foreground_gc(struct conv_ftl *conv_ftl);
 
 static inline void check_and_refill_write_credit(struct conv_ftl *conv_ftl)
 {
 	struct write_flow_control *wfc = &(conv_ftl->wfc);
 	if (wfc->write_credits <= 0) {
-		forground_gc(conv_ftl);
+		foreground_gc(conv_ftl);
 
 		wfc->write_credits += wfc->credits_to_refill;
 	}
@@ -814,7 +814,7 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 	return 0;
 }
 
-static void forground_gc(struct conv_ftl *conv_ftl)
+static void foreground_gc(struct conv_ftl *conv_ftl)
 {
 	if (should_gc_high(conv_ftl)) {
 		NVMEV_DEBUG_VERBOSE("should_gc_high passed");

@@ -341,6 +341,10 @@ static void __nvmev_admin_identify_zns_namespace(int eid)
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)nvmev_vdev->ns[nsid].ftls;
 	struct znsparams *zpp = &zns_ftl->zp;
 
+	if (NS_SSD_TYPE(nsid) != SSD_TYPE_ZNS) {
+		__make_cq_entry(eid, NVME_SC_SUCCESS);
+		return;
+	}
 	BUG_ON(nvmev_vdev->ns[nsid].csi != NVME_CSI_ZNS);
 
 	ns = prp_address(cmd->prp1);

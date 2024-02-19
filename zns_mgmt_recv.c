@@ -97,6 +97,7 @@ static bool __check_zmgmt_rcv_option_supported(struct zns_ftl *zns_ftl,
 {
 	if (lba_to_zone(zns_ftl, cmd->slba) >= zns_ftl->zp.nr_zones) {
 		NVMEV_ERROR("Invalid lba range\n");
+		return false;
 	}
 
 	if (cmd->zra != 0) {

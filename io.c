@@ -35,6 +35,16 @@ static inline unsigned long long __get_wallclock(void)
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
 
+static inline size_t __cmd_io_offset(struct nvme_rw_command *cmd)
+{
+	return (cmd->slba) << LBA_BITS;
+}
+
+static inline size_t __cmd_io_size(struct nvme_rw_command *cmd)
+{
+	return (cmd->length + 1) << LBA_BITS;
+}
+
 static unsigned int __do_perform_io(int sqid, int sq_entry)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
@@ -47,8 +57,8 @@ static unsigned int __do_perform_io(int sqid, int sq_entry)
 	u64 *paddr_list = NULL;
 	size_t nsid = cmd->nsid - 1; // 0-based
 
-	offset = cmd->slba << 9;
-	length = (cmd->length + 1) << 9;
+	offset = __cmd_io_offset(cmd);
+	length = __cmd_io_size(cmd);
 	remaining = length;
 
 	while (remaining) {
@@ -116,8 +126,8 @@ static unsigned int __do_perform_io_using_dma(int sqid, int sq_entry)
 	size_t io_size;
 	size_t mem_offs = 0;
 
-	offset = cmd->slba << 9;
-	length = (cmd->length + 1) << 9;
+	offset = __cmd_io_offset(cmd);
+	length = __cmd_io_size(cmd);
 	remaining = length;
 
 	memset(paddr_list, 0, sizeof(paddr_list));
@@ -424,7 +434,7 @@ static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size)
 
 	if (!ns->proc_io_cmd(ns, &req, &ret))
 		return false;
-	*io_size = (cmd->rw.length + 1) << 9;
+	*io_size = __cmd_io_size(&sq_entry(sq_entry).rw);
 
 #ifdef PERF_DEBUG
 	prev_clock2 = local_clock();

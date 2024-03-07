@@ -36,6 +36,9 @@
 #define MDTS (5)
 #define CELL_MODE (CELL_MODE_UNKNOWN)
 
+#define LBA_BITS (9)
+#define LBA_SIZE (1 << LBA_BITS)
+
 #elif (BASE_SSD == KV_PROTOTYPE)
 #define NR_NAMESPACES 1
 
@@ -53,6 +56,9 @@ enum {
 
 #define KV_MAPPING_TABLE_SIZE GB(1)
 #define ALLOCATOR_TYPE ALLOCATOR_TYPE_APPEND_ONLY
+
+#define LBA_BITS (9)
+#define LBA_SIZE (1 << LBA_BITS)
 
 #elif (BASE_SSD == SAMSUNG_970PRO)
 #define NR_NAMESPACES 1
@@ -98,6 +104,9 @@ static_assert((ONESHOT_PAGE_SIZE % FLASH_PAGE_SIZE) == 0);
 
 #define GLOBAL_WB_SIZE (NAND_CHANNELS * LUNS_PER_NAND_CH * ONESHOT_PAGE_SIZE * 2)
 #define WRITE_EARLY_COMPLETION 1
+
+#define LBA_BITS (9)
+#define LBA_SIZE (1 << LBA_BITS)
 
 #elif (BASE_SSD == ZNS_PROTOTYPE)
 #define NR_NAMESPACES 1
@@ -163,6 +172,9 @@ static_assert((ZONE_SIZE % DIES_PER_ZONE) == 0);
 #define ZRWA_SIZE (0)
 #define ZRWA_BUFFER_SIZE (0)
 
+#define LBA_BITS (9)
+#define LBA_SIZE (1 << LBA_BITS)
+
 #elif (BASE_SSD == WD_ZN540)
 #define NR_NAMESPACES 1
 
@@ -224,6 +236,9 @@ static_assert((ZONE_SIZE % DIES_PER_ZONE) == 0);
 #define ZRWAFG_SIZE (0)
 #define ZRWA_SIZE (0)
 #define ZRWA_BUFFER_SIZE (0)
+
+#define LBA_BITS (9)
+#define LBA_SIZE (1 << LBA_BITS)
 #endif
 ///////////////////////////////////////////////////////////////////////////
 

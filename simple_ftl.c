@@ -16,7 +16,7 @@ static size_t __cmd_io_size(struct nvme_rw_command *cmd)
 			cmd->opcode == nvme_cmd_write ? 'W' : 'R', cmd->slba, cmd->length,
 		    cmd->prp1, cmd->prp2);
 
-	return (cmd->length + 1) << 9;
+	return (cmd->length + 1) << LBA_BITS;
 }
 
 /* Return the time to complete */
@@ -25,7 +25,7 @@ static unsigned long long __schedule_io_units(int opcode, unsigned long lba, uns
 {
 	unsigned int io_unit_size = 1 << nvmev_vdev->config.io_unit_shift;
 	unsigned int io_unit =
-		(lba >> (nvmev_vdev->config.io_unit_shift - 9)) % nvmev_vdev->config.nr_io_units;
+		(lba >> (nvmev_vdev->config.io_unit_shift - LBA_BITS)) % nvmev_vdev->config.nr_io_units;
 	int nr_io_units = min(nvmev_vdev->config.nr_io_units, DIV_ROUND_UP(length, io_unit_size));
 
 	unsigned long long latest; /* Time of completion */

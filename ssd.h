@@ -8,7 +8,7 @@
 #include "ssd_config.h"
 #include "channel_model.h"
 /*
-    Default malloc size
+    Default malloc size (when sector size is 512B)
     Channel = 40 * 8 = 320
     LUN     = 40 * 8 = 320
     Plane   = 16 * 1 = 16

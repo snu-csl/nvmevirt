@@ -408,7 +408,7 @@ static const struct file_operations proc_file_fops = {
 };
 #endif
 
-void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
+static void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 {
 	NVMEV_INFO("Storage: %#010lx-%#010lx (%lu MiB)\n",
 			nvmev_vdev->config.storage_start,
@@ -435,7 +435,7 @@ void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->proc_debug = proc_create("debug", 0444, nvmev_vdev->proc_root, &proc_file_fops);
 }
 
-void NVMEV_STORAGE_FINAL(struct nvmev_dev *nvmev_vdev)
+static void NVMEV_STORAGE_FINAL(struct nvmev_dev *nvmev_vdev)
 {
 	remove_proc_entry("read_times", nvmev_vdev->proc_root);
 	remove_proc_entry("write_times", nvmev_vdev->proc_root);
@@ -498,7 +498,7 @@ static bool __load_configs(struct nvmev_config *config)
 	return true;
 }
 
-void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
+static void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 {
 	unsigned long long remaining_capacity = nvmev_vdev->config.storage_size;
 	void *ns_addr = nvmev_vdev->storage_mapped;
@@ -536,7 +536,7 @@ void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 	nvmev_vdev->mdts = MDTS;
 }
 
-void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
+static void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 {
 	struct nvmev_ns *ns = nvmev_vdev->ns;
 	const int nr_ns = NR_NAMESPACES; // XXX: allow for dynamic nvmev_vdev->nr_ns

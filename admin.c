@@ -564,6 +564,7 @@ static void __nvmev_proc_admin_req(int entry_id)
 		break;
 	case nvme_admin_identify:
 		__nvmev_admin_identify(entry_id);
+		break;
 	case nvme_admin_abort_cmd:
 		break;
 	case nvme_admin_set_features:

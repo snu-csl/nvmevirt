@@ -796,7 +796,7 @@ static unsigned int __do_perform_kv_batch(struct kv_ftl *kv_ftl, struct nvme_kv_
 	return 0;
 }
 
-unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd, unsigned int *status)
+static unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd, unsigned int *status)
 {
 	int iter = 0;
 	bool flag = false;
@@ -824,7 +824,7 @@ unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd, uns
 	return iter;
 }
 
-unsigned int kv_iter_close(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd, unsigned int *status)
+static unsigned int kv_iter_close(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd, unsigned int *status)
 {
 	int iter = cmd.kv_iter_req.iter_handle;
 

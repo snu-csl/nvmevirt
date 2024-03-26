@@ -6,9 +6,6 @@
 #include "nvmev.h"
 #include "conv_ftl.h"
 
-void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
-				 struct buffer *write_buffer, unsigned int buffs_to_release);
-
 static inline bool last_pg_in_wordline(struct conv_ftl *conv_ftl, struct ppa *ppa)
 {
 	struct ssdparams *spp = &conv_ftl->ssd->sp;

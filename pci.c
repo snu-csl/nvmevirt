@@ -257,7 +257,7 @@ out:
 	return;
 }
 
-int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)
+static int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)
 {
 	if (devfn != 0)
 		return 1;
@@ -269,7 +269,7 @@ int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size,
 	return 0;
 };
 
-int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 _val)
+static int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 _val)
 {
 	u32 mask = ~(0U);
 	u32 val = 0x00;

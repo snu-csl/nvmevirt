@@ -4,9 +4,6 @@
 #include "ssd.h"
 #include "zns_ftl.h"
 
-void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
-				 struct buffer *write_buffer, size_t buffs_to_release);
-
 static inline uint32_t __nr_lbas_from_rw_cmd(struct nvme_rw_command *cmd)
 {
 	return cmd->length + 1;

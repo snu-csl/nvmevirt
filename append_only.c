@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include "nvmev.h"
 #include <linux/bitmap.h>
-#include <linux/types.h>
 #include <asm/bitops.h>
 #include <linux/log2.h>
 #include <linux/hashtable.h>
 #include <linux/kernel.h>
+
+#include "nvmev.h"
+#include "append_only.h"
 
 static unsigned long long latest;
 static unsigned long long dev_size;

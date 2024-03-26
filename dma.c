@@ -9,6 +9,8 @@
 #include <linux/sched/task.h>
 #include <linux/slab.h>
 
+#include "dma.h"
+
 // Size of the memcpy test buffer
 static unsigned int test_buf_size = 4096;
 
@@ -246,8 +248,8 @@ static void add_threaded_dma(struct ioat_dma_info *info)
 
 	/* Copy test parameters */
 	params->buf_size = test_buf_size;
-	strlcpy(params->channel, strim(test_channel), sizeof(params->channel));
-	strlcpy(params->device, strim(test_device), sizeof(params->device));
+	strscpy(params->channel, strim(test_channel), sizeof(params->channel));
+	strscpy(params->device, strim(test_device), sizeof(params->device));
 	params->max_channels = max_channels;
 	params->timeout = timeout;
 	params->transfer_size = transfer_size;

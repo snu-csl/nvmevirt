@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/ktime.h>
 #include <linux/highmem.h>
@@ -549,6 +550,7 @@ static int nvmev_io_worker(void *data)
 {
 	struct nvmev_io_worker *worker = (struct nvmev_io_worker *)data;
 	struct nvmev_ns *ns;
+	static unsigned long last_io_time = 0;
 
 #ifdef PERF_DEBUG
 	static unsigned long long intr_clock[NR_MAX_IO_QUEUE + 1];
@@ -606,6 +608,7 @@ static int nvmev_io_worker(void *data)
 				w->nsecs_copy_done = local_clock() + delta;
 #endif
 				w->is_copied = true;
+				last_io_time = jiffies;
 
 				NVMEV_DEBUG_VERBOSE("%s: copied %u, %d %d %d\n", worker->thread_name, curr,
 					    w->sqid, w->cqid, w->sq_entry);
@@ -673,7 +676,11 @@ static int nvmev_io_worker(void *data)
 				spin_unlock(&cq->irq_lock);
 			}
 		}
-		cond_resched();
+		if (CONFIG_NVMEVIRT_IDLE_TIMEOUT != 0 &&
+		    time_after(jiffies, last_io_time + (CONFIG_NVMEVIRT_IDLE_TIMEOUT * HZ)))
+			schedule_timeout_interruptible(1);
+		else
+			cond_resched();
 	}
 
 	return 0;

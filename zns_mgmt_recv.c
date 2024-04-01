@@ -86,6 +86,11 @@ static void __fill_zone_report(struct zns_ftl *zns_ftl, struct nvme_zone_mgmt_re
 	else // partial. # of zone desc transferred
 		nr_zone_to_report = (bytes_transfer / sizeof(struct zone_descriptor)) - 1;
 
+	if (nr_zone_to_report > zns_ftl->zp.nr_zones - start_zid) {
+		// Userspace asked for zones exceeding the device limit, adjust nr_zones
+		nr_zone_to_report = zns_ftl->zp.nr_zones - start_zid;
+	}
+
 	report->nr_zones = nr_zone_to_report;
 
 	memcpy(report->zd, &(zone_descs[start_zid]),

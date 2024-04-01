@@ -650,7 +650,7 @@ static int nvmev_io_worker(void *data)
 			if (cq == NULL || !cq->irq_enabled)
 				continue;
 
-			if (spin_trylock(&cq->irq_lock)) {
+			if (mutex_trylock(&cq->irq_lock)) {
 				if (cq->interrupt_ready == true) {
 #ifdef PERF_DEBUG
 					prev_clock = local_clock();
@@ -670,7 +670,7 @@ static int nvmev_io_worker(void *data)
 					}
 #endif
 				}
-				spin_unlock(&cq->irq_lock);
+				mutex_unlock(&cq->irq_lock);
 			}
 		}
 		cond_resched();

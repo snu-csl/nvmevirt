@@ -93,7 +93,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	elpn = lba_to_lpn(zns_ftl, slba + nr_lba - 1);
 	zone_elpn = zone_to_elpn(zns_ftl, zid);
 
-	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n", __func__, slba,
+	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_lba 0x%llx zone_id %d state %d\n", __func__, slba,
 			nr_lba, zid, state);
 
 	if (zns_ftl->zp.zone_wb_size)
@@ -196,7 +196,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			uint64_t nsecs_completed = ssd_advance_nand(zns_ftl->ssd, &swr);
 
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
-			NVMEV_ZNS_DEBUG("%s Flush slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n",
+			NVMEV_ZNS_DEBUG("%s Flush slba 0x%llx nr_lba 0x%llx zone_id %d state %d\n",
 					__func__, slba, nr_lba, zid, state);
 
 			if (((lpn + pgs - 1) == zone_elpn) && (unaligned_space > 0))
@@ -419,7 +419,7 @@ bool zns_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resul
 	struct nand_cmd swr;
 
 	NVMEV_ZNS_DEBUG(
-		"%s slba 0x%llx nr_lba 0x%lx zone_id %d state %d wp 0x%llx last lba 0x%llx\n",
+		"%s slba 0x%llx nr_lba 0x%llx zone_id %d state %d wp 0x%llx last lba 0x%llx\n",
 		__func__, slba, nr_lba, zid, zone_descs[zid].state, zone_descs[zid].wp,
 		(slba + nr_lba - 1));
 

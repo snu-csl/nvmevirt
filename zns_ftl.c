@@ -45,8 +45,8 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 		if (zone_wb_size)
 			buffer_init(&(zns_ftl->zone_write_buffer[i]), zone_wb_size);
 
-		NVMEV_ZNS_DEBUG("[i] zslba 0x%llx zone capacity 0x%llx\n", zone_descs[i].zslba,
-				zone_descs[i].zone_capacity);
+		NVMEV_ZNS_DEBUG("[%d] zslba 0x%llx zone capacity 0x%llx, wp 0x%llx\n", i,
+			zone_descs[i].zslba, zone_descs[i].zone_capacity, zone_descs[i].wp);
 	}
 }
 

@@ -111,8 +111,8 @@ static void __reset_zone(struct zns_ftl *zns_ftl, uint64_t zid)
 	uint32_t zone_size = zns_ftl->zp.zone_size;
 	uint8_t *zone_start_addr = (uint8_t *)get_storage_addr_from_zid(zns_ftl, zid);
 
-	NVMEV_ZNS_DEBUG("%s ns %d zid %lu start addres 0x%llx zone_size %x \n", __func__,
-			zns_ftl->ns, zid, (uint64_t)zone_start_addr, zone_size);
+	NVMEV_ZNS_DEBUG("%s zid %llu start addres 0x%llx zone_size %x \n", __func__,
+			zid, (uint64_t)zone_start_addr, zone_size);
 
 	memset(zone_start_addr, 0, zone_size);
 
@@ -276,7 +276,7 @@ void zns_zmgmt_send(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev
 		status = __zmgmt_send(zns_ftl, slba, action, option);
 	}
 
-	NVMEV_ZNS_DEBUG("%s slba %llx zid %lu select_all %lu action %u status %lu option %lu\n",
+	NVMEV_ZNS_DEBUG("%s slba %llx zid %llu select_all %u action %u status %u option %u\n",
 			__func__, cmd->slba, zid, select_all, cmd->zsa, status, option);
 
 	ret->nsecs_target = req->nsecs_start; // no delay

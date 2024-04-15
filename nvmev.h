@@ -61,8 +61,8 @@
 #define US_PER_SEC(s) (MS_PER_SEC(s) * 1000)
 #define NS_PER_SEC(s) (US_PER_SEC(s) * 1000)
 
-#define LBA_TO_BYTE(lba) ((lba) << 9)
-#define BYTE_TO_LBA(byte) ((byte) >> 9)
+#define LBA_TO_BYTE(lba) ((lba) << LBA_BITS)
+#define BYTE_TO_LBA(byte) ((byte) >> LBA_BITS)
 
 #define BITMASK32_ALL (0xFFFFFFFF)
 #define BITMASK64_ALL (0xFFFFFFFFFFFFFFFF)

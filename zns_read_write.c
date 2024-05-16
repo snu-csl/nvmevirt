@@ -158,8 +158,10 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	}
 	case ZONE_STATE_FULL:
 		status = NVME_SC_ZNS_ERR_FULL;
+		goto out;
 	case ZONE_STATE_READ_ONLY:
 		status = NVME_SC_ZNS_ERR_READ_ONLY;
+		goto out;
 	case ZONE_STATE_OFFLINE:
 		status = NVME_SC_ZNS_ERR_OFFLINE;
 		goto out;

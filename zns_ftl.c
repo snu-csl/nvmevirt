@@ -88,15 +88,15 @@ static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64
 		.zone_size = ZONE_SIZE,
 		.nr_zones = capacity / ZONE_SIZE,
 		.dies_per_zone = DIES_PER_ZONE,
-		.nr_active_zones = zpp->nr_zones, // max
-		.nr_open_zones = zpp->nr_zones, // max
+		.nr_active_zones = capacity / ZONE_SIZE, // max
+		.nr_open_zones = capacity / ZONE_SIZE, // max
 		.nr_zrwa_zones = MAX_ZRWA_ZONES,
 		.zone_wb_size = ZONE_WB_SIZE,
 		.zrwa_size = ZRWA_SIZE,
 		.zrwafg_size = ZRWAFG_SIZE,
 		.zrwa_buffer_size = ZRWA_BUFFER_SIZE,
-		.lbas_per_zrwa = zpp->zrwa_size / spp->secsz,
-		.lbas_per_zrwafg = zpp->zrwafg_size / spp->secsz,
+		.lbas_per_zrwa = ZRWA_SIZE / spp->secsz,
+		.lbas_per_zrwafg = ZRWAFG_SIZE / spp->secsz,
 	};
 
 	NVMEV_ASSERT((capacity % zpp->zone_size) == 0);

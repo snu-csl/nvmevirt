@@ -22,7 +22,7 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 		sizeof(struct zone_report) + sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
 
 	if (zrwa_buffer_size)
-		zns_ftl->zwra_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
+		zns_ftl->zrwa_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
 
 	if (zone_wb_size)
 		zns_ftl->zone_write_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
@@ -40,7 +40,7 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 		zone_descs[i].zone_capacity = BYTE_TO_LBA(zone_size);
 
 		if (zrwa_buffer_size)
-			buffer_init(&(zns_ftl->zwra_buffer[i]), zrwa_buffer_size);
+			buffer_init(&(zns_ftl->zrwa_buffer[i]), zrwa_buffer_size);
 
 		if (zone_wb_size)
 			buffer_init(&(zns_ftl->zone_write_buffer[i]), zone_wb_size);
@@ -53,7 +53,7 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 static void __remove_descriptor(struct zns_ftl *zns_ftl)
 {
 	if (zns_ftl->zp.zrwa_buffer_size)
-		kfree(zns_ftl->zwra_buffer);
+		kfree(zns_ftl->zrwa_buffer);
 
 	if (zns_ftl->zp.zone_wb_size)
 		kfree(zns_ftl->zone_write_buffer);

@@ -69,7 +69,7 @@ static void __nvmev_admin_create_cq(int eid)
 	cq->cq_tail = -1;
 
 	spin_lock_init(&cq->entry_lock);
-	spin_lock_init(&cq->irq_lock);
+	mutex_init(&cq->irq_lock);
 
 	/* TODO Physically non-contiguous prp list */
 	cq->phys_contig = cmd->cq_flags & NVME_QUEUE_PHYS_CONTIG ? true : false;

@@ -112,7 +112,7 @@ struct nvmev_completion_queue {
 	bool phys_contig;
 
 	spinlock_t entry_lock;
-	spinlock_t irq_lock;
+	struct mutex irq_lock;
 
 	int queue_size;
 

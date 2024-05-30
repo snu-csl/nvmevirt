@@ -111,23 +111,27 @@ module_param(cpus, charp, 0444);
 MODULE_PARM_DESC(cpus, "CPU list for process, completion(int.) threads, Seperated by Comma(,)");
 module_param(debug, uint, 0644);
 
-static void nvmev_proc_dbs(void)
+// Returns true if an event is processed
+static bool nvmev_proc_dbs(void)
 {
 	int qid;
 	int dbs_idx;
 	int new_db;
 	int old_db;
+	bool updated = false;
 
 	// Admin queue
 	new_db = nvmev_vdev->dbs[0];
 	if (new_db != nvmev_vdev->old_dbs[0]) {
 		nvmev_proc_admin_sq(new_db, nvmev_vdev->old_dbs[0]);
 		nvmev_vdev->old_dbs[0] = new_db;
+		updated = true;
 	}
 	new_db = nvmev_vdev->dbs[1];
 	if (new_db != nvmev_vdev->old_dbs[1]) {
 		nvmev_proc_admin_cq(new_db, nvmev_vdev->old_dbs[1]);
 		nvmev_vdev->old_dbs[1] = new_db;
+		updated = true;
 	}
 
 	// Submission queues
@@ -139,6 +143,7 @@ static void nvmev_proc_dbs(void)
 		old_db = nvmev_vdev->old_dbs[dbs_idx];
 		if (new_db != old_db) {
 			nvmev_vdev->old_dbs[dbs_idx] = nvmev_proc_io_sq(qid, new_db, old_db);
+			updated = true;
 		}
 	}
 
@@ -152,21 +157,32 @@ static void nvmev_proc_dbs(void)
 		if (new_db != old_db) {
 			nvmev_proc_io_cq(qid, new_db, old_db);
 			nvmev_vdev->old_dbs[dbs_idx] = new_db;
+			updated = true;
 		}
 	}
+
+	return updated;
 }
 
 static int nvmev_dispatcher(void *data)
 {
+	static unsigned long last_dispatched_time = 0;
+
 	NVMEV_INFO("nvmev_dispatcher started on cpu %d (node %d)\n",
 		   nvmev_vdev->config.cpu_nr_dispatcher,
 		   cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher));
 
 	while (!kthread_should_stop()) {
-		nvmev_proc_bars();
-		nvmev_proc_dbs();
+		if (nvmev_proc_bars())
+			last_dispatched_time = jiffies;
+		if (nvmev_proc_dbs())
+			last_dispatched_time = jiffies;
 
-		cond_resched();
+		if (CONFIG_NVMEVIRT_IDLE_TIMEOUT != 0 &&
+		    time_after(jiffies, last_dispatched_time + (CONFIG_NVMEVIRT_IDLE_TIMEOUT * HZ)))
+			schedule_timeout_interruptible(1);
+		else
+			cond_resched();
 	}
 
 	return 0;

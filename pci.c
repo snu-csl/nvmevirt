@@ -94,8 +94,10 @@ void nvmev_signal_irq(int msi_index)
  *
  * Also, memory barrier is not necessary here since BAR-related
  * operations are only processed by the dispatcher.
+ *
+ * Returns true if an event is processed.
  */
-void nvmev_proc_bars(void)
+bool nvmev_proc_bars(void)
 {
 	volatile struct __nvme_bar *old_bar = nvmev_vdev->old_bar;
 	volatile struct nvme_ctrl_regs *bar = nvmev_vdev->bar;
@@ -252,9 +254,12 @@ void nvmev_proc_bars(void)
 
 		goto out;
 	}
+
+	return false;
+
 out:
 	smp_mb();
-	return;
+	return true;
 }
 
 static int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)

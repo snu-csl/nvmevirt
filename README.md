@@ -101,6 +101,12 @@ $ sudo insmod ./nvmev.ko \
 
 In the above example, `memmap_start` and `memmap_size` indicate the relative offset and the size of the reserved memory, respectively. Those values should match the configurations specified in the `/etc/default/grub` file shown earlier. In addition, the `cpus` option specifies the id of cores on which I/O dispatcher and I/O worker threads run. You have to specify at least two cores for this purpose: one for the I/O dispatcher thread, and one or more cores for the I/O worker thread(s).
 
+It is highly recommended to use the `isolcpus` Linux command-line configuration to avoid schedulers putting tasks on the CPUs that NVMeVirt uses:
+
+```bash
+GRUB_CMDLINE_LINUX="memmap=64G\\\$128G isolcpus=7,8"
+```
+
 When you are successfully load the `nvmevirt` module, you can see something like these from the system message.
 
 ```log

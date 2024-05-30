@@ -86,6 +86,11 @@ static void __fill_zone_report(struct zns_ftl *zns_ftl, struct nvme_zone_mgmt_re
 	else // partial. # of zone desc transferred
 		nr_zone_to_report = (bytes_transfer / sizeof(struct zone_descriptor)) - 1;
 
+	if (nr_zone_to_report > zns_ftl->zp.nr_zones - start_zid) {
+		// Userspace asked for zones exceeding the device limit, adjust nr_zones
+		nr_zone_to_report = zns_ftl->zp.nr_zones - start_zid;
+	}
+
 	report->nr_zones = nr_zone_to_report;
 
 	memcpy(report->zd, &(zone_descs[start_zid]),
@@ -124,7 +129,7 @@ void zns_zmgmt_recv(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev
 	uint64_t length = (cmd->nr_dw + 1) * sizeof(uint32_t);
 	uint32_t status;
 
-	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_dw 0x%lx  action %u partial %u action_specific 0x%x\n",
+	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_dw 0x%llx  action %u partial %u action_specific 0x%x\n",
 			__func__, cmd->slba, length, cmd->zra, cmd->zra_specific_features,
 			cmd->zra_specific_field);
 

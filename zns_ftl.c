@@ -17,7 +17,7 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 	const uint32_t zrwa_buffer_size = zns_ftl->zp.zrwa_buffer_size;
 	const uint32_t zone_wb_size = zns_ftl->zp.zone_wb_size;
 
-	zns_ftl->zone_descs = kmalloc(sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
+	zns_ftl->zone_descs = kzalloc(sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
 	zns_ftl->report_buffer = kmalloc(
 		sizeof(struct zone_report) + sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
 
@@ -28,7 +28,6 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 		zns_ftl->zone_write_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
 
 	zone_descs = zns_ftl->zone_descs;
-	memset(zone_descs, 0, sizeof(struct zone_descriptor) * zns_ftl->zp.nr_zones);
 
 	for (i = 0; i < nr_zones; i++) {
 		zone_descs[i].state = ZONE_STATE_EMPTY;
@@ -45,8 +44,8 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 		if (zone_wb_size)
 			buffer_init(&(zns_ftl->zone_write_buffer[i]), zone_wb_size);
 
-		NVMEV_ZNS_DEBUG("[i] zslba 0x%llx zone capacity 0x%llx\n", zone_descs[i].zslba,
-				zone_descs[i].zone_capacity);
+		NVMEV_ZNS_DEBUG("[%d] zslba 0x%llx zone capacity 0x%llx, wp 0x%llx\n", i,
+			zone_descs[i].zslba, zone_descs[i].zone_capacity, zone_descs[i].wp);
 	}
 }
 

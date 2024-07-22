@@ -17,17 +17,18 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 	const uint32_t zrwa_buffer_size = zns_ftl->zp.zrwa_buffer_size;
 	const uint32_t zone_wb_size = zns_ftl->zp.zone_wb_size;
 
-	zns_ftl->zone_descs = kzalloc(sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
+	zns_ftl->zone_descs = kmalloc(sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
 	zns_ftl->report_buffer = kmalloc(
 		sizeof(struct zone_report) + sizeof(struct zone_descriptor) * nr_zones, GFP_KERNEL);
 
 	if (zrwa_buffer_size)
-		zns_ftl->zrwa_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
+		zns_ftl->zwra_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
 
 	if (zone_wb_size)
 		zns_ftl->zone_write_buffer = kmalloc(sizeof(struct buffer) * nr_zones, GFP_KERNEL);
 
 	zone_descs = zns_ftl->zone_descs;
+	memset(zone_descs, 0, sizeof(struct zone_descriptor) * zns_ftl->zp.nr_zones);
 
 	for (i = 0; i < nr_zones; i++) {
 		zone_descs[i].state = ZONE_STATE_EMPTY;
@@ -39,20 +40,20 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 		zone_descs[i].zone_capacity = BYTE_TO_LBA(zone_size);
 
 		if (zrwa_buffer_size)
-			buffer_init(&(zns_ftl->zrwa_buffer[i]), zrwa_buffer_size);
+			buffer_init(&(zns_ftl->zwra_buffer[i]), zrwa_buffer_size);
 
 		if (zone_wb_size)
 			buffer_init(&(zns_ftl->zone_write_buffer[i]), zone_wb_size);
 
-		NVMEV_ZNS_DEBUG("[%d] zslba 0x%llx zone capacity 0x%llx, wp 0x%llx\n", i,
-			zone_descs[i].zslba, zone_descs[i].zone_capacity, zone_descs[i].wp);
+		NVMEV_ZNS_DEBUG("[i] zslba 0x%llx zone capacity 0x%llx\n", zone_descs[i].zslba,
+				zone_descs[i].zone_capacity);
 	}
 }
 
 static void __remove_descriptor(struct zns_ftl *zns_ftl)
 {
 	if (zns_ftl->zp.zrwa_buffer_size)
-		kfree(zns_ftl->zrwa_buffer);
+		kfree(zns_ftl->zwra_buffer);
 
 	if (zns_ftl->zp.zone_wb_size)
 		kfree(zns_ftl->zone_write_buffer);
@@ -87,15 +88,15 @@ static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64
 		.zone_size = ZONE_SIZE,
 		.nr_zones = capacity / ZONE_SIZE,
 		.dies_per_zone = DIES_PER_ZONE,
-		.nr_active_zones = capacity / ZONE_SIZE, // max
-		.nr_open_zones = capacity / ZONE_SIZE, // max
+		.nr_active_zones = zpp->nr_zones, // max
+		.nr_open_zones = zpp->nr_zones, // max
 		.nr_zrwa_zones = MAX_ZRWA_ZONES,
 		.zone_wb_size = ZONE_WB_SIZE,
 		.zrwa_size = ZRWA_SIZE,
 		.zrwafg_size = ZRWAFG_SIZE,
 		.zrwa_buffer_size = ZRWA_BUFFER_SIZE,
-		.lbas_per_zrwa = ZRWA_SIZE / spp->secsz,
-		.lbas_per_zrwafg = ZRWAFG_SIZE / spp->secsz,
+		.lbas_per_zrwa = zpp->zrwa_size / spp->secsz,
+		.lbas_per_zrwafg = zpp->zrwafg_size / spp->secsz,
 	};
 
 	NVMEV_ASSERT((capacity % zpp->zone_size) == 0);

@@ -40,7 +40,7 @@ struct zns_ftl {
 	struct zone_descriptor *zone_descs;
 	struct zone_report *report_buffer;
 	struct buffer *zone_write_buffer;
-	struct buffer *zrwa_buffer;
+	struct buffer *zwra_buffer;
 	void *storage_base_addr;
 };
 

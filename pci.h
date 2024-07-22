@@ -542,7 +542,17 @@ struct nvme_ctrl_regs {
 
 
 #define NVMEV_PCI_DOMAIN_NUM 0x0001
+#if (VIRT_ID == 0)
+#define NVMEV_PCI_BUS_NUM 0x01
+#elif (VIRT_ID == 1)
+#define NVMEV_PCI_BUS_NUM 0x02
+#elif (VIRT_ID == 2)
+#define NVMEV_PCI_BUS_NUM 0x03
+#elif (VIRT_ID == 3)
+#define NVMEV_PCI_BUS_NUM 0x04
+#else
 #define NVMEV_PCI_BUS_NUM 0x10
+#endif
 
 //[PCI_HEADER][PM_CAP][MSIX_CAP][PCIE_CAP] | [AER_CAP][EXT_CAP]
 #define SZ_PCI_HDR sizeof(struct pci_header) // 0

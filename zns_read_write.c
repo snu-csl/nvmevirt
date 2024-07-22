@@ -93,7 +93,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	elpn = lba_to_lpn(zns_ftl, slba + nr_lba - 1);
 	zone_elpn = zone_to_elpn(zns_ftl, zid);
 
-	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_lba 0x%llx zone_id %d state %d\n", __func__, slba,
+	NVMEV_ZNS_DEBUG("%s slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n", __func__, slba,
 			nr_lba, zid, state);
 
 	if (zns_ftl->zp.zone_wb_size)
@@ -158,10 +158,8 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	}
 	case ZONE_STATE_FULL:
 		status = NVME_SC_ZNS_ERR_FULL;
-		goto out;
 	case ZONE_STATE_READ_ONLY:
 		status = NVME_SC_ZNS_ERR_READ_ONLY;
-		goto out;
 	case ZONE_STATE_OFFLINE:
 		status = NVME_SC_ZNS_ERR_OFFLINE;
 		goto out;
@@ -198,7 +196,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			uint64_t nsecs_completed = ssd_advance_nand(zns_ftl->ssd, &swr);
 
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
-			NVMEV_ZNS_DEBUG("%s Flush slba 0x%llx nr_lba 0x%llx zone_id %d state %d\n",
+			NVMEV_ZNS_DEBUG("%s Flush slba 0x%llx nr_lba 0x%lx zone_id %d state %d\n",
 					__func__, slba, nr_lba, zid, state);
 
 			if (((lpn + pgs - 1) == zone_elpn) && (unaligned_space > 0))
@@ -257,7 +255,7 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	NVMEV_DEBUG(
 		"%s slba 0x%llx nr_lba 0x%llx zone_id %d state %d wp 0x%llx zrwa_impl_start 0x%llx zrwa_impl_end 0x%llx  buffer %lu\n",
 		__func__, slba, nr_lba, zid, state, prev_wp, zrwa_impl_start, zrwa_impl_end,
-		zns_ftl->zrwa_buffer[zid].remaining);
+		zns_ftl->zwra_buffer[zid].remaining);
 
 	if ((LBA_TO_BYTE(nr_lba) % spp->write_unit_size) != 0) {
 		status = NVME_SC_ZNS_INVALID_WRITE;
@@ -286,7 +284,7 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			goto out;
 		}
 
-		if (!buffer_allocate(&zns_ftl->zrwa_buffer[zid], zpp->zrwa_size))
+		if (!buffer_allocate(&zns_ftl->zwra_buffer[zid], zpp->zrwa_size))
 			NVMEV_ASSERT(0);
 
 		// change to ZSIO
@@ -318,18 +316,18 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 
 		NVMEV_DEBUG("%s implicitly flush zid %d wp before 0x%llx after 0x%llx buffer %lu",
 			    __func__, zid, prev_wp, zone_descs[zid].wp + nr_lbas_flush,
-			    zns_ftl->zrwa_buffer[zid].remaining);
+			    zns_ftl->zwra_buffer[zid].remaining);
 	} else if (elba == zone_to_elba(zns_ftl, zid)) {
 		// Workaround. move wp to end of the zone and make state full implicitly
 		nr_lbas_flush = elba - prev_wp + 1;
 
 		NVMEV_DEBUG("%s end of zone zid %d wp before 0x%llx after 0x%llx buffer %lu",
 			    __func__, zid, prev_wp, zone_descs[zid].wp + nr_lbas_flush,
-			    zns_ftl->zrwa_buffer[zid].remaining);
+			    zns_ftl->zwra_buffer[zid].remaining);
 	}
 
 	if (nr_lbas_flush > 0) {
-		if (!buffer_allocate(&zns_ftl->zrwa_buffer[zid], LBA_TO_BYTE(nr_lbas_flush)))
+		if (!buffer_allocate(&zns_ftl->zwra_buffer[zid], LBA_TO_BYTE(nr_lbas_flush)))
 			return false;
 
 		__increase_write_ptr(zns_ftl, zid, nr_lbas_flush);
@@ -359,7 +357,7 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
 
 			schedule_internal_operation(req->sq_id, nsecs_completed,
-						    &zns_ftl->zrwa_buffer[zid],
+						    &zns_ftl->zwra_buffer[zid],
 						    spp->pgs_per_oneshotpg * spp->pgsz);
 		}
 
@@ -421,7 +419,7 @@ bool zns_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resul
 	struct nand_cmd swr;
 
 	NVMEV_ZNS_DEBUG(
-		"%s slba 0x%llx nr_lba 0x%llx zone_id %d state %d wp 0x%llx last lba 0x%llx\n",
+		"%s slba 0x%llx nr_lba 0x%lx zone_id %d state %d wp 0x%llx last lba 0x%llx\n",
 		__func__, slba, nr_lba, zid, zone_descs[zid].state, zone_descs[zid].wp,
 		(slba + nr_lba - 1));
 

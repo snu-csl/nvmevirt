@@ -16,19 +16,6 @@
 #undef CONFIG_NVMEV_DEBUG
 #undef CONFIG_NVMEV_DEBUG_VERBOSE
 
-/*
- * If CONFIG_NVMEVIRT_IDLE_TIMEOUT is set, sleep for a jiffie after
- * CONFIG_NVMEVIRT_IDLE_TIMEOUT seconds have passed to lower CPU power
- * consumption on idle.
- *
- * This may introduce a (1000/CONFIG_HZ) ms processing latency penalty
- * when exiting an I/O idle state.
- *
- * The default is set to 60 seconds, which is extremely conservative and
- * should not have an impact on I/O testing.
- */
-#define CONFIG_NVMEVIRT_IDLE_TIMEOUT 60
-
 /*************************/
 #define NVMEV_DRV_NAME "NVMeVirt"
 #define NVMEV_VERSION 0x0110
@@ -112,7 +99,7 @@ struct nvmev_completion_queue {
 	bool phys_contig;
 
 	spinlock_t entry_lock;
-	struct mutex irq_lock;
+	spinlock_t irq_lock;
 
 	int queue_size;
 
@@ -259,6 +246,9 @@ struct nvmev_dev {
 	struct proc_dir_entry *proc_debug;
 
 	unsigned long long *io_unit_stat;
+
+	char virt_name[10];
+	char dma_name[20];
 };
 
 struct nvmev_request {
@@ -299,7 +289,7 @@ struct nvmev_dev *VDEV_INIT(void);
 void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev);
 
 // OPS_PCI
-bool nvmev_proc_bars(void);
+void nvmev_proc_bars(void);
 bool NVMEV_PCI_INIT(struct nvmev_dev *dev);
 void nvmev_signal_irq(int msi_index);
 

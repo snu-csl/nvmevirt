@@ -111,27 +111,23 @@ module_param(cpus, charp, 0444);
 MODULE_PARM_DESC(cpus, "CPU list for process, completion(int.) threads, Seperated by Comma(,)");
 module_param(debug, uint, 0644);
 
-// Returns true if an event is processed
-static bool nvmev_proc_dbs(void)
+static void nvmev_proc_dbs(void)
 {
 	int qid;
 	int dbs_idx;
 	int new_db;
 	int old_db;
-	bool updated = false;
 
 	// Admin queue
 	new_db = nvmev_vdev->dbs[0];
 	if (new_db != nvmev_vdev->old_dbs[0]) {
 		nvmev_proc_admin_sq(new_db, nvmev_vdev->old_dbs[0]);
 		nvmev_vdev->old_dbs[0] = new_db;
-		updated = true;
 	}
 	new_db = nvmev_vdev->dbs[1];
 	if (new_db != nvmev_vdev->old_dbs[1]) {
 		nvmev_proc_admin_cq(new_db, nvmev_vdev->old_dbs[1]);
 		nvmev_vdev->old_dbs[1] = new_db;
-		updated = true;
 	}
 
 	// Submission queues
@@ -143,7 +139,6 @@ static bool nvmev_proc_dbs(void)
 		old_db = nvmev_vdev->old_dbs[dbs_idx];
 		if (new_db != old_db) {
 			nvmev_vdev->old_dbs[dbs_idx] = nvmev_proc_io_sq(qid, new_db, old_db);
-			updated = true;
 		}
 	}
 
@@ -157,32 +152,21 @@ static bool nvmev_proc_dbs(void)
 		if (new_db != old_db) {
 			nvmev_proc_io_cq(qid, new_db, old_db);
 			nvmev_vdev->old_dbs[dbs_idx] = new_db;
-			updated = true;
 		}
 	}
-
-	return updated;
 }
 
 static int nvmev_dispatcher(void *data)
 {
-	static unsigned long last_dispatched_time = 0;
-
 	NVMEV_INFO("nvmev_dispatcher started on cpu %d (node %d)\n",
 		   nvmev_vdev->config.cpu_nr_dispatcher,
 		   cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher));
 
 	while (!kthread_should_stop()) {
-		if (nvmev_proc_bars())
-			last_dispatched_time = jiffies;
-		if (nvmev_proc_dbs())
-			last_dispatched_time = jiffies;
+		nvmev_proc_bars();
+		nvmev_proc_dbs();
 
-		if (CONFIG_NVMEVIRT_IDLE_TIMEOUT != 0 &&
-		    time_after(jiffies, last_dispatched_time + (CONFIG_NVMEVIRT_IDLE_TIMEOUT * HZ)))
-			schedule_timeout_interruptible(1);
-		else
-			cond_resched();
+		cond_resched();
 	}
 
 	return 0;
@@ -440,7 +424,7 @@ static void NVMEV_STORAGE_INIT(struct nvmev_dev *nvmev_vdev)
 	if (nvmev_vdev->storage_mapped == NULL)
 		NVMEV_ERROR("Failed to map storage memory.\n");
 
-	nvmev_vdev->proc_root = proc_mkdir("nvmev", NULL);
+	nvmev_vdev->proc_root = proc_mkdir(nvmev_vdev->virt_name, NULL);
 	nvmev_vdev->proc_read_times =
 		proc_create("read_times", 0664, nvmev_vdev->proc_root, &proc_file_fops);
 	nvmev_vdev->proc_write_times =
@@ -459,7 +443,7 @@ static void NVMEV_STORAGE_FINAL(struct nvmev_dev *nvmev_vdev)
 	remove_proc_entry("stat", nvmev_vdev->proc_root);
 	remove_proc_entry("debug", nvmev_vdev->proc_root);
 
-	remove_proc_entry("nvmev", NULL);
+	remove_proc_entry(nvmev_vdev->virt_name, NULL);
 
 	if (nvmev_vdev->storage_mapped)
 		memunmap(nvmev_vdev->storage_mapped);
@@ -619,7 +603,7 @@ static int NVMeV_init(void)
 	NVMEV_NAMESPACE_INIT(nvmev_vdev);
 
 	if (io_using_dma) {
-		if (ioat_dma_chan_set("dma7chan0") != 0) {
+		if (ioat_dma_chan_set(nvmev_vdev->dma_name) != 0) {
 			io_using_dma = false;
 			NVMEV_ERROR("Cannot use DMA engine, Fall back to memcpy\n");
 		}

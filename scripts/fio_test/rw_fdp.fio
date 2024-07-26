@@ -1,0 +1,23 @@
+[global]
+ioengine=io_uring_cmd
+rw=randwrite
+bs=4k
+invalidate=1
+end_fsync=0
+size=100%
+filename=/dev/ng0n1
+iodepth=512
+norandommap
+randrepeat=0
+refill_buffers
+overwrite=1
+
+fdp=1
+fdp_pli_select=random
+fdp_pli=0,1,2,3,4,5,6,7
+
+loops=2
+
+[ran_write_fdp]
+name=Random_Write_FDP
+description=Randomly writing to the entire device with FDP for two times, RUH chosen randomly

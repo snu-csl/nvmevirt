@@ -1,0 +1,16 @@
+[global]
+ioengine=libaio
+direct=1
+rw=read
+bs=128k
+size=100%
+filename=/dev/nvme0n1
+iodepth=512
+norandommap
+randrepeat=0
+refill_buffers
+overwrite=1
+
+[seq_read]
+name=Sequential_Read
+description=Sequentially reading the entire device

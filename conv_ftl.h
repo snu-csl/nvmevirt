@@ -51,6 +51,10 @@ struct line_mgmt {
 };
 
 struct write_flow_control {
+	// @hk:
+	// `write_credits` is decreased every 4K_page write (@see `consume_write_credit()`)
+	// `credits_to_refill` is initiated with `pgs_per_line` (@see `init_write_flow_control()`)
+	// And re-set with `line->ipc` (@see `do_gc()`)
 	uint32_t write_credits;
 	uint32_t credits_to_refill;
 };
@@ -61,10 +65,16 @@ struct conv_ftl {
 	struct convparams cp;
 	struct ppa *maptbl; /* page level mapping table */
 	uint64_t *rmap; /* reverse mapptbl, assume it's stored in OOB */
-	struct write_pointer wp;
+	// @hk: Make write pointer to be array
+	// struct write_pointer wp;
+	struct write_pointer *wps;
 	struct write_pointer gc_wp;
 	struct line_mgmt lm;
 	struct write_flow_control wfc;
+	// @hk: `units_written` array accumulates write bytes
+	// `units_written[USER_IO]`: Acc. user IO ("Data Units Written" of SMART / Health Information Log)
+	// `units_written[GC_IO]`: Acc. GC IO ("Data Units Written" + "Physical Media Units Written" of SMART Cloud Attributes Log Page)
+	uint64_t *units_written;
 };
 
 void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,

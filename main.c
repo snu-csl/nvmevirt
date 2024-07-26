@@ -112,6 +112,7 @@ MODULE_PARM_DESC(cpus, "CPU list for process, completion(int.) threads, Seperate
 module_param(debug, uint, 0644);
 
 // Returns true if an event is processed
+__attribute__((no_instrument_function))
 static bool nvmev_proc_dbs(void)
 {
 	int qid;
@@ -121,12 +122,14 @@ static bool nvmev_proc_dbs(void)
 	bool updated = false;
 
 	// Admin queue
+	// @hk: Submission queue: Doorbell index [0]
 	new_db = nvmev_vdev->dbs[0];
 	if (new_db != nvmev_vdev->old_dbs[0]) {
 		nvmev_proc_admin_sq(new_db, nvmev_vdev->old_dbs[0]);
 		nvmev_vdev->old_dbs[0] = new_db;
 		updated = true;
 	}
+	// @hk: Completion queue: Doorbell index [1]
 	new_db = nvmev_vdev->dbs[1];
 	if (new_db != nvmev_vdev->old_dbs[1]) {
 		nvmev_proc_admin_cq(new_db, nvmev_vdev->old_dbs[1]);
@@ -134,7 +137,8 @@ static bool nvmev_proc_dbs(void)
 		updated = true;
 	}
 
-	// Submission queues
+	// IO queue
+	// @hk: Submission queues: Doorbell index [even]
 	for (qid = 1; qid <= nvmev_vdev->nr_sq; qid++) {
 		if (nvmev_vdev->sqes[qid] == NULL)
 			continue;
@@ -147,7 +151,7 @@ static bool nvmev_proc_dbs(void)
 		}
 	}
 
-	// Completion queues
+	// @hk: Completion queues: Doorbell index [odd]
 	for (qid = 1; qid <= nvmev_vdev->nr_cq; qid++) {
 		if (nvmev_vdev->cqes[qid] == NULL)
 			continue;
@@ -593,6 +597,9 @@ static void __print_base_config(void)
 		break;
 	case WD_ZN540:
 		type = "WD ZN540 ZNS SSD";
+                break;
+	case FDP_PROTOTYPE:
+		type = "FDP SSD Prototype";
 		break;
 	}
 

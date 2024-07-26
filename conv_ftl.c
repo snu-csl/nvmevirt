@@ -19,6 +19,7 @@ static bool should_gc(struct conv_ftl *conv_ftl)
 
 static inline bool should_gc_high(struct conv_ftl *conv_ftl)
 {
+//	NVMEV_INFO("%s: lm.free_line_cnt(%u), cp.gc_thres_lines_high(%u)", __func__, conv_ftl->lm.free_line_cnt, conv_ftl->cp.gc_thres_lines_high);
 	return conv_ftl->lm.free_line_cnt <= conv_ftl->cp.gc_thres_lines_high;
 }
 
@@ -99,6 +100,7 @@ static void foreground_gc(struct conv_ftl *conv_ftl);
 static inline void check_and_refill_write_credit(struct conv_ftl *conv_ftl)
 {
 	struct write_flow_control *wfc = &(conv_ftl->wfc);
+	// NVMEV_INFO("%s: wfc->write_credits(%u)", __func__, wfc->write_credits);
 	if (wfc->write_credits <= 0) {
 		foreground_gc(conv_ftl);
 
@@ -164,6 +166,9 @@ static inline void check_addr(int a, int max)
 	NVMEV_ASSERT(a >= 0 && a < max);
 }
 
+// @hk:
+// Get first free line
+// Note that two funcs `list_first_entry_or_null()` and `list_del_init()` is built-in doubly-linked list func
 static struct line *get_next_free_line(struct conv_ftl *conv_ftl)
 {
 	struct line_mgmt *lm = &conv_ftl->lm;
@@ -180,11 +185,18 @@ static struct line *get_next_free_line(struct conv_ftl *conv_ftl)
 	return curline;
 }
 
-static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint32_t io_type)
+// @hk:
+// Returns current WP for RUH in FTL
+static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint16_t ruh_id, uint32_t io_type)
 {
 	if (io_type == USER_IO) {
-		return &ftl->wp;
+		// @hk:
+		// return &ftl->wp;
+		return &ftl->wps[ruh_id];
 	} else if (io_type == GC_IO) {
+		// @hk-TODO:
+		// Use single GC write pointer for 'Initially Isolated' mode
+		// Change to array to support 'Persistently Isolated' mode
 		return &ftl->gc_wp;
 	}
 
@@ -192,9 +204,11 @@ static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint32_t io_type)
 	return NULL;
 }
 
-static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
-{
-	struct write_pointer *wp = __get_wp(conv_ftl, io_type);
+// @hk:
+// Actual implementation of func `prepare_write_pointer()`
+// Link free line to WP's curline for RUH in FTL
+static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type) {
+	struct write_pointer *wp = __get_wp(conv_ftl, ruh_id, io_type);
 	struct line *curline = get_next_free_line(conv_ftl);
 
 	NVMEV_ASSERT(wp);
@@ -211,17 +225,44 @@ static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 	};
 }
 
-static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
+// @hk:
+// Allocate kernel memory for WPs array space & link free lines to all WPs
+// Actual linking is done in func `prepare_an_write_pointer()`
+// Note that this func is used in init process only
+static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
+{
+	// @jy:
+	// Make WPs according to number of RUHs
+	struct ssdparams *spp = &conv_ftl->ssd->sp;
+	int ruhs = spp->ruhs;
+	if (io_type == USER_IO) {
+		// @hk-TODO:
+		// Assume that the total RUH count equals 8
+		// Refactor this to be configurable via macro
+		conv_ftl->wps = kmalloc(sizeof(struct write_pointer) * ruhs, GFP_KERNEL);
+		for (int i = 0; i < ruhs; i++) {
+			prepare_an_write_pointer(conv_ftl, i, io_type);
+		}
+	} else if (io_type == GC_IO) {
+		// @hk: Use '0' for dummy param (not used in __get_wp)
+		prepare_an_write_pointer(conv_ftl, 0, io_type);
+	}
+}
+
+// @hk:
+// `advance_write_pointer()` func moves next page to be written
+static void advance_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type)
 {
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct line_mgmt *lm = &conv_ftl->lm;
-	struct write_pointer *wpp = __get_wp(conv_ftl, io_type);
+	struct write_pointer *wpp = __get_wp(conv_ftl, ruh_id, io_type);
 
 	NVMEV_DEBUG_VERBOSE("current wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n",
 			wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg);
 
 	check_addr(wpp->pg, spp->pgs_per_blk);
 	wpp->pg++;
+	// @hk: spp->pgs_per_oneshotpg == 0
 	if ((wpp->pg % spp->pgs_per_oneshotpg) != 0)
 		goto out;
 
@@ -279,10 +320,12 @@ out:
 			wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg, wpp->curline->id);
 }
 
-static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint32_t io_type)
+// @hk:
+// func `get_new_page` actually is "converting" from WP to PPA.
+static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type)
 {
 	struct ppa ppa;
-	struct write_pointer *wp = __get_wp(conv_ftl, io_type);
+	struct write_pointer *wp = __get_wp(conv_ftl, ruh_id, io_type);
 
 	ppa.ppa = 0;
 	ppa.g.ch = wp->ch;
@@ -312,6 +355,23 @@ static void remove_maptbl(struct conv_ftl *conv_ftl)
 	vfree(conv_ftl->maptbl);
 }
 
+static void init_units_written(struct conv_ftl *conv_ftl)
+{
+	int i;
+	// @hk:
+	// `2` is hardcoded number indicating the number of IO type enums (`USER_IO`, `GC_IO`)
+	// Initialize each `units_written` to `0` for fresh start
+	conv_ftl->units_written = kmalloc(sizeof(uint64_t) * 2, GFP_KERNEL);
+	for (i = 0; i < 2; i++) {
+		conv_ftl->units_written[i] = 0;
+	}
+}
+
+static void remove_units_written(struct conv_ftl *conv_ftl)
+{
+	kfree(conv_ftl->units_written);
+}
+
 static void init_rmap(struct conv_ftl *conv_ftl)
 {
 	int i;
@@ -328,6 +388,19 @@ static void remove_rmap(struct conv_ftl *conv_ftl)
 	vfree(conv_ftl->rmap);
 }
 
+static void init_wps(struct conv_ftl *conv_ftl)
+{
+	// @hk-TODO:
+	// Assume that the total RUH count equals 8
+	// Refactor this to be configurable via macro
+	conv_ftl->wps = kmalloc(sizeof(struct write_pointer) * 8, GFP_KERNEL);
+}
+
+static void remove_wps(struct conv_ftl *conv_ftl)
+{
+	kfree(conv_ftl->wps);
+}
+
 static void conv_init_ftl(struct conv_ftl *conv_ftl, struct convparams *cpp, struct ssd *ssd)
 {
 	/*copy convparams*/
@@ -340,6 +413,12 @@ static void conv_init_ftl(struct conv_ftl *conv_ftl, struct convparams *cpp, str
 
 	/* initialize rmap */
 	init_rmap(conv_ftl); // reverse mapping table (?)
+
+	/* initialize wps */
+	init_wps(conv_ftl);
+
+	/* initialize units_written */
+	init_units_written(conv_ftl);
 
 	/* initialize all the lines */
 	init_lines(conv_ftl);
@@ -360,14 +439,27 @@ static void conv_remove_ftl(struct conv_ftl *conv_ftl)
 {
 	remove_lines(conv_ftl);
 	remove_rmap(conv_ftl);
+	remove_wps(conv_ftl);
+	remove_units_written(conv_ftl);
 	remove_maptbl(conv_ftl);
 }
 
 static void conv_init_params(struct convparams *cpp)
 {
 	cpp->op_area_pcent = OP_AREA_PERCENT;
+	// @hk:
+	// Increase GC threshold to open line count * 2
+	// e.g. 16 for 8-RUH system
+	// @jy:
+	// When using FDP change the threshold according to number of RUHs
+#ifdef FDP_NUM_RUH
+	cpp->gc_thres_lines = FDP_NUM_RUH * 2; /* Need only two lines.(host write, gc)*/
+	cpp->gc_thres_lines_high = FDP_NUM_RUH * 2; /* Need only two lines.(host write, gc)*/
+#else
 	cpp->gc_thres_lines = 2; /* Need only two lines.(host write, gc)*/
 	cpp->gc_thres_lines_high = 2; /* Need only two lines.(host write, gc)*/
+#endif
+	NVMEV_INFO("gc_thres_lines_high=%u", cpp->gc_thres_lines_high );
 	cpp->enable_gc_delay = 1;
 	cpp->pba_pcent = (int)((1 + cpp->op_area_pcent) * 100);
 }
@@ -393,7 +485,7 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 		conv_init_ftl(&conv_ftls[i], &cpp, ssd);
 	}
 
-	/* PCIe, Write buffer are shared by all instances*/
+	/* PCIe, Write buffer are shared by all instances (partitions, FTLs)*/
 	for (i = 1; i < nr_parts; i++) {
 		kfree(conv_ftls[i].ssd->pcie->perf_model);
 		kfree(conv_ftls[i].ssd->pcie);
@@ -409,7 +501,7 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 	ns->ftls = (void *)conv_ftls;
 	ns->size = (uint64_t)((size * 100) / cpp.pba_pcent);
 	ns->mapped = mapped_addr;
-	/*register io command handler*/
+	// @see `__nvmev_proc_io()`
 	ns->proc_io_cmd = conv_proc_nvme_io_cmd;
 
 	NVMEV_INFO("FTL physical space: %lld, logical space: %lld (physical/logical * 100 = %d)\n",
@@ -500,8 +592,10 @@ static void mark_page_invalid(struct conv_ftl *conv_ftl, struct ppa *ppa)
 
 	/* update corresponding block status */
 	blk = get_blk(conv_ftl->ssd, ppa);
+	// @hk: Increase invalid count
 	NVMEV_ASSERT(blk->ipc >= 0 && blk->ipc < spp->pgs_per_blk);
 	blk->ipc++;
+	// @hk: Decrease valid count
 	NVMEV_ASSERT(blk->vpc > 0 && blk->vpc <= spp->pgs_per_blk);
 	blk->vpc--;
 
@@ -602,16 +696,25 @@ static uint64_t gc_write_page(struct conv_ftl *conv_ftl, struct ppa *old_ppa)
 	uint64_t lpn = get_rmap_ent(conv_ftl, old_ppa);
 
 	NVMEV_ASSERT(valid_lpn(conv_ftl, lpn));
-	new_ppa = get_new_page(conv_ftl, GC_IO);
+	// @hk: RUH_ID(0) is just dummy param as GC_IO doesn't require that (@see `__get_wp()`)
+	new_ppa = get_new_page(conv_ftl, 0, GC_IO);
 	/* update maptbl */
 	set_maptbl_ent(conv_ftl, lpn, &new_ppa);
 	/* update rmap */
 	set_rmap_ent(conv_ftl, lpn, &new_ppa);
+	/* update units_written */
+	// @hk-TODO:
+	// Note that the units_written is calc'd based on 4K page, Not NAND page size (maybe 32K)
+	// This should be corrected in the future
+	// @hk-TODO:
+	// Refactor to use macros for page size
+	conv_ftl->units_written[GC_IO] += KB(4);
 
 	mark_page_valid(conv_ftl, &new_ppa);
 
 	/* need to advance the write pointer here */
-	advance_write_pointer(conv_ftl, GC_IO);
+	// @hk: RUH_ID(0) is just dummy param as GC_IO doesn't require that (@see `__get_wp()`)
+	advance_write_pointer(conv_ftl, 0, GC_IO);
 
 	if (cpp->enable_gc_delay) {
 		struct nand_cmd gcw = {
@@ -698,6 +801,7 @@ static void clean_one_flashpg(struct conv_ftl *conv_ftl, struct ppa *ppa)
 	uint64_t completed_time = 0;
 	struct ppa ppa_copy = *ppa;
 
+	// @hk: Count valid 4K_pages in nand_page
 	for (i = 0; i < spp->pgs_per_flashpg; i++) {
 		pg_iter = get_pg(conv_ftl->ssd, &ppa_copy);
 		/* there shouldn't be any free page in victim blocks */
@@ -713,6 +817,7 @@ static void clean_one_flashpg(struct conv_ftl *conv_ftl, struct ppa *ppa)
 	if (cnt <= 0)
 		return;
 
+	// @hk: Calc delay
 	if (cpp->enable_gc_delay) {
 		struct nand_cmd gcr = {
 			.type = GC_IO,
@@ -725,6 +830,7 @@ static void clean_one_flashpg(struct conv_ftl *conv_ftl, struct ppa *ppa)
 		completed_time = ssd_advance_nand(conv_ftl->ssd, &gcr);
 	}
 
+	// @hk: Move 4K_pages
 	for (i = 0; i < spp->pgs_per_flashpg; i++) {
 		pg_iter = get_pg(conv_ftl->ssd, &ppa_copy);
 
@@ -749,6 +855,8 @@ static void mark_line_free(struct conv_ftl *conv_ftl, struct ppa *ppa)
 	lm->free_line_cnt++;
 }
 
+// @hk:
+// Do GC here
 static int do_gc(struct conv_ftl *conv_ftl, bool force)
 {
 	struct line *victim_line = NULL;
@@ -766,12 +874,14 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 		    victim_line->ipc, victim_line->vpc, conv_ftl->lm.victim_line_cnt,
 		    conv_ftl->lm.full_line_cnt, conv_ftl->lm.free_line_cnt);
 
+	// @hk: ?reset refill credit
 	conv_ftl->wfc.credits_to_refill = victim_line->ipc;
 
 	/* copy back valid data */
 	for (flashpg = 0; flashpg < spp->flashpgs_per_blk; flashpg++) {
 		int ch, lun;
 
+		// @hk: point first 4K_page in a nand_page
 		ppa.g.pg = flashpg * spp->pgs_per_flashpg;
 		for (ch = 0; ch < spp->nchs; ch++) {
 			for (lun = 0; lun < spp->luns_per_ch; lun++) {
@@ -814,9 +924,14 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 static void foreground_gc(struct conv_ftl *conv_ftl)
 {
 	if (should_gc_high(conv_ftl)) {
-		NVMEV_DEBUG_VERBOSE("should_gc_high passed");
+		// NVMEV_INFO("should_gc_high passed");
 		/* perform GC here until !should_gc(conv_ftl) */
 		do_gc(conv_ftl, true);
+		// @jy:
+		// WAF logging
+		NVMEV_INFO("GC result: Data Units Written(%llu), Physical Media Units Written(%llu), WAF(*100)=%llu",
+                    conv_ftl->units_written[USER_IO], conv_ftl->units_written[USER_IO] + conv_ftl->units_written[GC_IO],
+                    ( ((conv_ftl->units_written[USER_IO] + conv_ftl->units_written[GC_IO])*100) / conv_ftl->units_written[USER_IO]));
 	}
 }
 
@@ -932,11 +1047,20 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 
 	struct nvme_command *cmd = req->cmd;
 	uint64_t lba = cmd->rw.slba;
+
+	// @jy: Extract DTYPE (bits 5-8)
+	uint8_t dtype = (cmd->rw.control >> 4) & 0xF;
+	// @jy: Extract DSPEC (bits 16-31)
+	uint16_t dspec = (cmd->rw.dsmgmt) >> 16 & 0xFFFF;
+	NVMEV_DEBUG_VERBOSE("[fdp debug] secs_per_pg=%d, slba=%lld, nlb=%d, dtype=%02x, dspec=%04x, cmd->rw.control=%04x, cmd->rw.dsmgmt=%08x",	spp->secs_per_pg, lba, cmd->rw.length, dtype, dspec, cmd->rw.control, cmd->rw.dsmgmt);
+	//NVMEV_INFO("[fdp debug] secs_per_pg=%d, slba=%lld, nlb=%d, dtype=%02x, dspec=%04x, cmd->rw.control=%04x, cmd->rw.dsmgmt=%08x",	spp->secs_per_pg, lba, cmd->rw.length, dtype, dspec, cmd->rw.control, cmd->rw.dsmgmt);
+
 	uint64_t nr_lba = (cmd->rw.length + 1);
 	uint64_t start_lpn = lba / spp->secs_per_pg;
 	uint64_t end_lpn = (lba + nr_lba - 1) / spp->secs_per_pg;
 
 	uint64_t lpn;
+	// @hk: nr_parts == 4 for 970PRO --> set 1
 	uint32_t nr_parts = ns->nr_parts;
 
 	uint64_t nsecs_latest;
@@ -950,13 +1074,19 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		.xfer_size = spp->pgsz * spp->pgs_per_oneshotpg,
 	};
 
+	// @hk:
+	// For -s 7, -z 65536:
+	// Logical Page: 16 (4KiB per l-page)
+	// LBA len: 128 (512byte per page)
 	NVMEV_DEBUG_VERBOSE("%s: start_lpn=%lld, len=%lld, end_lpn=%lld", __func__, start_lpn, nr_lba, end_lpn);
 	if ((end_lpn / nr_parts) >= spp->tt_pgs) {
+	NVMEV_ERROR("[fdp debug] secs_per_pg=%d, slba=%lld, nlb=%d, dtype=%02x, dspec=%04x, cmd->rw.control=%04x, cmd->rw.dsmgmt=%08x",	spp->secs_per_pg, lba, cmd->rw.length, dtype, dspec, cmd->rw.control, cmd->rw.dsmgmt);
 		NVMEV_ERROR("%s: lpn passed FTL range (start_lpn=%lld > tt_pgs=%ld)\n",
 				__func__, start_lpn, spp->tt_pgs);
 		return false;
 	}
 
+	// @hk: ?buffer
 	allocated_buf_size = buffer_allocate(wbuf, LBA_TO_BYTE(nr_lba));
 	if (allocated_buf_size < LBA_TO_BYTE(nr_lba))
 		return false;
@@ -974,8 +1104,9 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 
 		conv_ftl = &conv_ftls[lpn % nr_parts];
 		local_lpn = lpn / nr_parts;
-		ppa = get_maptbl_ent(
-			conv_ftl, local_lpn); // Check whether the given LPN has been written before
+
+		/* Check whether the given LPN has been written before */
+		ppa = get_maptbl_ent(conv_ftl, local_lpn);
 		if (mapped_ppa(&ppa)) {
 			/* update old page information first */
 			mark_page_invalid(conv_ftl, &ppa);
@@ -984,17 +1115,24 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		}
 
 		/* new write */
-		ppa = get_new_page(conv_ftl, USER_IO);
+		ppa = get_new_page(conv_ftl, dspec, USER_IO);
 		/* update maptbl */
 		set_maptbl_ent(conv_ftl, local_lpn, &ppa);
 		NVMEV_DEBUG("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));
 		/* update rmap */
 		set_rmap_ent(conv_ftl, local_lpn, &ppa);
+		/* update units_written */
+		// @hk-TODO:
+		// Note that the units_written is calc'd based on 4K page, Not NAND page size (maybe 32K)
+		// This should be corrected in the future
+		// @hk-TODO:
+		// Refactor to use macros for page size
+		conv_ftl->units_written[USER_IO] += KB(4);
 
 		mark_page_valid(conv_ftl, &ppa);
 
 		/* need to advance the write pointer here */
-		advance_write_pointer(conv_ftl, USER_IO);
+		advance_write_pointer(conv_ftl, dspec, USER_IO);
 
 		/* Aggregate write io in flash page */
 		if (last_pg_in_wordline(conv_ftl, &ppa)) {
@@ -1007,10 +1145,12 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 						    spp->pgs_per_oneshotpg * spp->pgsz);
 		}
 
+		// @hk: Reduce write credit & GC when write credit is 0
 		consume_write_credit(conv_ftl);
 		check_and_refill_write_credit(conv_ftl);
 	}
 
+	// @hk: Set completion time
 	if ((cmd->rw.control & NVME_RW_FUA) || (spp->write_early_completion == 0)) {
 		/* Wait all flash operations */
 		ret->nsecs_target = nsecs_latest;
@@ -1059,6 +1199,8 @@ bool conv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struc
 		break;
 	case nvme_cmd_flush:
 		conv_flush(ns, req, ret);
+		break;
+	case 0x12:
 		break;
 	default:
 		NVMEV_ERROR("%s: command not implemented: %s (0x%x)\n", __func__,

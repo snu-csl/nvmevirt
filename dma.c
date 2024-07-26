@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 
 #include "dma.h"
+#include "nvmev.h"
 
 // Size of the memcpy test buffer
 static unsigned int test_buf_size = 4096;

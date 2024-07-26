@@ -12,9 +12,9 @@
 #define CONFIG_NVMEV_IO_WORKER_BY_SQ
 #undef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 
-#undef CONFIG_NVMEV_VERBOSE
-#undef CONFIG_NVMEV_DEBUG
-#undef CONFIG_NVMEV_DEBUG_VERBOSE
+// #undef CONFIG_NVMEV_VERBOSE
+// #undef CONFIG_NVMEV_DEBUG
+// #undef CONFIG_NVMEV_DEBUG_VERBOSE
 
 /*
  * If CONFIG_NVMEVIRT_IDLE_TIMEOUT is set, sleep for a jiffie after
@@ -38,13 +38,14 @@
 #define NVMEV_SUBSYSTEM_VENDOR_ID NVMEV_VENDOR_ID
 
 #define NVMEV_INFO(string, args...) printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
+#define NVMEV_WARN(string, args...) printk(KERN_WARNING "%s: " string, NVMEV_DRV_NAME, ##args)
 #define NVMEV_ERROR(string, args...) printk(KERN_ERR "%s: " string, NVMEV_DRV_NAME, ##args)
 #define NVMEV_ASSERT(x) BUG_ON((!(x)))
 
 #ifdef CONFIG_NVMEV_DEBUG
-#define  NVMEV_DEBUG(string, args...) printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
+#define  NVMEV_DEBUG(string, args...) printk(KERN_INFO "%s{file: '%s', line: %d, func: '%s'}: " string, NVMEV_DRV_NAME, __FILE__, __LINE__, __func__, ##args)
 #ifdef CONFIG_NVMEV_DEBUG_VERBOSE
-#define  NVMEV_DEBUG_VERBOSE(string, args...) printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
+#define  NVMEV_DEBUG_VERBOSE(string, args...) printk(KERN_INFO "%s{file: '%s', line: %d, func: '%s'}: " string, NVMEV_DRV_NAME, __FILE__, __LINE__, __func__, ##args)
 #else
 #define  NVMEV_DEBUG_VERBOSE(string, args...)
 #endif
@@ -52,7 +53,6 @@
 #define NVMEV_DEBUG(string, args...)
 #define NVMEV_DEBUG_VERBOSE(string, args...)
 #endif
-
 
 #define NR_MAX_IO_QUEUE 72
 #define NR_MAX_PARALLEL_IO 16384
@@ -302,6 +302,7 @@ void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev);
 bool nvmev_proc_bars(void);
 bool NVMEV_PCI_INIT(struct nvmev_dev *dev);
 void nvmev_signal_irq(int msi_index);
+void nvmev_signal_irq_muted(int msi_index);
 
 // OPS ADMIN QUEUE
 void nvmev_proc_admin_sq(int new_db, int old_db);

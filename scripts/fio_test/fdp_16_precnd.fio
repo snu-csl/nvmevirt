@@ -1,0 +1,106 @@
+[global]
+ioengine=io_uring_cmd
+rw=write
+group_reporting
+filename=/dev/ng0n1
+fdp=1
+bs=128k
+iodepth=512
+
+# Define 16 jobs for each placement handle for precondition
+[job0]
+name=Write to Zone 0
+size=1G
+offset=0
+fdp_pli=${RUH0}
+
+[job1]
+name=Write to Zone 1
+size=1G
+offset=1G
+fdp_pli=${RUH1}
+
+[job2]
+name=Write to Zone 2
+size=1G
+offset=2G
+fdp_pli=${RUH2}
+
+[job3]
+name=Write to Zone 3
+size=1G
+offset=3G
+fdp_pli=${RUH3}
+
+[job4]
+name=Write to Zone 4
+size=1G
+offset=4G
+fdp_pli=${RUH4}
+
+[job5]
+name=Write to Zone 5
+size=1G
+offset=5G
+fdp_pli=${RUH5}
+
+[job6]
+name=Write to Zone 6
+size=1G
+offset=6G
+fdp_pli=${RUH6}
+
+[job7]
+name=Write to Zone 7
+size=1G
+offset=7G
+fdp_pli=${RUH7}
+
+[job8]
+name=Write to Zone 8
+size=1G
+offset=8G
+fdp_pli=${RUH8}
+
+[job9]
+name=Write to Zone 9
+size=1G
+offset=9G
+fdp_pli=${RUH9}
+
+[job10]
+name=Write to Zone 10
+size=1G
+offset=10G
+fdp_pli=${RUH10}
+
+[job11]
+name=Write to Zone 11
+size=1G
+offset=11G
+fdp_pli=${RUH11}
+
+[job12]
+name=Write to Zone 12
+size=1G
+offset=12G
+fdp_pli=${RUH12}
+
+[job13]
+name=Write to Zone 13
+size=1G
+offset=13G
+fdp_pli=${RUH13}
+
+[job14]
+name=Write to Zone 14
+size=1G
+offset=14G
+fdp_pli=${RUH14}
+
+[job15]
+name=Write to Zone 15
+size=1G
+offset=15G
+fdp_pli=${RUH15}
+

@@ -1,0 +1,19 @@
+[global]
+ioengine=io_uring_cmd
+rw=write
+bs=128k
+size=100%
+filename=/dev/ng0n1
+iodepth=512
+norandommap
+randrepeat=0
+refill_buffers
+overwrite=1
+
+fdp=1
+fdp_pli_select=random
+fdp_pli=0,1,2,3,4,5,6,7
+
+[seq_write_fdp]
+name=Sequential_Write_FDP
+description=Sequentially writing to the entire device with FDP, RUH chosen randomly

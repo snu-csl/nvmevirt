@@ -208,6 +208,10 @@ struct ssdparams {
 	unsigned long tt_luns; /* total # of LUNs in the SSD */
 
 	unsigned long long write_buffer_size;
+
+    // @jy:
+    // number of Reclaim Unit Handle
+    int ruhs; /* # of ruhs in fdp */
 };
 
 struct ssd {
@@ -250,6 +254,9 @@ static inline struct nand_page *get_pg(struct ssd *ssd, struct ppa *ppa)
 static inline uint32_t get_cell(struct ssd *ssd, struct ppa *ppa)
 {
 	struct ssdparams *spp = &ssd->sp;
+	// @jy:
+	// MLC - MSB LSB, should mod by 2
+	// TLC - MSB CSB LSB, should mod by 3
 	return (ppa->g.pg / spp->pgs_per_flashpg) % (spp->cell_mode);
 }
 

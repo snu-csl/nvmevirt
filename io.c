@@ -22,7 +22,8 @@ struct buffer;
 
 extern bool io_using_dma;
 
-static inline unsigned int __get_io_worker(int sqid)
+__attribute__((no_instrument_function))
+static inline unsigned int __get_io_worker_muted(int sqid)
 {
 #ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
 	return (sqid - 1) % nvmev_vdev->config.nr_io_workers;
@@ -31,9 +32,18 @@ static inline unsigned int __get_io_worker(int sqid)
 #endif
 }
 
-static inline unsigned long long __get_wallclock(void)
+static inline unsigned int __get_io_worker(int sqid) {
+    return __get_io_worker_muted(sqid);
+}
+
+__attribute__((no_instrument_function))
+static inline unsigned long long __get_wallclock_muted(void)
 {
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
+}
+
+static inline unsigned long long __get_wallclock(void) {
+    return __get_wallclock_muted();
 }
 
 static inline size_t __cmd_io_offset(struct nvme_rw_command *cmd)
@@ -49,7 +59,42 @@ static inline size_t __cmd_io_size(struct nvme_rw_command *cmd)
 static unsigned int __do_perform_io(int sqid, int sq_entry)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
+
+	/**
+	@hk: sq debug logs
+	NVMEV_INFO("----- BEGIN SQ INFO -----");
+	NVMEV_INFO("sq_entry:             %d", sq_entry);
+	NVMEV_INFO("PAGE_SIZE:            %d", PAGE_SIZE);
+	NVMEV_INFO("sizeof(nvme_command): %d", sizeof(struct nvme_command));
+	NVMEV_INFO("sq index #0:          %d (%d / (%d / %d))", (sq_entry / (PAGE_SIZE / sizeof(struct nvme_command))), sq_entry, PAGE_SIZE, sizeof(struct nvme_command));
+	NVMEV_INFO("sq index #1:          %d (%d %% (%d / %d))", (sq_entry % (PAGE_SIZE / sizeof(struct nvme_command))), sq_entry, PAGE_SIZE, sizeof(struct nvme_command));
+	NVMEV_INFO("sq index:             sq[%d][%d]", (sq_entry / (PAGE_SIZE / sizeof(struct nvme_command))), (sq_entry % (PAGE_SIZE / sizeof(struct nvme_command))));
+	NVMEV_INFO("----- END SQ INFO -----");
+	*/
+
 	struct nvme_rw_command *cmd = &sq_entry(sq_entry).rw;
+
+	/**
+	@hk: cmd debug logs
+	NVMEV_INFO("----- BEGIN CMD INFO -----");
+	NVMEV_INFO("__u8    opcode;       %02x",    cmd->opcode);
+	NVMEV_INFO("__u8    flags;        %02x",    cmd->flags);
+	NVMEV_INFO("__u16   command_id;   %04x",    cmd->command_id);
+	NVMEV_INFO("__le32  nsid;         %08x",    cmd->nsid);
+	NVMEV_INFO("__u64   rsvd2;        %016lx",  cmd->rsvd2);
+	NVMEV_INFO("__le64  metadata;     %016lx",  cmd->metadata);
+	NVMEV_INFO("__le64  prp1;         %016lx",  cmd->prp1);
+	NVMEV_INFO("__le64  prp2;         %016lx",  cmd->prp2);
+	NVMEV_INFO("__le64  slba;         %016lx",  cmd->slba);
+	NVMEV_INFO("__le16  length;       %04x",    cmd->length);
+	NVMEV_INFO("__le16  control;      %04x",    cmd->control);
+	NVMEV_INFO("__le32  dsmgmt;       %08x",    cmd->dsmgmt);
+	NVMEV_INFO("__le32  reftag;       %08x",    cmd->reftag);
+	NVMEV_INFO("__le16  apptag;       %04x",    cmd->apptag);
+	NVMEV_INFO("__le16  appmask;      %04x",    cmd->appmask);
+	NVMEV_INFO("----- END CMD INFO -----");
+	*/
+
 	size_t offset;
 	size_t length, remaining;
 	int prp_offs = 0;
@@ -93,6 +138,18 @@ static unsigned int __do_perform_io(int sqid, int sq_entry)
 
 		if (cmd->opcode == nvme_cmd_write ||
 		    cmd->opcode == nvme_cmd_zone_append) {
+			// @hk:
+			// Actual IO is done w/ slba (no line/lun/blk/page involved)
+			// `nvmev_vdev->ns[nsid].mapped`:  @see `conv_init_namespace()`, `NVMEV_NAMESPACE_INIT()`, `NVMEV_STORAGE_INIT()`
+			// `offset`:                       @see `__cmd_io_offset()`
+			/**
+			@hk Memmory copy debug log
+			NVMEV_INFO("----- BEGIN MEMCPY INFO -----");
+			NVMEV_INFO("src:    ns[].mapped + offset:   %p (%p + %zu)", nvmev_vdev->ns[nsid].mapped + offset, nvmev_vdev->ns[nsid].mapped, offset);
+			NVMEV_INFO("dst:    vaddr + mem_offs:       %p (%p + %zu)", vaddr + mem_offs, vaddr, mem_offs);
+			NVMEV_INFO("size:   io_size:                %zu", io_size);
+			NVMEV_INFO("----- END MEMCPY INFO -----");
+			*/
 			memcpy(nvmev_vdev->ns[nsid].mapped + offset, vaddr + mem_offs, io_size);
 		} else if (cmd->opcode == nvme_cmd_read) {
 			memcpy(vaddr + mem_offs, nvmev_vdev->ns[nsid].mapped + offset, io_size);
@@ -113,6 +170,7 @@ static unsigned int __do_perform_io(int sqid, int sq_entry)
 static u64 paddr_list[513] = {
 	0,
 }; // Not using index 0 to make max index == num_prp
+
 static unsigned int __do_perform_io_using_dma(int sqid, int sq_entry)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
@@ -248,7 +306,6 @@ static void __insert_req_sorted(unsigned int entry, struct nvmev_io_worker *work
 		} else { /* In between */
 			worker->work_queue[entry].prev = curr;
 			worker->work_queue[entry].next = worker->work_queue[curr].next;
-
 			worker->work_queue[worker->work_queue[entry].next].prev = entry;
 			worker->work_queue[curr].next = entry;
 		}
@@ -433,6 +490,9 @@ static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size)
 	static unsigned long long counter = 0;
 #endif
 
+	// @hk
+	// `ns->proc_io_cmd()` == `conv_proc_nvme_io_cmd()` for conv ssd mode
+	// @see `conv_init_namespace()`
 	if (!ns->proc_io_cmd(ns, &req, &ret))
 		return false;
 	*io_size = __cmd_io_size(&sq_entry(sq_entry).rw);
@@ -490,6 +550,7 @@ int nvmev_proc_io_sq(int sqid, int new_db, int old_db)
 		if (++sq_entry == sq->queue_size) {
 			sq_entry = 0;
 		}
+		// @hk: sq->stat usage?
 		sq->stat.nr_dispatched++;
 		sq->stat.nr_in_flight++;
 		sq->stat.total_io += io_size;
@@ -573,7 +634,7 @@ static int nvmev_io_worker(void *data)
 		   cpu_to_node(smp_processor_id()));
 
 	while (!kthread_should_stop()) {
-		unsigned long long curr_nsecs_wall = __get_wallclock();
+		unsigned long long curr_nsecs_wall = __get_wallclock_muted();
 		unsigned long long curr_nsecs_local = local_clock();
 		long long delta = curr_nsecs_wall - curr_nsecs_local;
 
@@ -657,7 +718,7 @@ static int nvmev_io_worker(void *data)
 			struct nvmev_completion_queue *cq = nvmev_vdev->cqes[qidx];
 
 #ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
-			if ((worker->id) != __get_io_worker(qidx))
+			if ((worker->id) != __get_io_worker_muted(qidx))
 				continue;
 #endif
 			if (cq == NULL || !cq->irq_enabled)
@@ -669,7 +730,7 @@ static int nvmev_io_worker(void *data)
 					prev_clock = local_clock();
 #endif
 					cq->interrupt_ready = false;
-					nvmev_signal_irq(cq->irq_vector);
+					nvmev_signal_irq_muted(cq->irq_vector);
 
 #ifdef PERF_DEBUG
 					intr_clock[qidx] += (local_clock() - prev_clock);

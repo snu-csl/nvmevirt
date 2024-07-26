@@ -1,0 +1,17 @@
+[global]
+ioengine=io_uring_cmd
+rw=randread
+bs=4k
+invalidate=1
+end_fsync=0
+size=100%
+filename=/dev/ng0n1
+iodepth=512
+norandommap
+randrepeat=0
+refill_buffers
+overwrite=1
+
+[ran_read]
+name=Random_Read
+description=Randomly reading the entire device

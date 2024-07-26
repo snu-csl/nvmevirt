@@ -1,0 +1,19 @@
+[global]
+ioengine=io_uring_cmd
+rw=randwrite
+bs=4k
+invalidate=1
+end_fsync=0
+size=100%
+filename=/dev/ng0n1
+iodepth=512
+norandommap
+randrepeat=0
+refill_buffers
+overwrite=1
+
+loops=2
+
+[ran_write]
+name=Random_Write
+description=Randomly writing to the entire device

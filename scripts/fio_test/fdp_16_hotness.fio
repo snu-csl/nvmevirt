@@ -1,0 +1,138 @@
+[global]
+ioengine=io_uring_cmd
+rw=randwrite
+group_reporting
+filename=/dev/ng0n1
+fdp=1
+time_based
+runtime=${TIME}
+
+# Define 16 jobs for each placement handle
+# with varying hotness and incrementing thinktime
+[job0]
+name=Write to Zone 0
+bs=4k
+size=1G
+offset=0
+fdp_pli=${RUH0}
+
+[job1]
+name=Write to Zone 1
+bs=4k
+size=1G
+offset=1G
+fdp_pli=${RUH1}
+thinktime=1
+
+[job2]
+name=Write to Zone 2
+bs=4k
+size=1G
+offset=2G
+fdp_pli=2 % ${RUH2}
+thinktime=5
+
+[job3]
+name=Write to Zone 3
+bs=8k
+size=1G
+offset=3G
+fdp_pli=${RUH3}
+thinktime=10
+
+[job4]
+name=Write to Zone 4
+bs=8k
+size=1G
+offset=4G
+fdp_pli=${RUH4}
+thinktime=20
+
+[job5]
+name=Write to Zone 5
+bs=8k
+size=1G
+offset=5G
+fdp_pli=${RUH5}
+thinktime=50
+
+[job6]
+name=Write to Zone 6
+bs=16k
+size=1G
+offset=6G
+fdp_pli=${RUH6}
+thinktime=100
+
+[job7]
+name=Write to Zone 7
+bs=16k
+size=1G
+offset=7G
+fdp_pli=${RUH7}
+thinktime=200
+
+[job8]
+name=Write to Zone 8
+bs=16k
+size=1G
+offset=8G
+fdp_pli=${RUH8}
+thinktime=500
+
+[job9]
+name=Write to Zone 9
+bs=32k
+size=1G
+offset=9G
+fdp_pli=${RUH9}
+thinktime=1ms
+
+[job10]
+name=Write to Zone 10
+bs=32k
+size=1G
+offset=10G
+fdp_pli=${RUH10}
+thinktime=1s
+
+[job11]
+name=Write to Zone 11
+bs=32k
+size=1G
+offset=11G
+fdp_pli=${RUH11}
+thinktime=2s
+
+[job12]
+name=Write to Zone 12
+bs=64k
+size=1G
+offset=12G
+fdp_pli=${RUH12}
+thinktime=5s
+
+[job13]
+name=Write to Zone 13
+bs=64k
+size=1G
+offset=13G
+fdp_pli=${RUH13}
+thinktime=10s
+
+[job14]
+name=Write to Zone 14
+bs=64k
+size=1G
+offset=14G
+fdp_pli=${RUH14}
+thinktime=30s
+
+[job15]
+name=Write to Zone 15
+bs=128k
+size=1G
+offset=15G
+fdp_pli=${RUH15}
+thinktime=1m
+

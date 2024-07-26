@@ -1,0 +1,15 @@
+[global]
+ioengine=io_uring_cmd
+rw=write
+bs=128k
+size=100%
+filename=/dev/ng0n1
+iodepth=512
+norandommap
+randrepeat=0
+refill_buffers
+overwrite=1
+
+[seq_write]
+name=Sequential_Write
+description=Sequentially writing to the entire device

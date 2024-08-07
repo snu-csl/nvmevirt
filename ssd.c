@@ -20,6 +20,8 @@ void buffer_init(struct buffer *buf, size_t size)
 
 uint32_t buffer_allocate(struct buffer *buf, size_t size)
 {
+	NVMEV_ASSERT(size <= buf->size);
+
 	while (!spin_trylock(&buf->lock)) {
 		cpu_relax();
 	}

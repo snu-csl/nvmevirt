@@ -134,9 +134,23 @@ crw------- 1 root root 242, 0 Feb 22 14:13 /dev/nvme0
 brw-rw---- 1 root disk 259, 5 Feb 22 14:13 /dev/nvme0n1
 ```
 
+## Contributing
+When contributing to this repository, please first discuss the change you wish to make via [issues](https://github.com/snu-csl/nvmevirt/issues) or email(nvmevirt@gmail.com) before making a change.
+
+### Pull Requests
+1. Create a personal fork of the project on Github.
+2. Clone the fork on your local machine.
+3. Implement/fix your feature, comment your code.
+4. Follow the code style of this project, including indentation.
+5. Run tests using [nvmev-evaluation](https://github.com/snu-csl/nvmev-evaluation).
+6. From your fork open a pull request in our `main` branch!
+7. Please wait for the maintainer's review.
+
 
 ## License
 
 NVMeVirt is offered under the terms of the GNU General Public License version 2 as published by the Free Software Foundation. More information about this license can be found [here](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
 
 Priority queue implementation [`pqueue/`](pqueue/) is offered under the terms of the BSD 2-clause license (GPL-compatible). (Copyright (c) 2014, Volkan Yazıcı <volkan.yazici@gmail.com>. All rights reserved.)
+
+

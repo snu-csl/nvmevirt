@@ -102,6 +102,7 @@ struct nvmev_submission_queue {
 	struct nvmev_sq_stat stat;
 
 	struct nvme_command __iomem **sq;
+	void *mapped;
 };
 
 struct nvmev_completion_queue {
@@ -121,6 +122,7 @@ struct nvmev_completion_queue {
 	int cq_tail;
 
 	struct nvme_completion __iomem **cq;
+	void *mapped;
 };
 
 struct nvmev_admin_queue {

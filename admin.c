@@ -77,8 +77,15 @@ static void __nvmev_admin_create_cq(int eid)
 
 	num_pages = DIV_ROUND_UP(cq->queue_size * sizeof(struct nvme_completion), PAGE_SIZE);
 	cq->cq = kzalloc(sizeof(struct nvme_completion *) * num_pages, GFP_KERNEL);
-	for (i = 0; i < num_pages; i++) {
-		cq->cq[i] = prp_address_offset(cmd->prp1, i);
+
+	if (pfn_valid(cmd->prp1 >> PAGE_SHIFT)) {
+		cq->mapped = NULL;
+		for (i = 0; i < num_pages; i++)
+			cq->cq[i] = prp_address_offset(cmd->prp1, i);
+	} else {
+		cq->mapped = memremap(cmd->prp1, num_pages * PAGE_SIZE, MEMREMAP_WT);
+		for (i = 0; i < num_pages; i++)
+			cq->cq[i] = (void *)((uint64_t)cq->mapped + i * PAGE_SIZE);
 	}
 
 	nvmev_vdev->cqes[cq->qid] = cq;
@@ -102,6 +109,8 @@ static void __nvmev_admin_delete_cq(int eid)
 
 	if (cq) {
 		kfree(cq->cq);
+		if (cq->mapped)
+			memunmap(cq->mapped);
 		kfree(cq);
 	}
 
@@ -131,9 +140,16 @@ static void __nvmev_admin_create_sq(int eid)
 	num_pages = DIV_ROUND_UP(sq->queue_size * sizeof(struct nvme_command), PAGE_SIZE);
 	sq->sq = kzalloc(sizeof(struct nvme_command *) * num_pages, GFP_KERNEL);
 
-	for (i = 0; i < num_pages; i++) {
-		sq->sq[i] = prp_address_offset(cmd->prp1, i);
+	if (pfn_valid(cmd->prp1 >> PAGE_SHIFT)) {
+		sq->mapped = NULL;
+		for (i = 0; i < num_pages; i++)
+			sq->sq[i] = prp_address_offset(cmd->prp1, i);
+	} else {
+		sq->mapped = memremap(cmd->prp1, num_pages * PAGE_SIZE, MEMREMAP_WT);
+		for (i = 0; i < num_pages; i++)
+			sq->sq[i] = (void *)((uint64_t)sq->mapped + i * PAGE_SIZE);
 	}
+
 	nvmev_vdev->sqes[sq->qid] = sq;
 
 	dbs_idx = sq->qid * 2;
@@ -157,6 +173,8 @@ static void __nvmev_admin_delete_sq(int eid)
 
 	if (sq) {
 		kfree(sq->sq);
+		if (sq->mapped)
+			memunmap(sq->mapped);
 		kfree(sq);
 	}
 

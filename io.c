@@ -535,10 +535,13 @@ static void __fill_cq_result(struct nvmev_io_work *w)
 	unsigned int result1 = w->result1;
 
 	struct nvmev_completion_queue *cq = nvmev_vdev->cqes[cqid];
-	int cq_head = cq->cq_head;
-	struct nvme_completion *cqe = &cq_entry(cq_head);
+	struct nvme_completion *cqe;
+	int cq_head;
 
 	spin_lock(&cq->entry_lock);
+	cq_head = cq->cq_head;
+	cqe = &cq_entry(cq_head);
+
 	cqe->command_id = command_id;
 	cqe->sq_id = sqid;
 	cqe->sq_head = sq_entry;

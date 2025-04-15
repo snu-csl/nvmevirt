@@ -217,6 +217,7 @@ bool nvmev_proc_bars(void)
 		queue->nvme_cq = kcalloc(num_pages, sizeof(struct nvme_completion *), GFP_KERNEL);
 		BUG_ON(!queue->nvme_cq && "Error on setup admin completion queue");
 		queue->cq_head = 0;
+		queue->phase = 1;
 
 		for (i = 0; i < num_pages; i++) {
 			queue->nvme_cq[i] =

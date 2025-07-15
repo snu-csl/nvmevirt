@@ -75,10 +75,20 @@ static struct ioat_dma_info {
 	.lock = __MUTEX_INITIALIZER(test_info.lock),
 };
 
+struct ioat_dma_done {
+	bool			done;
+	wait_queue_head_t	*wait;
+};
+
 struct ioat_dma_thread {
 	struct ioat_dma_info *info;
 	struct dma_chan *chan;
 	enum dma_transaction_type type;
+	wait_queue_head_t done_wait;
+	struct ioat_dma_done test_done;
+	bool			done;
+	bool			pending;
+
 };
 
 struct ioat_dma_chan {
@@ -108,6 +118,27 @@ static bool ioat_dma_match_device(struct ioat_dma_params *params, struct dma_dev
 	return strcmp(dev_name(device->dev), params->device) == 0;
 }
 
+static void ioat_dma_callback(void *arg)
+{
+	struct ioat_dma_done *done = arg;
+	struct ioat_dma_thread *thread =
+		container_of(done, struct ioat_dma_thread, test_done);
+	if (!thread->done) {
+		done->done = true;
+		wake_up_all(done->wait);
+	} else {
+		/*
+		 * If thread->done, it means that this callback occurred
+		 * after the parent thread has cleaned up. This can
+		 * happen in the case that driver doesn't implement
+		 * the terminate_all() functionality and a dma operation
+		 * did not occur within the timeout period
+		 */
+		WARN(1, "ioat_dma_callback: Kernel memory may be corrupted!!\n");
+	}
+}
+
+
 static void result(const char *err, unsigned int n, dma_addr_t src_addr, dma_addr_t dst_addr,
 		   unsigned int len, unsigned long data)
 {
@@ -118,9 +149,11 @@ static void result(const char *err, unsigned int n, dma_addr_t src_addr, dma_add
 int ioat_dma_submit(dma_addr_t src_addr, dma_addr_t dst_addr, unsigned int size)
 {
 	struct ioat_dma_thread *thread = &dma_thread;
+	struct ioat_dma_done	*done = &thread->test_done;
 	struct ioat_dma_info *info;
 	struct dma_chan *chan;
 	struct dma_device *dev;
+	struct ioat_dma_params *params;
 	dma_cookie_t cookie;
 	enum dma_status status;
 	enum dma_ctrl_flags flags = DMA_CTRL_ACK; /* Always use polled mode */
@@ -136,8 +169,13 @@ int ioat_dma_submit(dma_addr_t src_addr, dma_addr_t dst_addr, unsigned int size)
 
 	smp_rmb();
 	info = thread->info;
+	params = &info->params;
 	chan = thread->chan;
 	dev = chan->device;
+
+	if (!params->polled) {
+		flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
+	}
 
 	/* thread->type is always DMA_MEMCPY */
 	tx = dev->device_prep_dma_memcpy(chan, dst_addr, src_addr, size, flags);
@@ -148,6 +186,11 @@ int ioat_dma_submit(dma_addr_t src_addr, dma_addr_t dst_addr, unsigned int size)
 		goto out;
 	}
 
+	done->done = false;
+	if (!params->polled) {
+		tx->callback = ioat_dma_callback;
+		tx->callback_param = done;
+	}
 	cookie = tx->tx_submit(tx);
 
 	if (dma_submit_error(cookie)) {
@@ -156,12 +199,28 @@ int ioat_dma_submit(dma_addr_t src_addr, dma_addr_t dst_addr, unsigned int size)
 		goto out;
 	}
 
-	/* Always use polled mode */
-	status = dma_sync_wait(chan, cookie);
-	dmaengine_terminate_sync(chan);
+	if (params->polled) {
+		status = dma_sync_wait(chan, cookie);
+		dmaengine_terminate_sync(chan);
+		if (status == DMA_COMPLETE)
+			done->done = true;
+	} else {
+		dma_async_issue_pending(chan);
 
-	if (status != DMA_COMPLETE &&
-	    !(dma_has_cap(DMA_COMPLETION_NO_ORDER, dev->cap_mask) && status == DMA_OUT_OF_ORDER)) {
+		wait_event_freezable_timeout(thread->done_wait,
+				done->done,
+				msecs_to_jiffies(params->timeout));
+
+		status = dma_async_is_tx_complete(chan, cookie, NULL, NULL);
+	}
+
+	if (!done->done) {
+		result("DMA timeout error", 1, src_addr, dst_addr, size, ret);
+		goto out;
+	} else if (status != DMA_COMPLETE &&
+			!(dma_has_cap(DMA_COMPLETION_NO_ORDER,
+					dev->cap_mask) &&
+				status == DMA_OUT_OF_ORDER)) {
 		result(status == DMA_ERROR ? "completion error status" : "completion busy status",
 		       1, src_addr, dst_addr, size, ret);
 		goto out;
@@ -204,6 +263,8 @@ static int ioat_dma_add_channel(struct ioat_dma_info *info, struct dma_chan *cha
 		dma_thread.info = info;
 		dma_thread.chan = dtc->chan;
 		dma_thread.type = DMA_MEMCPY;
+		dma_thread.test_done.wait = &dma_thread.done_wait;
+		init_waitqueue_head(&dma_thread.done_wait);
 	}
 
 	pr_info("Added %u threads using %s\n", thread_count, dma_chan_name(chan));
@@ -283,14 +344,14 @@ int ioat_dma_chan_set(const char *val)
 	/* Check if channel was added successfully */
 	if (!list_empty(&info->channels)) {
 		/*
-		 * if new channel was not successfully added, revert the
-		 * "test_channel" string to the name of the last successfully
-		 * added channel. exception for when users issues empty string
-		 * to channel parameter.
-		 */
+		* if new channel was not successfully added, revert the
+		* "test_channel" string to the name of the last successfully
+		* added channel. exception for when users issues empty string
+		* to channel parameter.
+		*/
 		dtc = list_last_entry(&info->channels, struct ioat_dma_chan, node);
 		if ((strcmp(dma_chan_name(dtc->chan), strim(test_channel)) != 0) &&
-		    (strcmp("", strim(test_channel)) != 0)) {
+			(strcmp("", strim(test_channel)) != 0)) {
 			ret = -EINVAL;
 			pr_err("ERROR on DMA engine %d\n", __LINE__);
 			goto add_chan_err;

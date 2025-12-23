@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/vmalloc.h>
 #include <linux/ktime.h>
 #include <linux/sched/clock.h>
 

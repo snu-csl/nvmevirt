@@ -213,8 +213,11 @@ static int __validate_configs_arch(void)
 	resv_start_bytes = memmap_start;
 	resv_end_bytes = resv_start_bytes + memmap_size - 1;
 
-	if (e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RAM) ||
-	    e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RESERVED_KERN)) {
+	if (e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RAM)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 15, 0)
+	    || e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RESERVED_KERN)
+#endif
+	) {
 		NVMEV_ERROR("[mem %#010lx-%#010lx] is usable, not reseved region\n",
 			    (unsigned long)resv_start_bytes, (unsigned long)resv_end_bytes);
 		return -EPERM;

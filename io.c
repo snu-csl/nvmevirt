@@ -341,6 +341,8 @@ static void __enqueue_io_req(int sqid, int cqid, int sq_entry, unsigned long lon
 	w->nsecs_enqueue = local_clock();
 	w->nsecs_target = ret->nsecs_target;
 	w->status = ret->status;
+	w->result0 = (unsigned int)(ret->result & 0xFFFFFFFF);
+	w->result1 = (unsigned int)(ret->result >> 32);
 	w->is_completed = false;
 	w->is_copied = false;
 	w->prev = -1;

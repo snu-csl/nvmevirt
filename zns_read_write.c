@@ -87,6 +87,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	if (cmd->opcode == nvme_cmd_zone_append) {
 		slba = zone_descs[zid].wp;
 		cmd->slba = slba;
+		ret->result = slba;
 	}
 
 	slpn = lba_to_lpn(zns_ftl, slba);

@@ -213,12 +213,21 @@ static int __validate_configs_arch(void)
 	resv_start_bytes = memmap_start;
 	resv_end_bytes = resv_start_bytes + memmap_size - 1;
 
-	if (e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RAM) ||
-	    e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RESERVED_KERN)) {
+	if (e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RAM)) {
 		NVMEV_ERROR("[mem %#010lx-%#010lx] is usable, not reseved region\n",
 			    (unsigned long)resv_start_bytes, (unsigned long)resv_end_bytes);
 		return -EPERM;
 	}
+
+	// check whether the kernel supports E820_TYPE_RESERVED_KERN first
+	// https://lore.kernel.org/all/20250214090651.3331663-5-rppt@kernel.org/
+#ifdef E820_TYPE_RESERVED_KERN
+	if (e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RESERVED_KERN)) {
+		NVMEV_ERROR("[mem %#010lx-%#010lx] is reserved kernel region\n",
+			    (unsigned long)resv_start_bytes, (unsigned long)resv_end_bytes);
+		return -EPERM;
+	}
+#endif
 
 	if (!e820__mapped_any(resv_start_bytes, resv_end_bytes, E820_TYPE_RESERVED)) {
 		NVMEV_ERROR("[mem %#010lx-%#010lx] is not reseved region\n",
